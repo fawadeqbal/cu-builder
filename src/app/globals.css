@@ -365,6 +365,12 @@ body {
   margin: 10mm 12mm 12mm;
 }
 
+@media screen {
+  .print-only {
+    display: none;
+  }
+}
+
 @media print {
   html,
   body {
@@ -373,24 +379,7 @@ body {
   .no-print {
     display: none !important;
   }
-  .app,
-  .app-main,
-  .preview-pane {
-    display: block !important;
-    height: auto !important;
-    overflow: visible !important;
-    padding: 0 !important;
-    background: none !important;
-  }
-  .preview-frame {
-    height: auto !important;
-    overflow: visible !important;
-  }
-  .preview-scale {
-    transform: none !important;
-    margin: 0 !important;
-  }
-  .paper {
+  .print-only .paper {
     width: auto;
     min-height: 0;
     padding: 0;

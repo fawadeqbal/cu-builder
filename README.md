@@ -4,22 +4,30 @@ Write your CV once, switch between templates, and download a clean A4 PDF. Built
 
 **Live:** https://fawadeqbal.github.io/cu-builder/
 
-![Classic template](docs/classic.png)
+![Welcome screen](docs/welcome.png)
+
+## How it works
+
+1. **Start.** Create a new CV, begin from an example, or import a saved backup.
+2. **Fill it in, one step at a time.** Details → Summary → Experience → Education → Skills → Projects → Extras. Each step has short tips, and the live preview updates as you type.
+3. **Choose a design and download.** Pick a template, run the CV check, and download an A4 PDF.
+
+![Experience step](docs/step.png)
 
 ## Features
 
-- **Live editor.** Personal details, summary, work experience, projects, skills, education, certificates and languages. The preview updates as you type.
+- **Step-by-step wizard** with a progress bar. Jump to any step, skip optional ones, and get checks on the required fields (name, job title, email).
+- **Helpful inputs.** Summary starters with a word counter, quick-add skill groups, example placeholders and tips in every step.
 - **Two templates.**
   - **Classic:** Europass style, with section labels in a left column, a blue accent and justified text.
-  - **Modern:** serif name, contact block on the right, and a two-column body with a side panel for skills and education.
-- **PDF export.** Uses the browser's print engine, so the text stays selectable and links stay clickable.
-- **Page counter.** An approximate page count, so you can keep your CV to one or two pages.
-- **Auto-save.** Your CV is stored in your browser (`localStorage`). There is no server or account.
-- **Import / export JSON.** Back up your CV, move it to another computer, or keep several versions.
-- **Reorder anything.** Move entries up and down, add new ones or remove them.
-- **Works on phones.** Separate Edit and Preview tabs.
+  - **Modern:** serif name, contact block on the right, and a two-column body with a side panel.
+- **CV check** before download, with links to fix anything missing.
+- **PDF export** through the browser's print engine, so the text stays selectable and links stay clickable.
+- **Auto-save** in your browser (`localStorage`). There is no server or account, and you continue where you left off.
+- **Backup files.** Save and import your CV as JSON.
+- **Mobile friendly,** with a full-screen preview on phones.
 
-![Modern template](docs/modern.png)
+![Download step](docs/finish.png)
 
 ## Getting started
 
@@ -48,14 +56,18 @@ src/
 │   ├── layout.tsx         # fonts (Inter, Source Serif 4) and metadata
 │   └── page.tsx
 ├── components/
-│   ├── Builder.tsx        # toolbar, template switch, import/export, PDF, auto-save
+│   ├── Builder.tsx        # app shell: welcome or wizard, preview, import/export, PDF, auto-save
 │   ├── BuilderLoader.tsx  # client-only loading (reads localStorage)
-│   ├── Editor.tsx         # all form sections
-│   ├── fields.tsx         # inputs, panels and list item cards
+│   ├── Welcome.tsx        # start screen
+│   ├── Wizard.tsx         # progress bar, step content, tips, validation, Back/Next
+│   ├── sections.tsx       # the form for each step
+│   ├── FinishStep.tsx     # template picker, CV check, download
+│   ├── fields.tsx         # inputs and list item cards
 │   └── Preview.tsx        # scaled A4 preview and page counter
 ├── lib/
 │   ├── cv.ts              # helpers, JSON validation, storage, template list
-│   ├── sample.ts          # example CV shown on first visit
+│   ├── sample.ts          # example CV
+│   ├── steps.ts           # wizard steps, titles and tips
 │   └── types.ts           # CV data types
 └── templates/
     ├── ClassicTemplate.tsx

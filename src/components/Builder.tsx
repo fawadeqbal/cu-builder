@@ -1,18 +1,39 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { emptyCV, loadSaved, normalizeCV, save, TEMPLATES, type Saved } from "@/lib/cv";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { emptyCV, loadSaved, normalizeCV, save, type Saved } from "@/lib/cv";
 import { sampleCV } from "@/lib/sample";
+import { STEPS } from "@/lib/steps";
 import type { CV, TemplateId } from "@/lib/types";
-import { Editor } from "./Editor";
+import { CVDocument } from "@/templates";
 import { Preview } from "./Preview";
+import { Welcome } from "./Welcome";
+import { Wizard } from "./Wizard";
+
+const DESKTOP = "(min-width: 1024px)";
+
+function useIsDesktop() {
+  return useSyncExternalStore(
+    (onChange) => {
+      const mq = window.matchMedia(DESKTOP);
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia(DESKTOP).matches,
+    () => true,
+  );
+}
+
+const FRESH: Saved = { cv: emptyCV, template: "classic", step: 0, started: false };
 
 export default function Builder() {
   // Rendered on the client only (see BuilderLoader), so reading localStorage here is safe.
-  const [state, setState] = useState<Saved>(() => loadSaved() ?? { cv: sampleCV, template: "classic" });
-  const [tab, setTab] = useState<"edit" | "preview">("edit");
+  const [state, setState] = useState<Saved>(() => loadSaved() ?? FRESH);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDetailsElement>(null);
+  const isDesktop = useIsDesktop();
 
   useEffect(() => {
     save(state);
@@ -24,13 +45,14 @@ export default function Builder() {
     return () => clearTimeout(t);
   }, [notice]);
 
-  const setCV = (cv: CV) => setState((s) => ({ ...s, cv }));
-  const setTemplate = (template: TemplateId) => setState((s) => ({ ...s, template }));
+  const update = (patch: Partial<Saved>) => setState((s) => ({ ...s, ...patch }));
+  const setCV = (cv: CV) => update({ cv });
+  const setTemplate = (template: TemplateId) => update({ template });
+  const closeMenu = () => menuRef.current?.removeAttribute("open");
 
   function downloadPdf() {
     const previous = document.title;
-    const name = state.cv.personal.name.trim() || "My";
-    document.title = `${name} CV`;
+    document.title = `${state.cv.personal.name.trim() || "My"} CV`;
     window.print();
     document.title = previous;
   }
@@ -44,139 +66,180 @@ export default function Builder() {
     a.download = `${slug}-cv.json`;
     a.click();
     URL.revokeObjectURL(url);
+    setNotice("Backup saved");
   }
 
   async function importJson(file: File) {
     try {
       const cv = normalizeCV(JSON.parse(await file.text()));
-      setCV(cv);
-      setNotice("CV imported");
+      update({ cv, started: true, step: 0 });
+      setNotice("CV imported. Check each step, then download");
     } catch {
-      setNotice("That file isn't a valid CV JSON");
+      setNotice("That file isn't a valid CV backup");
     }
   }
 
-  function reset(kind: "sample" | "blank") {
-    const message =
-      kind === "blank"
-        ? "Start from a blank CV? Your current content will be cleared."
-        : "Load the example CV? Your current content will be replaced.";
-    if (!window.confirm(message)) return;
-    setCV(kind === "blank" ? emptyCV : sampleCV);
+  function startOver() {
+    if (!window.confirm("Start over? Everything you entered will be cleared.")) return;
+    setState(FRESH);
   }
 
-  const ghost =
-    "rounded-md px-2.5 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-900";
+  function loadExample() {
+    if (state.started && !window.confirm("Replace your CV with the example?")) return;
+    update({ cv: sampleCV, started: true, step: 0 });
+  }
+
+  const fileInput = (
+    <input
+      ref={fileRef}
+      type="file"
+      accept="application/json,.json"
+      className="hidden"
+      onChange={(e) => {
+        const file = e.target.files?.[0];
+        if (file) void importJson(file);
+        e.target.value = "";
+      }}
+    />
+  );
+
+  const toast = notice && (
+    <div
+      role="status"
+      className="no-print fixed bottom-20 left-1/2 z-50 -translate-x-1/2 rounded-md bg-stone-900 px-4 py-2 text-sm text-white shadow-lg lg:bottom-6"
+    >
+      {notice}
+    </div>
+  );
+
+  if (!state.started) {
+    return (
+      <>
+        <Welcome
+          onStart={() => update({ cv: emptyCV, started: true, step: 0 })}
+          onExample={loadExample}
+          onImport={() => fileRef.current?.click()}
+        />
+        {fileInput}
+        {toast}
+      </>
+    );
+  }
+
+  const menuItem = "block w-full px-3 py-2 text-left text-sm text-stone-700 hover:bg-stone-100";
+  const onFinish = STEPS[state.step]?.id === "finish";
 
   return (
-    <div className="app flex h-dvh flex-col bg-stone-100">
-      <header className="no-print flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-stone-200 bg-white px-4 py-2.5">
-        <div className="flex items-center gap-2">
+    <>
+      <div className="no-print flex h-dvh flex-col bg-stone-100">
+        <header className="flex items-center gap-3 border-b border-stone-200 bg-white px-4 py-2.5">
           <span className="grid size-7 place-items-center rounded-md bg-brand text-xs font-bold text-white">CV</span>
           <span className="text-[15px] font-semibold tracking-tight text-stone-900">CV Builder</span>
-        </div>
+          <span className="hidden items-center gap-1.5 text-xs text-stone-400 sm:flex">
+            <span className="size-1.5 rounded-full bg-emerald-500" /> Saved in this browser
+          </span>
 
-        <div role="radiogroup" aria-label="Template" className="flex rounded-lg bg-stone-100 p-0.5">
-          {TEMPLATES.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              role="radio"
-              aria-checked={state.template === t.id}
-              title={t.description}
-              onClick={() => setTemplate(t.id)}
-              className={`rounded-md px-3 py-1 text-sm font-medium transition ${
-                state.template === t.id
-                  ? "bg-white text-stone-900 shadow-xs ring-1 ring-stone-200"
-                  : "text-stone-500 hover:text-stone-800"
-              }`}
-            >
-              {t.name}
-            </button>
-          ))}
-        </div>
+          <div className="ml-auto flex items-center gap-1">
+            {!onFinish && (
+              <button
+                type="button"
+                onClick={downloadPdf}
+                className="hidden rounded-md px-3 py-1.5 text-sm font-medium text-brand hover:bg-brand/5 sm:block"
+              >
+                Download PDF
+              </button>
+            )}
+            <details ref={menuRef} className="relative [&_summary::-webkit-details-marker]:hidden">
+              <summary className="cursor-pointer list-none rounded-md px-3 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-100">
+                More ▾
+              </summary>
+              <div className="absolute right-0 z-40 mt-1 w-52 overflow-hidden rounded-lg border border-stone-200 bg-white py-1 shadow-lg">
+                <button type="button" className={menuItem} onClick={() => { closeMenu(); fileRef.current?.click(); }}>
+                  Import backup (.json)
+                </button>
+                <button type="button" className={menuItem} onClick={() => { closeMenu(); exportJson(); }}>
+                  Save backup (.json)
+                </button>
+                <button type="button" className={menuItem} onClick={() => { closeMenu(); loadExample(); }}>
+                  Load example CV
+                </button>
+                <div className="my-1 border-t border-stone-100" />
+                <button type="button" className={`${menuItem} !text-red-600`} onClick={() => { closeMenu(); startOver(); }}>
+                  Start over
+                </button>
+              </div>
+            </details>
+          </div>
+        </header>
 
-        <div className="ml-auto flex flex-wrap items-center gap-1">
-          <button type="button" className={ghost} onClick={() => fileRef.current?.click()}>
-            Import
-          </button>
-          <button type="button" className={ghost} onClick={exportJson}>
-            Export JSON
-          </button>
-          <button type="button" className={ghost} onClick={() => reset("sample")}>
-            Example
-          </button>
-          <button type="button" className={ghost} onClick={() => reset("blank")}>
-            Clear
-          </button>
+        <main className="flex min-h-0 flex-1">
+          <div className="flex min-h-0 w-full flex-col lg:w-[540px] lg:shrink-0 lg:border-r lg:border-stone-200">
+            <Wizard
+              cv={state.cv}
+              onChange={setCV}
+              step={state.step}
+              onStep={(step) => update({ step })}
+              template={state.template}
+              onTemplate={setTemplate}
+              onDownload={downloadPdf}
+              onExport={exportJson}
+            />
+          </div>
+
+          {isDesktop && (
+            <section aria-label="CV preview" className="min-w-0 flex-1 overflow-y-auto px-6 py-6">
+              <Preview cv={state.cv} template={state.template} />
+            </section>
+          )}
+        </main>
+
+        {!isDesktop && (
           <button
             type="button"
-            onClick={downloadPdf}
-            className="ml-1 rounded-md bg-brand px-3.5 py-1.5 text-sm font-semibold text-white shadow-xs hover:bg-brand-dark"
+            onClick={() => setPreviewOpen(true)}
+            className="fixed bottom-[76px] right-4 z-30 flex items-center gap-1.5 rounded-full bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white shadow-lg"
           >
-            Download PDF
+            <svg viewBox="0 0 20 20" className="size-4" fill="currentColor" aria-hidden="true">
+              <path d="M10 4C5.5 4 2.3 7.6 1.3 9.6a.9.9 0 0 0 0 .8C2.3 12.4 5.5 16 10 16s7.7-3.6 8.7-5.6a.9.9 0 0 0 0-.8C17.7 7.6 14.5 4 10 4Zm0 9.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z" />
+            </svg>
+            Preview
           </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="application/json,.json"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) void importJson(file);
-              e.target.value = "";
-            }}
-          />
-        </div>
-      </header>
+        )}
 
-      <div className="no-print flex border-b border-stone-200 bg-white lg:hidden">
-        {(["edit", "preview"] as const).map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => setTab(t)}
-            className={`flex-1 py-2 text-sm font-medium capitalize ${
-              tab === t ? "border-b-2 border-brand text-brand" : "text-stone-500"
-            }`}
-          >
-            {t}
-          </button>
-        ))}
+        {!isDesktop && previewOpen && (
+          <div role="dialog" aria-modal="true" aria-label="CV preview" className="fixed inset-0 z-50 flex flex-col bg-stone-100">
+            <div className="flex items-center justify-between border-b border-stone-200 bg-white px-4 py-2.5">
+              <button
+                type="button"
+                onClick={() => setPreviewOpen(false)}
+                className="rounded-md px-2 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-100"
+              >
+                ← Back to editing
+              </button>
+              <button
+                type="button"
+                onClick={downloadPdf}
+                className="rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white"
+              >
+                Download PDF
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-3 py-4">
+              <Preview cv={state.cv} template={state.template} />
+            </div>
+          </div>
+        )}
       </div>
 
-      <main className="app-main flex min-h-0 flex-1">
-        <aside
-          className={`no-print w-full shrink-0 overflow-y-auto border-r border-stone-200 bg-stone-50 p-4 lg:block lg:w-[460px] ${
-            tab === "edit" ? "block" : "hidden"
-          }`}
-        >
-          <Editor cv={state.cv} onChange={setCV} />
-          <p className="mt-4 text-center text-xs text-stone-400">Saved in this browser automatically.</p>
-        </aside>
-
-        <section
-          className={`preview-pane min-w-0 flex-1 overflow-y-auto px-4 py-5 lg:block ${
-            tab === "preview" ? "block" : "hidden"
-          }`}
-        >
-          {/* Remount when the mobile tab changes: Chrome can keep a stale layout for content shown after display:none. */}
-          <Preview key={tab} cv={state.cv} template={state.template} />
-          <p className="no-print mx-auto mt-4 max-w-md text-center text-xs text-stone-400">
-            In the print window choose <b className="font-medium text-stone-500">Save as PDF</b> and turn off{" "}
-            <b className="font-medium text-stone-500">Headers and footers</b>.
-          </p>
-        </section>
-      </main>
-
-      {notice && (
-        <div
-          role="status"
-          className="no-print fixed bottom-5 left-1/2 -translate-x-1/2 rounded-md bg-stone-900 px-4 py-2 text-sm text-white shadow-lg"
-        >
-          {notice}
+      {/* The only thing that prints: a clean copy of the CV. */}
+      <div className="print-only">
+        <div className="paper">
+          <CVDocument cv={state.cv} template={state.template} />
         </div>
-      )}
-    </div>
+      </div>
+
+      {fileInput}
+      {toast}
+    </>
   );
 }

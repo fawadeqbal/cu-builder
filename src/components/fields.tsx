@@ -12,27 +12,42 @@ export function TextField({
   onChange,
   placeholder,
   type = "text",
+  required,
+  error,
+  autoFocus,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   type?: string;
+  required?: boolean;
+  error?: string;
+  autoFocus?: boolean;
 }) {
   const id = useId();
   return (
     <div className="flex flex-col gap-1">
       <label htmlFor={id} className="text-xs font-medium text-stone-600">
         {label}
+        {required && <span className="ml-0.5 text-red-600">*</span>}
       </label>
       <input
         id={id}
         type={type}
         value={value}
         placeholder={placeholder}
+        autoFocus={autoFocus}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-error` : undefined}
         onChange={(e) => onChange(e.target.value)}
-        className={inputClass}
+        className={`${inputClass} ${error ? "!border-red-500 focus:!ring-red-500/20" : ""}`}
       />
+      {error && (
+        <p id={`${id}-error`} className="text-xs text-red-600">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -94,49 +109,6 @@ export function LinesField({
       placeholder={placeholder}
       rows={rows}
     />
-  );
-}
-
-export function Panel({
-  title,
-  count,
-  children,
-  defaultOpen = false,
-}: {
-  title: string;
-  count?: number;
-  children: ReactNode;
-  defaultOpen?: boolean;
-}) {
-  return (
-    <details
-      open={defaultOpen}
-      className="group rounded-lg border border-stone-200 bg-white shadow-xs [&_summary::-webkit-details-marker]:hidden"
-    >
-      <summary className="flex cursor-pointer select-none items-center justify-between gap-3 px-4 py-3">
-        <span className="flex items-center gap-2 text-sm font-semibold text-stone-900">
-          {title}
-          {count !== undefined && (
-            <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-500">
-              {count}
-            </span>
-          )}
-        </span>
-        <svg
-          className="size-4 text-stone-400 transition-transform group-open:rotate-180"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-          aria-hidden="true"
-        >
-          <path
-            fillRule="evenodd"
-            d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.06l3.71-3.83a.75.75 0 1 1 1.08 1.04l-4.25 4.39a.75.75 0 0 1-1.08 0L5.21 8.27a.75.75 0 0 1 .02-1.06Z"
-            clipRule="evenodd"
-          />
-        </svg>
-      </summary>
-      <div className="flex flex-col gap-3 border-t border-stone-100 px-4 py-4">{children}</div>
-    </details>
   );
 }
 

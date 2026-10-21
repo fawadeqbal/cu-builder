@@ -121,15 +121,25 @@ export const TEMPLATES: { id: TemplateId; name: string; description: string }[] 
 
 const STORAGE_KEY = "cv-builder:v1";
 
-export type Saved = { cv: CV; template: TemplateId };
+export type Saved = {
+  cv: CV;
+  template: TemplateId;
+  /** Index of the wizard step the user is on. */
+  step: number;
+  /** False until the user leaves the welcome screen. */
+  started: boolean;
+};
 
 export function loadSaved(): Saved | null {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as { cv?: unknown; template?: unknown };
+    const parsed = JSON.parse(raw) as { cv?: unknown; template?: unknown; step?: unknown; started?: unknown };
     const template: TemplateId = parsed.template === "modern" ? "modern" : "classic";
-    return { cv: normalizeCV(parsed.cv), template };
+    const step = typeof parsed.step === "number" && parsed.step >= 0 ? Math.floor(parsed.step) : 0;
+    // Data saved before the wizard existed has no "started" flag: treat it as started.
+    const started = parsed.started === undefined ? true : parsed.started === true;
+    return { cv: normalizeCV(parsed.cv), template, step, started };
   } catch {
     return null;
   }
