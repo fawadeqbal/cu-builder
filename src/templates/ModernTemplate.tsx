@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { clean, linkHref, linkLabel } from "@/lib/cv";
+import type { StepId } from "@/lib/steps";
 import type { CV } from "@/lib/types";
 
 /**
@@ -30,7 +31,7 @@ export function ModernTemplate({ cv }: { cv: CV }) {
 
   return (
     <div className="tpl-modern">
-      <header className="m-header">
+      <header data-step="personal" className="m-header">
         <div>
           <div className="m-name">{p.name || "Your Name"}</div>
           {p.headline && <div className="m-headline">{p.headline}</div>}
@@ -45,12 +46,12 @@ export function ModernTemplate({ cv }: { cv: CV }) {
         )}
       </header>
 
-      {cv.summary.trim() && <p className="m-summary">{cv.summary}</p>}
+      {cv.summary.trim() && <p className="m-summary" data-step="summary">{cv.summary}</p>}
 
       <div className={hasSide ? "m-body" : "m-body m-body--single"}>
         <div className="m-main">
           {cv.experience.length > 0 && (
-            <Section title="Experience">
+            <Section step="experience" title="Experience">
               {cv.experience.map((e) => (
                 <Entry
                   key={e.id}
@@ -65,7 +66,7 @@ export function ModernTemplate({ cv }: { cv: CV }) {
           )}
 
           {cv.projects.length > 0 && (
-            <Section title="Projects">
+            <Section step="projects" title="Projects">
               {cv.projects.map((pr) => {
                 const links = clean(pr.links);
                 return (
@@ -95,7 +96,7 @@ export function ModernTemplate({ cv }: { cv: CV }) {
         {hasSide && (
           <aside className="m-side">
             {cv.skills.length > 0 && (
-              <Section title="Skills">
+              <Section step="skills" title="Skills">
                 {cv.skills.map((s) => (
                   <div key={s.id} className="m-side-item">
                     <div className="m-side-title">{s.category}</div>
@@ -106,7 +107,7 @@ export function ModernTemplate({ cv }: { cv: CV }) {
             )}
 
             {cv.education.length > 0 && (
-              <Section title="Education">
+              <Section step="education" title="Education">
                 {cv.education.map((ed) => (
                   <div key={ed.id} className="m-side-item">
                     <div className="m-side-title">{ed.degree}</div>
@@ -122,7 +123,7 @@ export function ModernTemplate({ cv }: { cv: CV }) {
             )}
 
             {cv.certificates.length > 0 && (
-              <Section title="Certificates">
+              <Section step="extras" title="Certificates">
                 {cv.certificates.map((c) => (
                   <div key={c.id} className="m-side-item">
                     <div className="m-side-title">
@@ -139,7 +140,7 @@ export function ModernTemplate({ cv }: { cv: CV }) {
             )}
 
             {cv.languages.length > 0 && (
-              <Section title="Languages">
+              <Section step="extras" title="Languages">
                 {cv.languages.map((l) => (
                   <div key={l.id} className="m-lang">
                     <span className="m-side-title">{l.name}</span>
@@ -155,9 +156,9 @@ export function ModernTemplate({ cv }: { cv: CV }) {
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({ step, title, children }: { step: StepId; title: string; children: ReactNode }) {
   return (
-    <section className="m-section">
+    <section className="m-section" data-step={step}>
       <h2 className="m-title">{title}</h2>
       {children}
     </section>

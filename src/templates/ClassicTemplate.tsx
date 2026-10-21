@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { clean, linkHref, linkLabel } from "@/lib/cv";
+import type { StepId } from "@/lib/steps";
 import type { CV } from "@/lib/types";
 
 /**
@@ -30,7 +31,7 @@ export function ClassicTemplate({ cv }: { cv: CV }) {
 
   return (
     <div className="tpl-classic">
-      <header className="c-header">
+      <header data-step="personal" className="c-header">
         <div className="c-name">{p.name || "Your Name"}</div>
         {p.headline && <div className="c-headline">{p.headline}</div>}
         {p.tagline && <div className="c-tagline">{p.tagline}</div>}
@@ -39,13 +40,14 @@ export function ClassicTemplate({ cv }: { cv: CV }) {
       </header>
 
       {cv.summary.trim() && (
-        <Section label="About me">
+        <Section step="summary" label="About me">
           <p>{cv.summary}</p>
         </Section>
       )}
 
       {cv.experience.length > 0 && (
         <Section
+          step="experience"
           label={
             <>
               Work
@@ -78,7 +80,7 @@ export function ClassicTemplate({ cv }: { cv: CV }) {
       )}
 
       {cv.skills.length > 0 && (
-        <Section label="Skills">
+        <Section step="skills" label="Skills">
           <div className="c-skills">
             {cv.skills.map((s) => (
               <div key={s.id} className="c-skill-row">
@@ -91,7 +93,7 @@ export function ClassicTemplate({ cv }: { cv: CV }) {
       )}
 
       {cv.projects.length > 0 && (
-        <Section label="Projects">
+        <Section step="projects" label="Projects">
           {cv.projects.map((pr) => {
             const links = clean(pr.links);
             return (
@@ -119,6 +121,7 @@ export function ClassicTemplate({ cv }: { cv: CV }) {
 
       {cv.education.length > 0 && (
         <Section
+          step="education"
           label={
             <>
               Education
@@ -149,7 +152,7 @@ export function ClassicTemplate({ cv }: { cv: CV }) {
       )}
 
       {cv.certificates.length > 0 && (
-        <Section label="Certificates">
+        <Section step="extras" label="Certificates">
           <ul className="c-compact">
             {cv.certificates.map((c) => (
               <li key={c.id}>
@@ -162,7 +165,7 @@ export function ClassicTemplate({ cv }: { cv: CV }) {
       )}
 
       {cv.languages.length > 0 && (
-        <Section label="Languages">
+        <Section step="extras" label="Languages">
           <p className="c-left">
             {cv.languages.map((l, i) => (
               <span key={l.id}>
@@ -178,9 +181,9 @@ export function ClassicTemplate({ cv }: { cv: CV }) {
   );
 }
 
-function Section({ label, children }: { label: ReactNode; children: ReactNode }) {
+function Section({ step, label, children }: { step: StepId; label: ReactNode; children: ReactNode }) {
   return (
-    <section className="c-section">
+    <section className="c-section" data-step={step}>
       <div className="c-label">{label}</div>
       <div className="c-content">{children}</div>
     </section>

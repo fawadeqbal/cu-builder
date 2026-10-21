@@ -25,7 +25,13 @@ Write your CV once, switch between templates, and download a clean A4 PDF. Built
 - **PDF export** through the browser's print engine, so the text stays selectable and links stay clickable.
 - **Auto-save** in your browser (`localStorage`). There is no server or account, and you continue where you left off.
 - **Backup files.** Save and import your CV as JSON.
-- **Mobile friendly,** with a full-screen preview on phones.
+- **Three views, one workspace.** Switch between **Edit**, **Split** and **Preview** from the header (`Alt+1` / `Alt+2` / `Alt+3`, or `Ctrl/⌘ + \` to show or hide the preview).
+  - Drag the divider to resize. It snaps to the default width and to the middle, and double-click resets it. Drag a pane past its edge to hide it.
+  - Swap sides to put the preview on the left. Your layout is remembered.
+  - Zoom the preview with − / +, `Ctrl/⌘` + scroll or pinch, or fit it to the width or the whole page.
+  - **Click any part of the preview to edit it.** The wizard jumps to that step, and the section you are editing is highlighted and scrolled into view.
+  - In Edit view, a live thumbnail in the corner takes you back to the preview.
+- **Mobile friendly,** with Edit / Preview tabs on phones.
 
 ![Download step](docs/finish.png)
 
@@ -58,14 +64,18 @@ src/
 ├── components/
 │   ├── Builder.tsx        # app shell: welcome or wizard, preview, import/export, PDF, auto-save
 │   ├── BuilderLoader.tsx  # client-only loading (reads localStorage)
+│   ├── SplitView.tsx      # editor + preview panes with the draggable, collapsible divider
+│   ├── ViewSwitcher.tsx   # Edit / Split / Preview segmented control
+│   ├── Preview.tsx        # live A4 preview: toolbar, zoom, click-to-edit, mini thumbnail
 │   ├── Welcome.tsx        # start screen
 │   ├── Wizard.tsx         # progress bar, step content, tips, validation, Back/Next
 │   ├── sections.tsx       # the form for each step
 │   ├── FinishStep.tsx     # template picker, CV check, download
 │   ├── fields.tsx         # inputs and list item cards
-│   └── Preview.tsx        # scaled A4 preview and page counter
+│   └── icons.tsx          # small inline SVG icons
 ├── lib/
 │   ├── cv.ts              # helpers, JSON validation, storage, template list
+│   ├── layout.ts          # view mode, pane width, side and zoom (saved separately from the CV)
 │   ├── sample.ts          # example CV
 │   ├── steps.ts           # wizard steps, titles and tips
 │   └── types.ts           # CV data types
@@ -80,6 +90,7 @@ src/
 1. Create `src/templates/MyTemplate.tsx`. It receives `{ cv }` and returns the markup.
 2. Add its styles to `globals.css` under a unique class, for example `.tpl-mine`.
 3. Add it to `TemplateId` in `lib/types.ts`, to `TEMPLATES` in `lib/cv.ts` and to `templates/index.tsx`.
+4. Put `data-step="<step id>"` (`personal`, `summary`, `experience`, …) on each section, so clicking it in the preview opens the right step.
 
 ## JSON format
 

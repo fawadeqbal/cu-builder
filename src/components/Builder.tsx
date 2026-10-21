@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { emptyCV, loadSaved, normalizeCV, save, type Saved } from "@/lib/cv";
+import { loadLayout, saveLayout, type Layout, type ViewMode, type Zoom } from "@/lib/layout";
 import { sampleCV } from "@/lib/sample";
-import { STEPS } from "@/lib/steps";
+import { STEPS, type StepId } from "@/lib/steps";
 import type { CV, TemplateId } from "@/lib/types";
 import { CVDocument } from "@/templates";
-import { Preview } from "./Preview";
+import { PreviewIcon, EditorIcon } from "./icons";
+import { MiniPreview, Preview } from "./Preview";
+import { SplitView } from "./SplitView";
+import { ViewSwitcher } from "./ViewSwitcher";
 import { Welcome } from "./Welcome";
 import { Wizard } from "./Wizard";
 
@@ -29,7 +33,7 @@ const FRESH: Saved = { cv: emptyCV, template: "classic", step: 0, started: false
 export default function Builder() {
   // Rendered on the client only (see BuilderLoader), so reading localStorage here is safe.
   const [state, setState] = useState<Saved>(() => loadSaved() ?? FRESH);
-  const [previewOpen, setPreviewOpen] = useState(false);
+  const [layout, setLayout] = useState<Layout>(loadLayout);
   const [notice, setNotice] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDetailsElement>(null);
@@ -38,6 +42,10 @@ export default function Builder() {
   useEffect(() => {
     save(state);
   }, [state]);
+
+  useEffect(() => {
+    saveLayout(layout);
+  }, [layout]);
 
   useEffect(() => {
     if (!notice) return;
@@ -49,6 +57,44 @@ export default function Builder() {
   const setCV = (cv: CV) => update({ cv });
   const setTemplate = (template: TemplateId) => update({ template });
   const closeMenu = () => menuRef.current?.removeAttribute("open");
+
+  // Phones only have room for one pane, so split view shows the editor there.
+  const mode: ViewMode = isDesktop ? layout.mode : layout.mode === "preview" ? "preview" : "editor";
+  const setMode = useCallback(
+    (next: ViewMode) => setLayout((l) => ({ ...l, mode: !isDesktop && next === "editor" && l.mode === "split" ? "split" : next })),
+    [isDesktop],
+  );
+  const setZoom = useCallback((zoom: Zoom) => setLayout((l) => ({ ...l, zoom })), []);
+
+  // Alt+1/2/3 switch views; Ctrl/⌘+\ shows or hides the preview next to the editor.
+  useEffect(() => {
+    if (!state.started) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.altKey && !e.ctrlKey && !e.metaKey) {
+        const keys: Record<string, ViewMode> = { Digit1: "editor", Digit2: "split", Digit3: "preview" };
+        const next = keys[e.code];
+        if (!next || (!isDesktop && next === "split")) return;
+        e.preventDefault();
+        setMode(next);
+      } else if ((e.ctrlKey || e.metaKey) && e.key === "\\") {
+        e.preventDefault();
+        setLayout((l) => ({ ...l, mode: l.mode === "split" ? "editor" : "split" }));
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [state.started, isDesktop, setMode]);
+
+  function collapseTo(next: ViewMode) {
+    setMode(next);
+    setNotice(next === "editor" ? "Preview hidden. Press Alt+2 to bring it back" : "Editor hidden. Press Alt+2 to bring it back");
+  }
+
+  function editSection(id: StepId) {
+    const index = STEPS.findIndex((s) => s.id === id);
+    if (index >= 0) update({ step: index });
+    if (mode === "preview") setMode(isDesktop ? "split" : "editor");
+  }
 
   function downloadPdf() {
     const previous = document.title;
@@ -132,14 +178,18 @@ export default function Builder() {
   return (
     <>
       <div className="no-print flex h-dvh flex-col bg-stone-100">
-        <header className="flex items-center gap-3 border-b border-stone-200 bg-white px-4 py-2.5">
-          <span className="grid size-7 place-items-center rounded-md bg-brand text-xs font-bold text-white">CV</span>
-          <span className="text-[15px] font-semibold tracking-tight text-stone-900">CV Builder</span>
-          <span className="hidden items-center gap-1.5 text-xs text-stone-400 sm:flex">
-            <span className="size-1.5 rounded-full bg-emerald-500" /> Saved in this browser
-          </span>
+        <header className="relative z-40 grid grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-stone-200 bg-white px-3 py-2 sm:px-4">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="grid size-7 shrink-0 place-items-center rounded-md bg-brand text-xs font-bold text-white">CV</span>
+            <span className="hidden text-[15px] font-semibold tracking-tight text-stone-900 sm:inline">CV Builder</span>
+            <span className="hidden items-center gap-1.5 truncate text-xs text-stone-400 xl:flex">
+              <span className="size-1.5 rounded-full bg-emerald-500" /> Saved in this browser
+            </span>
+          </div>
 
-          <div className="ml-auto flex items-center gap-1">
+          <ViewSwitcher mode={mode} onMode={setMode} allowSplit={isDesktop} />
+
+          <div className="flex items-center justify-end gap-1">
             {!onFinish && (
               <button
                 type="button"
@@ -153,7 +203,7 @@ export default function Builder() {
               <summary className="cursor-pointer list-none rounded-md px-3 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-100">
                 More ▾
               </summary>
-              <div className="absolute right-0 z-40 mt-1 w-52 overflow-hidden rounded-lg border border-stone-200 bg-white py-1 shadow-lg">
+              <div className="absolute right-0 z-40 mt-1 w-56 overflow-hidden rounded-lg border border-stone-200 bg-white py-1 shadow-lg">
                 <button type="button" className={menuItem} onClick={() => { closeMenu(); fileRef.current?.click(); }}>
                   Import backup (.json)
                 </button>
@@ -163,6 +213,25 @@ export default function Builder() {
                 <button type="button" className={menuItem} onClick={() => { closeMenu(); loadExample(); }}>
                   Load example CV
                 </button>
+                {isDesktop && (
+                  <>
+                    <div className="my-1 border-t border-stone-100" />
+                    <button
+                      type="button"
+                      className={menuItem}
+                      onClick={() => { closeMenu(); setLayout((l) => ({ ...l, mode: "split", previewFirst: !l.previewFirst })); }}
+                    >
+                      Put preview on the {layout.previewFirst ? "right" : "left"}
+                    </button>
+                    <button
+                      type="button"
+                      className={menuItem}
+                      onClick={() => { closeMenu(); setLayout((l) => ({ ...l, mode: "split", editorWidth: 540, zoom: "width" })); }}
+                    >
+                      Reset layout
+                    </button>
+                  </>
+                )}
                 <div className="my-1 border-t border-stone-100" />
                 <button type="button" className={`${menuItem} !text-red-600`} onClick={() => { closeMenu(); startOver(); }}>
                   Start over
@@ -172,8 +241,13 @@ export default function Builder() {
           </div>
         </header>
 
-        <main className="flex min-h-0 flex-1">
-          <div className="flex min-h-0 w-full flex-col lg:w-[540px] lg:shrink-0 lg:border-r lg:border-stone-200">
+        <SplitView
+          mode={mode}
+          editorWidth={layout.editorWidth}
+          previewFirst={layout.previewFirst}
+          onResize={(editorWidth) => setLayout((l) => ({ ...l, editorWidth }))}
+          onMode={collapseTo}
+          editor={
             <Wizard
               cv={state.cv}
               onChange={setCV}
@@ -184,50 +258,44 @@ export default function Builder() {
               onDownload={downloadPdf}
               onExport={exportJson}
             />
-          </div>
+          }
+          preview={
+            <Preview
+              cv={state.cv}
+              template={state.template}
+              onTemplate={setTemplate}
+              zoom={layout.zoom}
+              onZoom={setZoom}
+              activeStep={STEPS[state.step]?.id}
+              onEditSection={editSection}
+              onSwap={isDesktop && mode === "split" ? () => setLayout((l) => ({ ...l, previewFirst: !l.previewFirst })) : undefined}
+            />
+          }
+        />
 
-          {isDesktop && (
-            <section aria-label="CV preview" className="min-w-0 flex-1 overflow-y-auto px-6 py-6">
-              <Preview cv={state.cv} template={state.template} />
-            </section>
-          )}
-        </main>
+        {isDesktop && mode === "editor" && (
+          <MiniPreview cv={state.cv} template={state.template} onOpen={() => setMode("split")} />
+        )}
 
         {!isDesktop && (
           <button
             type="button"
-            onClick={() => setPreviewOpen(true)}
-            className="fixed bottom-[76px] right-4 z-30 flex items-center gap-1.5 rounded-full bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white shadow-lg"
+            onClick={mode === "preview" ? downloadPdf : () => setMode("preview")}
+            className={`fixed right-4 z-30 flex items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition ${
+              mode === "preview" ? "bottom-5 bg-brand" : "bottom-[76px] bg-stone-900"
+            }`}
           >
-            <svg viewBox="0 0 20 20" className="size-4" fill="currentColor" aria-hidden="true">
-              <path d="M10 4C5.5 4 2.3 7.6 1.3 9.6a.9.9 0 0 0 0 .8C2.3 12.4 5.5 16 10 16s7.7-3.6 8.7-5.6a.9.9 0 0 0 0-.8C17.7 7.6 14.5 4 10 4Zm0 9.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z" />
-            </svg>
-            Preview
+            {mode === "preview" ? "Download PDF" : (<><PreviewIcon className="size-4" /> Preview</>)}
           </button>
         )}
-
-        {!isDesktop && previewOpen && (
-          <div role="dialog" aria-modal="true" aria-label="CV preview" className="fixed inset-0 z-50 flex flex-col bg-stone-100">
-            <div className="flex items-center justify-between border-b border-stone-200 bg-white px-4 py-2.5">
-              <button
-                type="button"
-                onClick={() => setPreviewOpen(false)}
-                className="rounded-md px-2 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-100"
-              >
-                ← Back to editing
-              </button>
-              <button
-                type="button"
-                onClick={downloadPdf}
-                className="rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white"
-              >
-                Download PDF
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto px-3 py-4">
-              <Preview cv={state.cv} template={state.template} />
-            </div>
-          </div>
+        {!isDesktop && mode === "preview" && (
+          <button
+            type="button"
+            onClick={() => setMode("editor")}
+            className="fixed bottom-5 left-4 z-30 flex items-center gap-1.5 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 shadow-lg ring-1 ring-stone-900/10"
+          >
+            <EditorIcon className="size-4" /> Edit
+          </button>
         )}
       </div>
 
