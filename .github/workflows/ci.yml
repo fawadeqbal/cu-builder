@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: cvb
+          POSTGRES_PASSWORD: cvb
+          POSTGRES_DB: cvb
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U cvb" --health-interval 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://cvb:cvb@localhost:5432/cvb?schema=public
+      REDIS_URL: redis://localhost:6379
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Lint, typecheck, test and build (only what changed is rebuilt from cache)
+        run: pnpm turbo run lint typecheck test build
+
+      - name: Migrations apply cleanly
+        run: pnpm db:deploy

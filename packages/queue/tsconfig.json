@@ -1,0 +1,7 @@
+{
+  "extends": "@cvb/tsconfig/library.json",
+  "compilerOptions": {
+    "experimentalDecorators": true
+  },
+  "include": ["src"]
+}

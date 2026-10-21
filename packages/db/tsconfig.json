@@ -1,0 +1,13 @@
+{
+  "extends": "@cvb/tsconfig/base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "noUncheckedIndexedAccess": false,
+    "experimentalDecorators": true
+  },
+  "include": [
+    "src",
+    "prisma",
+    "prisma.config.ts"
+  ]
+}

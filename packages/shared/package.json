@@ -1,0 +1,33 @@
+{
+  "name": "@cvb/shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Framework-free building blocks: Result, typed errors, guards, string helpers.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "clean": "rm -rf dist .turbo"
+  },
+  "devDependencies": {
+    "@cvb/eslint-config": "workspace:*",
+    "@cvb/tsconfig": "workspace:*",
+    "eslint": "9.39.5",
+    "tsup": "8.5.1",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}

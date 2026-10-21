@@ -1,0 +1,12 @@
+{
+  "extends": "@cvb/tsconfig/base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "noUncheckedIndexedAccess": false,
+    "experimentalDecorators": true
+  },
+  "include": [
+    "src"
+  ]
+}

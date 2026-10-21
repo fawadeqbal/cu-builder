@@ -1,0 +1,46 @@
+{
+  "name": "@cvb/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "HTTP API (NestJS): accounts, resumes, billing. Business rules come from @cvb/domain.",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "nest start --watch --exec \"node --enable-source-maps --env-file-if-exists=../../.env\"",
+    "start": "node --enable-source-maps dist/main.js",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@cvb/config": "workspace:*",
+    "@cvb/contracts": "workspace:*",
+    "@cvb/db": "workspace:*",
+    "@cvb/domain": "workspace:*",
+    "@cvb/queue": "workspace:*",
+    "@cvb/shared": "workspace:*",
+    "@cvb/templates": "workspace:*",
+    "@nestjs/bullmq": "12.0.0",
+    "@nestjs/common": "12.1.2",
+    "@nestjs/core": "12.1.2",
+    "@nestjs/platform-express": "12.1.2",
+    "bullmq": "6.3.11",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@cvb/eslint-config": "workspace:*",
+    "@cvb/tsconfig": "workspace:*",
+    "@nestjs/cli": "12.0.8",
+    "@nestjs/testing": "12.1.2",
+    "@types/express": "5.0.3",
+    "@types/node": "22.20.5",
+    "eslint": "9.39.5",
+    "typescript": "5.9.3",
+    "unplugin-swc": "1.6.0",
+    "@swc/core": "1.16.13",
+    "vitest": "4.1.11"
+  }
+}

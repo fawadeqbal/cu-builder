@@ -1,0 +1,53 @@
+{
+  "name": "@cvb/templates",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "CV templates (React), their catalog (tier, style, layout, ATS) and print styles.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./catalog": {
+      "types": "./dist/catalog.d.ts",
+      "import": "./dist/catalog.js"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": [
+    "*.css"
+  ],
+  "scripts": {
+    "build": "tsup && cp src/styles.css dist/styles.css",
+    "dev": "tsup --watch --onSuccess \"cp src/styles.css dist/styles.css\"",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "clean": "rm -rf dist .turbo"
+  },
+  "devDependencies": {
+    "@cvb/eslint-config": "workspace:*",
+    "@cvb/tsconfig": "workspace:*",
+    "eslint": "9.39.5",
+    "tsup": "8.5.1",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11",
+    "@types/react": "^19",
+    "react": "19.3.0"
+  },
+  "dependencies": {
+    "@cvb/domain": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^19"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  }
+}

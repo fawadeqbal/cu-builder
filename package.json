@@ -1,28 +1,32 @@
 {
   "name": "cv-builder",
-  "version": "0.1.0",
   "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+  "packageManager": "pnpm@12.10.1",
+  "engines": {
+    "node": ">=22.12"
   },
-  "dependencies": {
-    "jspdf": "4.2.1",
-    "modern-screenshot": "4.6.8",
-    "next": "16.4.2",
-    "react": "19.3.0",
-    "react-dom": "19.3.0"
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "dev:web": "turbo run dev --filter=@cvb/web...",
+    "dev:api": "turbo run dev --filter=@cvb/api... --filter=@cvb/worker...",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "check": "turbo run lint typecheck test",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "db:generate": "pnpm --filter @cvb/db db:generate",
+    "db:migrate": "pnpm --filter @cvb/db db:migrate",
+    "db:deploy": "pnpm --filter @cvb/db db:deploy",
+    "db:seed": "pnpm --filter @cvb/db db:seed",
+    "db:studio": "pnpm --filter @cvb/db db:studio",
+    "services:up": "docker compose up -d",
+    "services:down": "docker compose down",
+    "format": "prettier --write \"**/*.{ts,tsx,js,mjs,json,md,css,yml}\""
   },
   "devDependencies": {
-    "@tailwindcss/turbopack": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.4.2",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "prettier": "3.6.2",
+    "turbo": "2.11.7",
+    "typescript": "5.9.3"
   }
 }

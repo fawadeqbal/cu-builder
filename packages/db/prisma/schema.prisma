@@ -1,0 +1,180 @@
+// Phase 1 schema: accounts, resumes with versions, share links, billing.
+// Tables and columns are snake_case in Postgres, camelCase in TypeScript.
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Plan {
+  FREE
+  STANDARD
+  PREMIUM
+  EXECUTIVE
+}
+
+enum PageSize {
+  A4
+  LETTER
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+}
+
+enum BillingProvider {
+  STRIPE
+  LOCAL
+}
+
+enum PassKind {
+  DAYS_7
+  DAYS_30
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  name            String?
+  locale          String    @default("en")
+  plan            Plan      @default(FREE)
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  accounts      Account[]
+  resumes       Resume[]
+  subscriptions Subscription[]
+  passes        Pass[]
+  credits       CreditLedger[]
+
+  @@map("users")
+}
+
+/// A sign-in method linked to a user (Google, LinkedIn, email…).
+model Account {
+  id                String   @id @default(cuid())
+  userId            String   @map("user_id")
+  provider          String
+  providerAccountId String   @map("provider_account_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Resume {
+  id         String    @id @default(cuid())
+  userId     String    @map("user_id")
+  title      String
+  templateId String    @default("classic") @map("template_id")
+  accent     String?
+  pageSize   PageSize  @default(A4) @map("page_size")
+  /// The CV document; shape validated by @cvb/contracts ResumeDataSchema.
+  data       Json
+  archivedAt DateTime? @map("archived_at")
+  deletedAt  DateTime? @map("deleted_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  versions   ResumeVersion[]
+  shareLinks ShareLink[]
+
+  @@index([userId, updatedAt(sort: Desc)])
+  @@map("resumes")
+}
+
+model ResumeVersion {
+  id         String   @id @default(cuid())
+  resumeId   String   @map("resume_id")
+  data       Json
+  templateId String   @map("template_id")
+  reason     String
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  resume Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  @@index([resumeId, createdAt(sort: Desc)])
+  @@map("resume_versions")
+}
+
+model ShareLink {
+  id           String    @id @default(cuid())
+  resumeId     String    @map("resume_id")
+  slug         String    @unique
+  enabled      Boolean   @default(true)
+  passwordHash String?   @map("password_hash")
+  expiresAt    DateTime? @map("expires_at")
+  viewCount    Int       @default(0) @map("view_count")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  resume Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  @@index([resumeId])
+  @@map("share_links")
+}
+
+model Subscription {
+  id                String             @id @default(cuid())
+  userId            String             @map("user_id")
+  plan              Plan
+  status            SubscriptionStatus
+  provider          BillingProvider
+  providerRef       String             @unique @map("provider_ref")
+  currentPeriodEnd  DateTime           @map("current_period_end")
+  cancelAtPeriodEnd Boolean            @default(false) @map("cancel_at_period_end")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("subscriptions")
+}
+
+/// A one-time job-hunt pass (7 or 30 days of a plan).
+model Pass {
+  id          String          @id @default(cuid())
+  userId      String          @map("user_id")
+  kind        PassKind
+  plan        Plan
+  startsAt    DateTime        @map("starts_at")
+  endsAt      DateTime        @map("ends_at")
+  provider    BillingProvider
+  providerRef String?         @unique @map("provider_ref")
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, endsAt])
+  @@map("passes")
+}
+
+/// Append-only AI credit movements; the balance is the sum of `delta`.
+model CreditLedger {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  delta     Int
+  reason    String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("credit_ledger")
+}
