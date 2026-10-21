@@ -18,9 +18,13 @@ Write your CV once, switch between templates, and download a clean A4 PDF. Built
 
 - **Step-by-step wizard with a step rail.** Every step is listed on the left with its icon and what it holds ("2 jobs", "51 words"), done steps are ticked, and a CV-strength ring shows how close you are. The rail turns into icons when the editor is narrow and into a dropdown on phones. Required fields (name, job title, email) are checked before you move on.
 - **Helpful inputs.** Summary starters with a word counter, quick-add skill groups, example placeholders and tips in every step.
-- **Two templates.**
-  - **Classic:** Europass style, with section labels in a left column, a blue accent and justified text.
-  - **Modern:** serif name, contact block on the right, and a two-column body with a side panel.
+- **12 templates in four tiers,** browsed on their own page (`/templates`):
+  - **Basic:** Simple, Compact, Classic
+  - **Standard:** Modern, Timeline, Nordic
+  - **Premium:** Sidebar Pro, Developer, Creative
+  - **Executive:** Elegant, Executive, Boardroom
+
+  Filter by tier, style (Professional, Modern, Creative, Minimal, Executive), layout (one column, two columns, sidebar) and ATS-friendliness. Recolour every thumbnail with 12 accent colours, preview with your own CV or the example, open a large preview (← → to browse), and pick one. Quick switching also lives in the preview toolbar and on the Download step. All tiers are free for now; `isUnlocked()` in `components/TemplateBadge.tsx` is the hook for paid plans.
 - **CV check** before download, with links to fix anything missing.
 - **One-click PDF download,** built in the browser with [modern-screenshot](https://github.com/qq15725/modern-screenshot) and [jsPDF](https://github.com/parallax/jsPDF): no print dialog. Pages break between lines and entries, the text stays selectable and searchable (an invisible text layer sits over the page image, so applicant tracking systems can read it), and links stay clickable.
 - **Auto-save** in your browser (`localStorage`). There is no server or account, and you continue where you left off.
@@ -58,7 +62,8 @@ Want a fully vector PDF instead? Open **⋯ → Print or save with the browser**
 src/
 ├── app/
 │   ├── globals.css        # app styles, both templates and print rules (@page A4)
-│   ├── layout.tsx         # fonts (Inter, Source Serif 4) and metadata
+│   ├── layout.tsx         # fonts (Inter, Source Serif 4, JetBrains Mono) and metadata
+│   ├── templates/page.tsx # the template gallery page
 │   └── page.tsx
 ├── components/
 │   ├── Builder.tsx        # app shell: welcome or wizard, preview, import/export, PDF, auto-save
@@ -67,6 +72,9 @@ src/
 │   ├── ViewSwitcher.tsx   # Edit / Split / Preview segmented control
 │   ├── Preview.tsx        # live A4 preview: toolbar, zoom, click-to-edit, mini thumbnail
 │   ├── Welcome.tsx        # start screen
+│   ├── TemplateGallery.tsx # /templates: tiers, filters, colours, preview dialog
+│   ├── TemplatePicker.tsx # quick template + colour menu in the preview toolbar
+│   ├── TemplateBadge.tsx  # tier badges and the isUnlocked() hook
 │   ├── Wizard.tsx         # progress bar, step content, tips, validation, Back/Next
 │   ├── sections.tsx       # the form for each step
 │   ├── FinishStep.tsx     # template picker, CV check, download
@@ -81,17 +89,19 @@ src/
 │   ├── steps.ts           # wizard steps, titles and tips
 │   └── types.ts           # CV data types
 └── templates/
-    ├── ClassicTemplate.tsx
-    ├── ModernTemplate.tsx
-    └── index.tsx          # picks the template to render
+    ├── catalog.ts         # every template's tier, style, layout, ATS flag and accent; accent palette
+    ├── index.tsx          # CVDocument: picks the template and applies the accent
+    ├── shared.tsx         # contact list, bullets, links, section wrapper
+    ├── templates.css      # styles for the ten newer templates
+    └── *Template.tsx      # one file per template
 ```
 
 ## Adding a new template
 
-1. Create `src/templates/MyTemplate.tsx`. It receives `{ cv }` and returns the markup.
-2. Add its styles to `globals.css` under a unique class, for example `.tpl-mine`.
-3. Add it to `TemplateId` in `lib/types.ts`, to `TEMPLATES` in `lib/cv.ts` and to `templates/index.tsx`.
-4. Put `data-step="<step id>"` (`personal`, `summary`, `experience`, …) on each section, so clicking it in the preview opens the right step.
+1. Create `src/templates/MyTemplate.tsx`. It receives `{ cv }` and returns the markup. Reuse the helpers in `templates/shared.tsx` (`contacts`, `Bullets`, `ProjectLinks`, `splitItems`, `Block`).
+2. Wrap each section in `<Block step="…">` (`personal`, `summary`, `experience`, …) so clicking it in the preview opens the right step.
+3. Add its styles to `src/templates/templates.css` under a unique prefix, and read the colour from `var(--cv-accent)` so accent colours work.
+4. Add it to `TEMPLATE_IDS` and `TEMPLATES` in `templates/catalog.ts` (name, description, tier, style, layout, ATS, default accent, best for) and to `COMPONENTS` in `templates/index.tsx`.
 
 ## JSON format
 

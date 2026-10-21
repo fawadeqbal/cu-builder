@@ -1,65 +1,119 @@
 "use client";
 
-import { TEMPLATES } from "@/lib/cv";
+import Link from "next/link";
 import { cvChecks } from "@/lib/progress";
 import { STEPS } from "@/lib/steps";
 import type { CV, TemplateId } from "@/lib/types";
-import { CVDocument } from "@/templates";
+import { ACCENTS, CVDocument, TEMPLATES, templateMeta, templateTags } from "@/templates";
+import { TierBadge } from "./TemplateBadge";
 
 type Props = {
   cv: CV;
   template: TemplateId;
   onTemplate: (t: TemplateId) => void;
+  accent: string | null;
+  onAccent: (a: string | null) => void;
   onGoTo: (step: number) => void;
   onDownload: () => void;
   onExport: () => void;
 };
 
-export function FinishStep({ cv, template, onTemplate, onGoTo, onDownload, onExport }: Props) {
+export function FinishStep({ cv, template, onTemplate, accent, onAccent, onGoTo, onDownload, onExport }: Props) {
+  const meta = templateMeta(template);
   const list = cvChecks(cv);
   const done = list.filter((c) => c.ok).length;
 
   return (
     <div className="flex flex-col gap-7">
-      <section className="flex flex-col gap-3">
-        <h3 className="text-sm font-semibold text-stone-800">Template</h3>
-        <div role="radiogroup" aria-label="Template" className="grid grid-cols-2 gap-3">
-          {TEMPLATES.map((t) => {
-            const active = template === t.id;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                onClick={() => onTemplate(t.id)}
-                className={`group flex flex-col overflow-hidden rounded-2xl border-2 bg-white text-left transition ${
-                  active ? "border-brand shadow-sm" : "border-stone-200 hover:border-stone-400"
-                }`}
-              >
-                <div aria-hidden="true" className="relative h-40 overflow-hidden bg-stone-100">
-                  <div className="absolute left-1/2 top-3 w-[210mm] origin-top -translate-x-1/2 scale-[0.26]">
-                    <div className="paper">
-                      <CVDocument cv={cv} template={t.id} />
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-start justify-between gap-2 border-t border-stone-200 px-3 py-2.5">
-                  <div>
-                    <div className="text-sm font-semibold text-stone-900">{t.name}</div>
-                    <div className="text-xs leading-snug text-stone-500">{t.description}</div>
-                  </div>
+      <section className="flex flex-col gap-4 rounded-2xl border border-stone-200 bg-white p-5 shadow-xs">
+        <div className="flex items-start gap-4">
+          <div aria-hidden="true" className="relative h-[150px] w-[106px] shrink-0 overflow-hidden rounded-lg bg-stone-100 ring-1 ring-stone-200">
+            <div className="absolute left-0 top-0 w-[210mm] origin-top-left scale-[0.134]">
+              <div className="paper">
+                <CVDocument cv={cv} template={template} accent={accent} />
+              </div>
+            </div>
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-base font-semibold text-stone-900">{meta.name}</h3>
+              <TierBadge tier={meta.tier} />
+            </div>
+            <p className="text-sm text-stone-600">{meta.description}</p>
+            <p className="text-xs text-stone-500">
+              {templateTags(meta)}
+            </p>
+            <Link
+              href="/templates"
+              className="mt-1 inline-flex w-fit items-center gap-1.5 rounded-lg bg-stone-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-stone-700"
+            >
+              Browse all {TEMPLATES.length} templates →
+            </Link>
+          </div>
+        </div>
+
+        <div>
+          <div className="mb-2 text-xs font-medium text-stone-500">Quick switch</div>
+          <div role="radiogroup" aria-label="Template" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+            {TEMPLATES.map((t) => {
+              const active = t.id === template;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  title={`${t.name} · ${t.description}`}
+                  onClick={() => onTemplate(t.id)}
+                  className={`flex w-[68px] shrink-0 flex-col items-center gap-1 rounded-lg p-1 transition ${
+                    active ? "bg-brand/[0.07]" : "hover:bg-stone-50"
+                  }`}
+                >
                   <span
-                    className={`mt-0.5 grid size-4 shrink-0 place-items-center rounded-full border-2 ${
-                      active ? "border-brand" : "border-stone-300"
+                    aria-hidden="true"
+                    className={`relative block h-[84px] w-[60px] overflow-hidden rounded-md bg-white ring-1 ${
+                      active ? "ring-2 ring-brand" : "ring-stone-200"
                     }`}
                   >
-                    {active && <span className="size-2 rounded-full bg-brand" />}
+                    <span className="absolute left-0 top-0 block w-[210mm] origin-top-left scale-[0.0756]">
+                      <span className="paper block">
+                        <CVDocument cv={cv} template={t.id} accent={accent} />
+                      </span>
+                    </span>
                   </span>
-                </div>
+                  <span className={`text-[11px] font-medium ${active ? "text-brand" : "text-stone-600"}`}>{t.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <div className="mb-2 flex items-center justify-between text-xs">
+            <span className="font-medium text-stone-500">Accent colour</span>
+            {accent && (
+              <button type="button" onClick={() => onAccent(null)} className="font-medium text-brand hover:underline">
+                Use template colour
               </button>
-            );
-          })}
+            )}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {ACCENTS.map((a) => {
+              const on = (accent ?? meta.accent) === a.value;
+              return (
+                <button
+                  key={a.value}
+                  type="button"
+                  title={a.name}
+                  aria-label={a.name}
+                  aria-pressed={on}
+                  onClick={() => onAccent(a.value === meta.accent ? null : a.value)}
+                  className={`size-7 rounded-full ring-1 ring-black/10 transition hover:scale-110 ${on ? "outline-2 outline-offset-2 outline-stone-900" : ""}`}
+                  style={{ background: a.value }}
+                />
+              );
+            })}
+          </div>
         </div>
       </section>
 

@@ -180,3 +180,12 @@ export const MoreIcon = (p: IconProps) => (
     <circle cx="15.5" cy="10" r=".9" fill="currentColor" />
   </Icon>
 );
+
+export const TemplatesIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3" y="3" width="6" height="8" rx="1.25" />
+    <rect x="11" y="3" width="6" height="5" rx="1.25" />
+    <rect x="3" y="13" width="6" height="4" rx="1.25" />
+    <rect x="11" y="10" width="6" height="7" rx="1.25" />
+  </Icon>
+);

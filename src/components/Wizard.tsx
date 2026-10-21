@@ -38,6 +38,8 @@ type Props = {
   onStep: (step: number) => void;
   template: TemplateId;
   onTemplate: (t: TemplateId) => void;
+  accent: string | null;
+  onAccent: (a: string | null) => void;
   onDownload: () => void;
   onExport: () => void;
 };
@@ -78,7 +80,7 @@ function isEmptyStep(cv: CV, id: string): boolean {
  * The step-by-step editor: a step rail on the left (icons only when the pane is narrow,
  * a compact dropdown on phones) and the current step's form on the right.
  */
-export function Wizard({ cv, onChange, step, onStep, template, onTemplate, onDownload, onExport }: Props) {
+export function Wizard({ cv, onChange, step, onStep, template, onTemplate, accent, onAccent, onDownload, onExport }: Props) {
   const index = Math.min(Math.max(step, 0), STEPS.length - 1);
   const current = STEPS[index];
   const [showErrors, setShowErrors] = useState(false);
@@ -143,7 +145,7 @@ export function Wizard({ cv, onChange, step, onStep, template, onTemplate, onDow
             {current.id === "projects" && <ProjectsSection cv={cv} onChange={onChange} />}
             {current.id === "extras" && <ExtrasSection cv={cv} onChange={onChange} />}
             {current.id === "finish" && (
-              <FinishStep cv={cv} template={template} onTemplate={onTemplate} onGoTo={goTo} onDownload={onDownload} onExport={onExport} />
+              <FinishStep cv={cv} template={template} onTemplate={onTemplate} accent={accent} onAccent={onAccent} onGoTo={goTo} onDownload={onDownload} onExport={onExport} />
             )}
 
             {current.tips.length > 0 && <Tips tips={current.tips} />}

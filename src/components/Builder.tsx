@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { emptyCV, loadSaved, normalizeCV, save, type Saved } from "@/lib/cv";
 import { DEFAULT_EDITOR_WIDTH, loadLayout, saveLayout, type Layout, type ViewMode, type Zoom } from "@/lib/layout";
@@ -8,7 +9,7 @@ import { sampleCV } from "@/lib/sample";
 import { STEPS, type StepId } from "@/lib/steps";
 import type { CV, TemplateId } from "@/lib/types";
 import { CVDocument } from "@/templates";
-import { DownloadIcon, EditorIcon, MoreIcon, PreviewIcon } from "./icons";
+import { DownloadIcon, EditorIcon, MoreIcon, PreviewIcon, TemplatesIcon } from "./icons";
 import { MiniPreview, Preview } from "./Preview";
 import { SplitView } from "./SplitView";
 import { ViewSwitcher } from "./ViewSwitcher";
@@ -29,7 +30,7 @@ function useIsDesktop() {
   );
 }
 
-const FRESH: Saved = { cv: emptyCV, template: "classic", step: 0, started: false };
+const FRESH: Saved = { cv: emptyCV, template: "classic", accent: null, step: 0, started: false };
 
 export default function Builder() {
   // Rendered on the client only (see BuilderLoader), so reading localStorage here is safe.
@@ -58,6 +59,7 @@ export default function Builder() {
   const update = (patch: Partial<Saved>) => setState((s) => ({ ...s, ...patch }));
   const setCV = (cv: CV) => update({ cv });
   const setTemplate = (template: TemplateId) => update({ template });
+  const setAccent = (accent: string | null) => update({ accent });
   const closeMenu = () => menuRef.current?.removeAttribute("open");
 
   // Phones only have room for one pane, so split view shows the editor there.
@@ -221,6 +223,12 @@ export default function Builder() {
           <ViewSwitcher mode={mode} onMode={setMode} allowSplit={isDesktop} />
 
           <div className="flex items-center justify-end gap-1">
+            <Link
+              href="/templates"
+              className="hidden items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-stone-600 transition hover:bg-stone-100 hover:text-stone-900 lg:flex"
+            >
+              <TemplatesIcon className="size-4" /> Templates
+            </Link>
             {!onFinish && (
               <button
                 type="button"
@@ -297,6 +305,8 @@ export default function Builder() {
               onStep={(step) => update({ step })}
               template={state.template}
               onTemplate={setTemplate}
+              accent={state.accent}
+              onAccent={setAccent}
               onDownload={downloadPdf}
               onExport={exportJson}
             />
@@ -306,6 +316,8 @@ export default function Builder() {
               cv={state.cv}
               template={state.template}
               onTemplate={setTemplate}
+              accent={state.accent}
+              onAccent={setAccent}
               zoom={layout.zoom}
               onZoom={setZoom}
               activeStep={STEPS[state.step]?.id}
@@ -316,7 +328,7 @@ export default function Builder() {
         />
 
         {isDesktop && mode === "editor" && (
-          <MiniPreview cv={state.cv} template={state.template} onOpen={() => setMode("split")} />
+          <MiniPreview cv={state.cv} template={state.template} accent={state.accent} onOpen={() => setMode("split")} />
         )}
 
         {!isDesktop && (
@@ -344,7 +356,7 @@ export default function Builder() {
       {/* The only thing that prints: a clean copy of the CV. */}
       <div className="print-only">
         <div className="paper">
-          <CVDocument cv={state.cv} template={state.template} />
+          <CVDocument cv={state.cv} template={state.template} accent={state.accent} />
         </div>
       </div>
 

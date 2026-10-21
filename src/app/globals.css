@@ -19,6 +19,7 @@ body {
 }
 
 .paper {
+  text-align: left;
   width: 210mm;
   min-height: 297mm;
   padding: 10mm 12mm 12mm;
@@ -41,10 +42,10 @@ body {
 /* ------------------------------------------------------------------ Classic */
 
 .tpl-classic {
-  --c-blue: #1e4b8f;
+  --c-blue: var(--cv-accent, #1e4b8f);
   --c-ink: #1f2933;
   --c-muted: #5b6673;
-  --c-rule: #c9d3e0;
+  --c-rule: color-mix(in srgb, var(--c-blue) 24%, #fff);
   font-family: var(--font-inter), "Liberation Sans", Arial, sans-serif;
   font-size: 8.6pt;
   line-height: 1.27;
@@ -199,7 +200,7 @@ body {
 /* ------------------------------------------------------------------ Modern */
 
 .tpl-modern {
-  --m-accent: #0f766e;
+  --m-accent: var(--cv-accent, #0f766e);
   --m-ink: #1c1917;
   --m-muted: #6b6560;
   --m-rule: #e2ded9;
@@ -401,13 +402,15 @@ body {
   position: relative;
   cursor: pointer;
   border-radius: 2pt;
-  transition:
-    background-color 0.15s,
-    box-shadow 0.15s;
+  transition: box-shadow 0.15s;
 }
 .preview-live [data-step]:hover {
-  background-color: rgb(30 75 143 / 0.06) !important;
-  box-shadow: 0 0 0 3pt rgb(30 75 143 / 0.06), 0 0 0 3.8pt rgb(30 75 143 / 0.35) !important;
+  /* An inset shadow tints over the section's own background instead of replacing it,
+     so coloured header bands keep their colour. */
+  box-shadow:
+    inset 0 0 0 100vmax rgb(30 75 143 / 0.06),
+    0 0 0 3pt rgb(30 75 143 / 0.06),
+    0 0 0 3.8pt rgb(30 75 143 / 0.35) !important;
 }
 .preview-live [data-step]:hover::before {
   content: "Edit";

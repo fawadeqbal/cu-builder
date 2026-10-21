@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from "react";
-import { TEMPLATES } from "@/lib/cv";
 import { stepZoom, type Zoom } from "@/lib/layout";
 import type { StepId } from "@/lib/steps";
 import type { CV, TemplateId } from "@/lib/types";
 import { CVDocument } from "@/templates";
+import { TemplatePicker } from "./TemplatePicker";
 import { FitPageIcon, FitWidthIcon, MinusIcon, PlusIcon, SwapIcon } from "./icons";
 
 const PAGE_MM = 297;
@@ -18,6 +18,8 @@ type Props = {
   cv: CV;
   template: TemplateId;
   onTemplate: (t: TemplateId) => void;
+  accent: string | null;
+  onAccent: (a: string | null) => void;
   zoom: Zoom;
   onZoom: (z: Zoom) => void;
   /** The wizard step being edited: its section is highlighted and scrolled into view. */
@@ -32,7 +34,7 @@ type Metrics = { paperW: number; paperH: number; fitWidth: number; fitPage: numb
 const clampScale = (s: number) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, s));
 
 /** The live A4 preview with its toolbar: template, zoom and page count. */
-export function Preview({ cv, template, onTemplate, zoom, onZoom, activeStep, onEditSection, onSwap }: Props) {
+export function Preview({ cv, template, onTemplate, accent, onAccent, zoom, onZoom, activeStep, onEditSection, onSwap }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const paperRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
@@ -124,22 +126,8 @@ export function Preview({ cv, template, onTemplate, zoom, onZoom, activeStep, on
           <span className="text-stone-400">· A4</span>
         </span>
 
-        <div role="radiogroup" aria-label="Template" className="flex rounded-md bg-stone-100 p-0.5 @md:ml-auto">
-          {TEMPLATES.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              role="radio"
-              aria-checked={template === t.id}
-              title={t.description}
-              onClick={() => onTemplate(t.id)}
-              className={`rounded px-2.5 py-1 text-xs font-medium transition ${
-                template === t.id ? "bg-white text-stone-900 shadow-xs ring-1 ring-stone-900/5" : "text-stone-500 hover:text-stone-800"
-              }`}
-            >
-              {t.name}
-            </button>
-          ))}
+        <div className="@md:ml-auto">
+          <TemplatePicker template={template} accent={accent} onTemplate={onTemplate} onAccent={onAccent} />
         </div>
 
         <div className="ml-auto flex items-center gap-0.5">
@@ -187,14 +175,14 @@ export function Preview({ cv, template, onTemplate, zoom, onZoom, activeStep, on
         >
           <div className="absolute left-0 top-0 origin-top-left" style={{ transform: `scale(${scale})` }}>
             {activeStep && onEditSection && (
-              <style>{`.preview-live [data-step="${activeStep}"]{background:rgb(30 75 143 / 0.045);box-shadow:0 0 0 3pt rgb(30 75 143 / 0.045)}`}</style>
+              <style>{`.preview-live [data-step="${activeStep}"]{box-shadow:inset 0 0 0 100vmax rgb(30 75 143 / 0.045),0 0 0 3pt rgb(30 75 143 / 0.045)}`}</style>
             )}
             <div
               ref={paperRef}
               className={`paper${onEditSection ? " preview-live" : ""}`}
               onClick={onPaperClick}
             >
-              <CVDocument cv={cv} template={template} />
+              <CVDocument cv={cv} template={template} accent={accent} />
             </div>
           </div>
         </div>
@@ -207,7 +195,7 @@ export function Preview({ cv, template, onTemplate, zoom, onZoom, activeStep, on
 }
 
 /** A small live thumbnail of the first page, used as a shortcut back to the preview. */
-export function MiniPreview({ cv, template, onOpen }: { cv: CV; template: TemplateId; onOpen: () => void }) {
+export function MiniPreview({ cv, template, accent, onOpen }: { cv: CV; template: TemplateId; accent: string | null; onOpen: () => void }) {
   return (
     <button
       type="button"
@@ -218,7 +206,7 @@ export function MiniPreview({ cv, template, onOpen }: { cv: CV; template: Templa
       <div aria-hidden="true" className="relative h-[176px] overflow-hidden bg-stone-100">
         <div className="absolute left-2 top-2 w-[210mm] origin-top-left scale-[0.168]">
           <div className="paper">
-            <CVDocument cv={cv} template={template} />
+            <CVDocument cv={cv} template={template} accent={accent} />
           </div>
         </div>
       </div>

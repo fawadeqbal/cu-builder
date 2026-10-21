@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { TEMPLATES } from "@/templates/catalog";
 import { sampleCV } from "@/lib/sample";
 import { ClassicTemplate } from "@/templates/ClassicTemplate";
 
@@ -71,6 +73,12 @@ export function Welcome({ onStart, onExample, onImport }: Props) {
           >
             Already have a saved CV file? Import it
           </button>
+          <Link
+            href="/templates"
+            className="self-start text-sm font-medium text-brand underline-offset-4 hover:underline"
+          >
+            Browse {TEMPLATES.length} CV templates →
+          </Link>
         </div>
 
         <div aria-hidden="true" className="relative hidden h-[540px] overflow-hidden lg:block">
