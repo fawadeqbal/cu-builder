@@ -16,7 +16,7 @@ Write your CV once, switch between templates, and download a clean A4 PDF. Built
 
 ## Features
 
-- **Step-by-step wizard** with a progress bar. Jump to any step, skip optional ones, and get checks on the required fields (name, job title, email).
+- **Step-by-step wizard with a step rail.** Every step is listed on the left with its icon and what it holds ("2 jobs", "51 words"), done steps are ticked, and a CV-strength ring shows how close you are. The rail turns into icons when the editor is narrow and into a dropdown on phones. Required fields (name, job title, email) are checked before you move on.
 - **Helpful inputs.** Summary starters with a word counter, quick-add skill groups, example placeholders and tips in every step.
 - **Two templates.**
   - **Classic:** Europass style, with section labels in a left column, a blue accent and justified text.
@@ -75,6 +75,7 @@ src/
 │   └── icons.tsx          # small inline SVG icons
 ├── lib/
 │   ├── cv.ts              # helpers, JSON validation, storage, template list
+│   ├── progress.ts        # CV check, CV strength and each step's status line
 │   ├── layout.ts          # view mode, pane width, side and zoom (saved separately from the CV)
 │   ├── sample.ts          # example CV
 │   ├── steps.ts           # wizard steps, titles and tips

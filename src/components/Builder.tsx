@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { emptyCV, loadSaved, normalizeCV, save, type Saved } from "@/lib/cv";
-import { loadLayout, saveLayout, type Layout, type ViewMode, type Zoom } from "@/lib/layout";
+import { DEFAULT_EDITOR_WIDTH, loadLayout, saveLayout, type Layout, type ViewMode, type Zoom } from "@/lib/layout";
 import { sampleCV } from "@/lib/sample";
 import { STEPS, type StepId } from "@/lib/steps";
 import type { CV, TemplateId } from "@/lib/types";
 import { CVDocument } from "@/templates";
-import { PreviewIcon, EditorIcon } from "./icons";
+import { DownloadIcon, EditorIcon, MoreIcon, PreviewIcon } from "./icons";
 import { MiniPreview, Preview } from "./Preview";
 import { SplitView } from "./SplitView";
 import { ViewSwitcher } from "./ViewSwitcher";
@@ -172,19 +172,25 @@ export default function Builder() {
     );
   }
 
-  const menuItem = "block w-full px-3 py-2 text-left text-sm text-stone-700 hover:bg-stone-100";
+  const menuItem = "block w-full rounded-lg px-3 py-2 text-left text-sm text-stone-700 hover:bg-stone-100";
   const onFinish = STEPS[state.step]?.id === "finish";
 
   return (
     <>
       <div className="no-print flex h-dvh flex-col bg-stone-100">
-        <header className="relative z-40 grid grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-stone-200 bg-white px-3 py-2 sm:px-4">
+        <header className="relative z-40 grid h-14 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-stone-200 bg-white px-3 sm:px-4">
           <div className="flex min-w-0 items-center gap-2.5">
-            <span className="grid size-7 shrink-0 place-items-center rounded-md bg-brand text-xs font-bold text-white">CV</span>
-            <span className="hidden text-[15px] font-semibold tracking-tight text-stone-900 sm:inline">CV Builder</span>
-            <span className="hidden items-center gap-1.5 truncate text-xs text-stone-400 xl:flex">
-              <span className="size-1.5 rounded-full bg-emerald-500" /> Saved in this browser
+            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-brand text-[11px] font-bold tracking-wide text-white shadow-sm shadow-brand/30">
+              CV
             </span>
+            <div className="hidden min-w-0 flex-col leading-tight sm:flex">
+              <span className="truncate text-sm font-semibold text-stone-900">
+                {state.cv.personal.name.trim() ? `${state.cv.personal.name.trim()}'s CV` : "Untitled CV"}
+              </span>
+              <span className="flex items-center gap-1.5 text-xs text-stone-500">
+                <span className="size-1.5 rounded-full bg-emerald-500" /> Saved in this browser
+              </span>
+            </div>
           </div>
 
           <ViewSwitcher mode={mode} onMode={setMode} allowSplit={isDesktop} />
@@ -194,16 +200,22 @@ export default function Builder() {
               <button
                 type="button"
                 onClick={downloadPdf}
-                className="hidden rounded-md px-3 py-1.5 text-sm font-medium text-brand hover:bg-brand/5 sm:block"
+                className="hidden items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-dark sm:flex"
               >
-                Download PDF
+                <DownloadIcon className="size-4" />
+                <span className="hidden xl:inline">Download PDF</span>
+                <span className="xl:hidden">PDF</span>
               </button>
             )}
             <details ref={menuRef} className="relative [&_summary::-webkit-details-marker]:hidden">
-              <summary className="cursor-pointer list-none rounded-md px-3 py-1.5 text-sm font-medium text-stone-600 hover:bg-stone-100">
-                More ▾
+              <summary
+                aria-label="More actions"
+                title="More actions"
+                className="grid size-9 cursor-pointer list-none place-items-center rounded-lg text-stone-500 transition hover:bg-stone-100 hover:text-stone-900"
+              >
+                <MoreIcon className="size-5" />
               </summary>
-              <div className="absolute right-0 z-40 mt-1 w-56 overflow-hidden rounded-lg border border-stone-200 bg-white py-1 shadow-lg">
+              <div className="absolute right-0 z-40 mt-2 w-60 overflow-hidden rounded-xl border border-stone-200 bg-white p-1 shadow-xl">
                 <button type="button" className={menuItem} onClick={() => { closeMenu(); fileRef.current?.click(); }}>
                   Import backup (.json)
                 </button>
@@ -215,7 +227,7 @@ export default function Builder() {
                 </button>
                 {isDesktop && (
                   <>
-                    <div className="my-1 border-t border-stone-100" />
+                    <div className="mx-2 my-1 border-t border-stone-100" />
                     <button
                       type="button"
                       className={menuItem}
@@ -226,13 +238,13 @@ export default function Builder() {
                     <button
                       type="button"
                       className={menuItem}
-                      onClick={() => { closeMenu(); setLayout((l) => ({ ...l, mode: "split", editorWidth: 540, zoom: "width" })); }}
+                      onClick={() => { closeMenu(); setLayout((l) => ({ ...l, mode: "split", editorWidth: DEFAULT_EDITOR_WIDTH, zoom: "width" })); }}
                     >
                       Reset layout
                     </button>
                   </>
                 )}
-                <div className="my-1 border-t border-stone-100" />
+                <div className="mx-2 my-1 border-t border-stone-100" />
                 <button type="button" className={`${menuItem} !text-red-600`} onClick={() => { closeMenu(); startOver(); }}>
                   Start over
                 </button>

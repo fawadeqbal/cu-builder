@@ -2,7 +2,7 @@
 
 import { newId } from "@/lib/cv";
 import type { CV, ListKey, Personal } from "@/lib/types";
-import { AddButton, ItemCard, LinesField, TextArea, TextField } from "./fields";
+import { AddButton, ItemCard, LinesField, Panel, TextArea, TextField } from "./fields";
 
 export type SectionProps = { cv: CV; onChange: (cv: CV) => void };
 
@@ -38,7 +38,7 @@ function useList(cv: CV, onChange: (cv: CV) => void) {
 
 function Empty({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-dashed border-stone-300 bg-white px-4 py-6 text-center text-sm text-stone-500">
+    <div className="rounded-2xl border border-dashed border-stone-300 bg-white/60 px-4 py-8 text-center text-sm text-stone-500">
       {children}
     </div>
   );
@@ -54,28 +54,29 @@ export function PersonalSection({ cv, onChange, errors = {} }: SectionProps & { 
     onChange({ ...cv, personal: { ...cv.personal, [key]: value } });
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <TextField label="Full name" required value={p.name} onChange={set("name")} placeholder="Sara Ahmed" error={errors.name} />
+    <div className="flex flex-col gap-4">
+      <Panel title="About you" description="Shown at the top of your CV.">
+        <div className="grid grid-cols-1 gap-4 @min-[520px]:grid-cols-2">
+          <TextField label="Full name" required value={p.name} onChange={set("name")} placeholder="Sara Ahmed" error={errors.name} />
+          <TextField
+            label="Job title you want"
+            required
+            value={p.headline}
+            onChange={set("headline")}
+            placeholder="Full Stack Developer"
+            error={errors.headline}
+          />
+        </div>
         <TextField
-          label="Job title you want"
-          required
-          value={p.headline}
-          onChange={set("headline")}
-          placeholder="Full Stack Developer"
-          error={errors.headline}
+          label="Key skills line (optional)"
+          value={p.tagline}
+          onChange={set("tagline")}
+          placeholder="React · Node.js · PostgreSQL · Docker"
         />
-      </div>
-      <TextField
-        label="Key skills line (optional)"
-        value={p.tagline}
-        onChange={set("tagline")}
-        placeholder="React · Node.js · PostgreSQL · Docker"
-      />
+      </Panel>
 
-      <fieldset className="flex flex-col gap-3">
-        <legend className="mb-2 text-sm font-semibold text-stone-800">Contact</legend>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <Panel title="Contact" description="How employers reach you. Only email is required.">
+        <div className="grid grid-cols-1 gap-4 @min-[520px]:grid-cols-2">
           <TextField
             label="Email"
             type="email"
@@ -97,7 +98,7 @@ export function PersonalSection({ cv, onChange, errors = {} }: SectionProps & { 
           onChange={set("extra")}
           placeholder="Nationality, visa status, driving licence…"
         />
-      </fieldset>
+      </Panel>
     </div>
   );
 }
@@ -118,18 +119,26 @@ export function SummarySection({ cv, onChange }: SectionProps) {
     words === 0 ? "Aim for 40–80 words" : words < 30 ? "A little short" : words <= 90 ? "Good length" : "Try to shorten it";
 
   return (
-    <div className="flex flex-col gap-3">
-      <TextArea
-        label="About you"
-        rows={7}
-        value={cv.summary}
-        placeholder="Who you are, what you build or do, and what you are best at."
-        onChange={(v) => onChange({ ...cv, summary: v })}
-      />
-      <div className="flex justify-between text-xs">
-        <span className={tone}>{label}</span>
-        <span className="text-stone-400">{words} words</span>
-      </div>
+    <div className="flex flex-col gap-4">
+      <Panel>
+        <TextArea
+          label="About you"
+          rows={7}
+          value={cv.summary}
+          placeholder="Who you are, what you build or do, and what you are best at."
+          onChange={(v) => onChange({ ...cv, summary: v })}
+        />
+        <div className="flex items-center gap-3 text-xs">
+          <span className={`font-medium ${tone}`}>{label}</span>
+          <span className="h-1 flex-1 overflow-hidden rounded-full bg-stone-100" aria-hidden="true">
+            <span
+              className={`block h-full rounded-full transition-[width] duration-300 ${words >= 30 && words <= 90 ? "bg-emerald-500" : words ? "bg-amber-400" : ""}`}
+              style={{ width: `${Math.min(100, (words / 80) * 100)}%` }}
+            />
+          </span>
+          <span className="tabular-nums text-stone-500">{words} words</span>
+        </div>
+      </Panel>
       {!cv.summary.trim() && (
         <div className="flex flex-col gap-2">
           <span className="text-xs font-medium text-stone-500">Need a start? Tap one and edit it:</span>
@@ -138,7 +147,7 @@ export function SummarySection({ cv, onChange }: SectionProps) {
               key={s}
               type="button"
               onClick={() => onChange({ ...cv, summary: s })}
-              className="rounded-md border border-stone-200 bg-white px-3 py-2 text-left text-sm text-stone-600 hover:border-brand hover:text-brand"
+              className="rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-left text-sm text-stone-600 shadow-xs transition hover:border-brand/50 hover:bg-brand/[0.03] hover:text-brand"
             >
               {s}
             </button>
@@ -167,7 +176,7 @@ export function ExperienceSection({ cv, onChange }: SectionProps) {
       )}
       {cv.experience.map((e, i) => (
         <ItemCard key={e.id} {...card("experience", i, [e.role, e.company].filter(Boolean).join(" · "), e.id)}>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 @min-[520px]:grid-cols-2">
             <TextField label="Job title" value={e.role} placeholder="Frontend Developer" onChange={(v) => set("experience", e.id, { role: v })} />
             <TextField label="Company" value={e.company} placeholder="Bright Labs" onChange={(v) => set("experience", e.id, { company: v })} />
             <TextField label="Location" value={e.location} placeholder="Lahore or Remote" onChange={(v) => set("experience", e.id, { location: v })} />
@@ -202,7 +211,7 @@ export function EducationSection({ cv, onChange }: SectionProps) {
       {cv.education.length === 0 && <Empty>Add your degree, diploma or school.</Empty>}
       {cv.education.map((ed, i) => (
         <ItemCard key={ed.id} {...card("education", i, ed.degree, ed.id)}>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 @min-[520px]:grid-cols-2">
             <TextField label="Degree" value={ed.degree} placeholder="BS Computer Science" onChange={(v) => set("education", ed.id, { degree: v })} />
             <TextField label="School / university" value={ed.school} placeholder="University of the Punjab" onChange={(v) => set("education", ed.id, { school: v })} />
             <TextField label="Dates" value={ed.date} placeholder="2018 – 2022" onChange={(v) => set("education", ed.id, { date: v })} />
@@ -237,7 +246,7 @@ export function SkillsSection({ cv, onChange }: SectionProps) {
                 key={g}
                 type="button"
                 onClick={() => add("skills", { id: newId("skill"), category: g, items: "" })}
-                className="rounded-full border border-stone-300 bg-white px-3 py-1 text-xs font-medium text-stone-600 hover:border-brand hover:text-brand"
+                className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-600 shadow-xs transition hover:border-brand/50 hover:text-brand"
               >
                 + {g}
               </button>
@@ -274,7 +283,7 @@ export function ProjectsSection({ cv, onChange }: SectionProps) {
       )}
       {cv.projects.map((p, i) => (
         <ItemCard key={p.id} {...card("projects", i, p.name, p.id)}>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_9rem]">
+          <div className="grid grid-cols-1 gap-4 @min-[520px]:grid-cols-[1fr_9rem]">
             <TextField label="Project name" value={p.name} placeholder="TaskFlow — Team Task Board" onChange={(v) => set("projects", p.id, { name: v })} />
             <TextField label="Year" value={p.date} placeholder="2025" onChange={(v) => set("projects", p.id, { date: v })} />
           </div>
@@ -309,10 +318,10 @@ export function ExtrasSection({ cv, onChange }: SectionProps) {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
-        <h3 className="text-sm font-semibold text-stone-800">Languages</h3>
+        <h3 className="text-sm font-semibold text-stone-900">Languages</h3>
         {cv.languages.map((l, i) => (
           <ItemCard key={l.id} {...card("languages", i, l.name, l.id)}>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 @min-[520px]:grid-cols-2">
               <TextField label="Language" value={l.name} placeholder="English" onChange={(v) => set("languages", l.id, { name: v })} />
               <TextField label="Level" value={l.level} placeholder="Native, Fluent, Basic…" onChange={(v) => set("languages", l.id, { level: v })} />
             </div>
@@ -326,7 +335,7 @@ export function ExtrasSection({ cv, onChange }: SectionProps) {
         {cv.certificates.map((c, i) => (
           <ItemCard key={c.id} {...card("certificates", i, c.name, c.id)}>
             <TextField label="Certificate" value={c.name} placeholder="AWS Cloud Practitioner" onChange={(v) => set("certificates", c.id, { name: v })} />
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_6rem]">
+            <div className="grid grid-cols-1 gap-4 @min-[520px]:grid-cols-[1fr_6rem]">
               <TextField label="Issued by" value={c.issuer} placeholder="Coursera" onChange={(v) => set("certificates", c.id, { issuer: v })} />
               <TextField label="Year" value={c.year} placeholder="2024" onChange={(v) => set("certificates", c.id, { year: v })} />
             </div>

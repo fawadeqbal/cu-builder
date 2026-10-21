@@ -1,7 +1,8 @@
 "use client";
 
-import { clean, TEMPLATES } from "@/lib/cv";
-import { STEPS, type StepId } from "@/lib/steps";
+import { TEMPLATES } from "@/lib/cv";
+import { cvChecks } from "@/lib/progress";
+import { STEPS } from "@/lib/steps";
 import type { CV, TemplateId } from "@/lib/types";
 import { CVDocument } from "@/templates";
 
@@ -14,37 +15,8 @@ type Props = {
   onExport: () => void;
 };
 
-function checks(cv: CV): { label: string; ok: boolean; step: StepId; hint: string }[] {
-  const p = cv.personal;
-  return [
-    {
-      label: "Name and contact details",
-      ok: !!(p.name.trim() && p.email.trim()),
-      step: "personal",
-      hint: "Add your name and email",
-    },
-    { label: "Summary", ok: cv.summary.trim().split(/\s+/).length >= 15, step: "summary", hint: "Write 2–4 sentences" },
-    {
-      label: "Experience or projects",
-      ok:
-        cv.experience.some((e) => e.role.trim() || e.company.trim()) ||
-        cv.projects.some((pr) => pr.name.trim()),
-      step: "experience",
-      hint: "Add at least one job or project",
-    },
-    {
-      label: "Achievements in your experience",
-      ok: cv.experience.length === 0 || cv.experience.every((e) => clean(e.bullets).length > 0),
-      step: "experience",
-      hint: "Add a few lines to each job",
-    },
-    { label: "Education", ok: cv.education.some((e) => e.degree.trim() || e.school.trim()), step: "education", hint: "Add your degree" },
-    { label: "Skills", ok: cv.skills.some((s) => s.items.trim()), step: "skills", hint: "List your key skills" },
-  ];
-}
-
 export function FinishStep({ cv, template, onTemplate, onGoTo, onDownload, onExport }: Props) {
-  const list = checks(cv);
+  const list = cvChecks(cv);
   const done = list.filter((c) => c.ok).length;
 
   return (
@@ -61,7 +33,7 @@ export function FinishStep({ cv, template, onTemplate, onGoTo, onDownload, onExp
                 role="radio"
                 aria-checked={active}
                 onClick={() => onTemplate(t.id)}
-                className={`group flex flex-col overflow-hidden rounded-lg border-2 bg-white text-left transition ${
+                className={`group flex flex-col overflow-hidden rounded-2xl border-2 bg-white text-left transition ${
                   active ? "border-brand shadow-sm" : "border-stone-200 hover:border-stone-400"
                 }`}
               >
@@ -98,7 +70,7 @@ export function FinishStep({ cv, template, onTemplate, onGoTo, onDownload, onExp
             {done} of {list.length} complete
           </span>
         </div>
-        <ul className="divide-y divide-stone-100 rounded-lg border border-stone-200 bg-white">
+        <ul className="divide-y divide-stone-100 rounded-2xl border border-stone-200 bg-white shadow-xs">
           {list.map((c) => (
             <li key={c.label} className="flex items-center gap-3 px-3 py-2.5 text-sm">
               <span
@@ -127,11 +99,11 @@ export function FinishStep({ cv, template, onTemplate, onGoTo, onDownload, onExp
         </ul>
       </section>
 
-      <section className="flex flex-col gap-3 rounded-lg bg-brand/5 p-4 ring-1 ring-brand/15">
+      <section className="flex flex-col gap-3 rounded-2xl bg-brand/5 p-5 ring-1 ring-brand/15">
         <button
           type="button"
           onClick={onDownload}
-          className="w-full rounded-lg bg-brand px-5 py-3 text-base font-semibold text-white shadow-sm hover:bg-brand-dark"
+          className="w-full rounded-xl bg-brand px-5 py-3 text-base font-semibold text-white shadow-sm hover:bg-brand-dark"
         >
           Download PDF
         </button>

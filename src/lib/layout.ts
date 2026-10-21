@@ -14,7 +14,7 @@ export type Layout = {
   zoom: Zoom;
 };
 
-export const DEFAULT_EDITOR_WIDTH = 540;
+export const DEFAULT_EDITOR_WIDTH = 700;
 export const MIN_EDITOR = 380;
 export const MIN_PREVIEW = 360;
 /** Dragging a pane narrower than this (past its minimum) hides it on release. */
@@ -36,7 +36,7 @@ export const VIEW_MODES: { id: ViewMode; label: string; shortcut: string }[] = [
   { id: "preview", label: "Preview", shortcut: "Alt+3" },
 ];
 
-const STORAGE_KEY = "cv-builder:layout:v1";
+const STORAGE_KEY = "cv-builder:layout:v2";
 
 export function loadLayout(): Layout {
   try {
