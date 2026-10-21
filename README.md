@@ -2,6 +2,8 @@
 
 Write your CV once, switch between templates, and download a clean A4 PDF. Built with Next.js, React and Tailwind CSS.
 
+**Live:** https://fawadeqbal.github.io/cu-builder/
+
 ![Classic template](docs/classic.png)
 
 ## Features
@@ -87,7 +89,11 @@ Use **Export JSON** to see the full structure. In short:
 
 ## Deploy
 
-The app is fully static, so it deploys anywhere. On [Vercel](https://vercel.com/new), import this repository and click Deploy.
+The app is exported as a static site (`output: "export"`), so it can be hosted anywhere.
+
+**GitHub Pages (set up):** every push to `main` runs `.github/workflows/deploy.yml`, which lints, builds and publishes the `out/` folder. In the repository go to **Settings → Pages** and set **Source** to **GitHub Actions** (only needed once).
+
+**Vercel / Netlify:** import the repository and deploy. The build command is `npm run build` and the output folder is `out`.
 
 ## Roadmap
 
