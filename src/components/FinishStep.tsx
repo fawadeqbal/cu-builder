@@ -108,8 +108,7 @@ export function FinishStep({ cv, template, onTemplate, onGoTo, onDownload, onExp
           Download PDF
         </button>
         <p className="text-xs leading-relaxed text-stone-600">
-          A print window opens. Choose <b>Save as PDF</b> as the destination and turn off <b>Headers and footers</b>{" "}
-          under “More settings”.
+          Your A4 PDF downloads straight away. The text stays selectable and searchable, and links stay clickable.
         </p>
         <button
           type="button"

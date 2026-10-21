@@ -22,7 +22,7 @@ Write your CV once, switch between templates, and download a clean A4 PDF. Built
   - **Classic:** Europass style, with section labels in a left column, a blue accent and justified text.
   - **Modern:** serif name, contact block on the right, and a two-column body with a side panel.
 - **CV check** before download, with links to fix anything missing.
-- **PDF export** through the browser's print engine, so the text stays selectable and links stay clickable.
+- **One-click PDF download,** built in the browser with [modern-screenshot](https://github.com/qq15725/modern-screenshot) and [jsPDF](https://github.com/parallax/jsPDF): no print dialog. Pages break between lines and entries, the text stays selectable and searchable (an invisible text layer sits over the page image, so applicant tracking systems can read it), and links stay clickable.
 - **Auto-save** in your browser (`localStorage`). There is no server or account, and you continue where you left off.
 - **Backup files.** Save and import your CV as JSON.
 - **Three views, one workspace.** Switch between **Edit**, **Split** and **Preview** from the header (`Alt+1` / `Alt+2` / `Alt+3`, or `Ctrl/⌘ + \` to show or hide the preview).
@@ -46,12 +46,11 @@ Open http://localhost:3000.
 
 ## Downloading the PDF
 
-1. Click **Download PDF**.
-2. In the print window, choose **Save as PDF** as the destination.
-3. Turn off **Headers and footers** (under "More settings").
-4. Save.
+Click **Download PDF**. The file (`your-name-cv.pdf`, A4, 10/12 mm margins) is built in your browser in a second or two and saved straight away. Nothing is uploaded.
 
-Chrome and Edge give the best result.
+How it works (`src/lib/pdf.ts`): the CV is laid out off-screen at the printed width, drawn to a high-resolution image by the browser itself (so fonts and colours match the preview exactly), cut into A4 pages at clean gaps between lines and entries, and placed in a PDF with jsPDF. Every line of text is then written over the image as invisible PDF text, and every link becomes a clickable link.
+
+Want a fully vector PDF instead? Open **⋯ → Print or save with the browser**, choose **Save as PDF**, and turn off **Headers and footers**.
 
 ## Project structure
 
@@ -76,6 +75,7 @@ src/
 ├── lib/
 │   ├── cv.ts              # helpers, JSON validation, storage, template list
 │   ├── progress.ts        # CV check, CV strength and each step's status line
+│   ├── pdf.ts             # direct PDF download: render, paginate, text layer, links
 │   ├── layout.ts          # view mode, pane width, side and zoom (saved separately from the CV)
 │   ├── sample.ts          # example CV
 │   ├── steps.ts           # wizard steps, titles and tips

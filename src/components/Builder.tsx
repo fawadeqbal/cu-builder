@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { emptyCV, loadSaved, normalizeCV, save, type Saved } from "@/lib/cv";
 import { DEFAULT_EDITOR_WIDTH, loadLayout, saveLayout, type Layout, type ViewMode, type Zoom } from "@/lib/layout";
+import { downloadCvPdf } from "@/lib/pdf";
 import { sampleCV } from "@/lib/sample";
 import { STEPS, type StepId } from "@/lib/steps";
 import type { CV, TemplateId } from "@/lib/types";
@@ -34,6 +35,7 @@ export default function Builder() {
   // Rendered on the client only (see BuilderLoader), so reading localStorage here is safe.
   const [state, setState] = useState<Saved>(() => loadSaved() ?? FRESH);
   const [layout, setLayout] = useState<Layout>(loadLayout);
+  const [exporting, setExporting] = useState(false);
   const [notice, setNotice] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDetailsElement>(null);
@@ -96,11 +98,34 @@ export default function Builder() {
     if (mode === "preview") setMode(isDesktop ? "split" : "editor");
   }
 
-  function downloadPdf() {
+  function printPdf() {
     const previous = document.title;
     document.title = `${state.cv.personal.name.trim() || "My"} CV`;
     window.print();
     document.title = previous;
+  }
+
+  async function downloadPdf() {
+    if (exporting) return;
+    const sheet = document.querySelector<HTMLElement>(".print-only .paper");
+    if (!sheet) return printPdf();
+    const name = state.cv.personal.name.trim();
+    const slug = (name || "my").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    setExporting(true);
+    try {
+      await downloadCvPdf(sheet, {
+        fileName: `${slug}-cv.pdf`,
+        title: `${name || "My"} CV`,
+        author: name,
+      });
+      setNotice("PDF downloaded");
+    } catch (err) {
+      console.error(err);
+      setNotice("Couldn't build the PDF here, opening print instead");
+      printPdf();
+    } finally {
+      setExporting(false);
+    }
   }
 
   function exportJson() {
@@ -200,10 +225,12 @@ export default function Builder() {
               <button
                 type="button"
                 onClick={downloadPdf}
-                className="hidden items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-dark sm:flex"
+                disabled={exporting}
+                aria-busy={exporting}
+                className="hidden items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-dark disabled:cursor-wait disabled:opacity-80 sm:flex"
               >
-                <DownloadIcon className="size-4" />
-                <span className="hidden xl:inline">Download PDF</span>
+                {exporting ? <Spinner /> : <DownloadIcon className="size-4" />}
+                <span className="hidden xl:inline">{exporting ? "Preparing PDF…" : "Download PDF"}</span>
                 <span className="xl:hidden">PDF</span>
               </button>
             )}
@@ -224,6 +251,9 @@ export default function Builder() {
                 </button>
                 <button type="button" className={menuItem} onClick={() => { closeMenu(); loadExample(); }}>
                   Load example CV
+                </button>
+                <button type="button" className={menuItem} onClick={() => { closeMenu(); printPdf(); }}>
+                  Print or save with the browser
                 </button>
                 {isDesktop && (
                   <>
@@ -297,7 +327,7 @@ export default function Builder() {
               mode === "preview" ? "bottom-5 bg-brand" : "bottom-[76px] bg-stone-900"
             }`}
           >
-            {mode === "preview" ? "Download PDF" : (<><PreviewIcon className="size-4" /> Preview</>)}
+            {mode === "preview" ? (exporting ? "Preparing PDF…" : "Download PDF") : (<><PreviewIcon className="size-4" /> Preview</>)}
           </button>
         )}
         {!isDesktop && mode === "preview" && (
@@ -322,4 +352,8 @@ export default function Builder() {
       {toast}
     </>
   );
+}
+
+function Spinner() {
+  return <span aria-hidden="true" className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />;
 }
