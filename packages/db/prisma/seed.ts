@@ -1,9 +1,10 @@
 import { sampleCV } from "@cvb/domain";
 import { hashPassword } from "better-auth/crypto";
+import { fileURLToPath } from "node:url";
 import { config } from "dotenv";
 import { createDbClient } from "../src/client.js";
 
-config({ path: new URL("../../../.env", import.meta.url).pathname, quiet: true });
+config({ path: fileURLToPath(new URL("../../../.env", import.meta.url)), quiet: true });
 
 /**
  * Development data. Safe to run repeatedly.
