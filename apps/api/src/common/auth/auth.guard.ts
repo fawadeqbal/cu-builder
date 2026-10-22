@@ -1,38 +1,64 @@
-import { UnauthenticatedError } from "@cvb/shared";
+import { ForbiddenError, UnauthenticatedError } from "@cvb/shared";
 import { type CanActivate, type ExecutionContext, Inject, Injectable } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
+import { fromNodeHeaders } from "better-auth/node";
 import type { Request } from "express";
 import { APP_CONFIG, type AppConfig } from "../../config/app-config.js";
+import { AUTH, type BetterAuth } from "../../modules/auth/better-auth.js";
+import { EntitlementsService } from "../../modules/billing/entitlements.service.js";
 import { UsersService } from "../../modules/users/users.service.js";
-import { IS_PUBLIC } from "./decorators.js";
+import type { AuthUser, Role } from "./auth.types.js";
+import { IS_PUBLIC, ROLES } from "./decorators.js";
 
 /**
- * Runs on every route unless marked @Public().
+ * Global guard. Resolves the signed-in user from the Better Auth session cookie, adds their
+ * effective plan, and enforces @Roles(). On @Public() routes it still attaches the user when
+ * there is one, so public endpoints can personalise.
  *
- * PHASE 1 PLACEHOLDER: until real sign-in ships, development requests identify themselves
- * with an `x-dev-user: <email>` header. This only works when DEV_AUTH=true and never in
- * production, where every protected request is refused.
+ * Development only: with DEV_AUTH=true (never in production) an `x-dev-user: <email>` header
+ * signs in as that user, which keeps API testing with curl simple.
  */
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    @Inject(AUTH) private readonly auth: BetterAuth,
     private readonly users: UsersService,
+    private readonly entitlements: EntitlementsService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, [context.getHandler(), context.getClass()]);
-    if (isPublic) return true;
-
+    const targets = [context.getHandler(), context.getClass()];
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, targets);
+    const roles = this.reflector.getAllAndOverride<Role[] | undefined>(ROLES, targets);
     const req = context.switchToHttp().getRequest<Request>();
-    const devEmail = req.header("x-dev-user");
-    const devAuthAllowed = this.config.DEV_AUTH && this.config.NODE_ENV !== "production";
 
-    if (devAuthAllowed && devEmail) {
-      req.user = await this.users.findOrCreateByEmail(devEmail);
-      return true;
+    req.user = await this.resolve(req);
+    if (isPublic) return true;
+    if (!req.user) throw new UnauthenticatedError();
+    if (roles?.length && !roles.includes(req.user.role)) throw new ForbiddenError();
+    return true;
+  }
+
+  private async resolve(req: Request): Promise<AuthUser | undefined> {
+    const devEmail = req.header("x-dev-user");
+    if (devEmail && this.config.DEV_AUTH && this.config.NODE_ENV !== "production") {
+      const base = await this.users.findOrCreateByEmail(devEmail);
+      return this.withPlan(base);
     }
-    throw new UnauthenticatedError();
+
+    const session = await this.auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
+    if (!session) return undefined;
+    // Role and profile come from the database, not the session cookie cache, so an admin
+    // change (promotion, demotion) applies on the next request.
+    const u = await this.users.get(session.user.id).catch(() => null);
+    if (!u) return undefined;
+    return this.withPlan({ id: u.id, email: u.email, name: u.name, emailVerified: u.emailVerified, role: u.role });
+  }
+
+  private async withPlan(base: Omit<AuthUser, "plan" | "planSource">): Promise<AuthUser> {
+    const { plan, source } = await this.entitlements.planFor(base.id);
+    return { ...base, plan, planSource: source };
   }
 }

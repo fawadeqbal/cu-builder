@@ -73,6 +73,7 @@ export const AccentSchema = z
   .regex(/^#[0-9a-f]{6}$/i)
   .nullable();
 export const PageSizeSchema = z.enum(["A4", "LETTER"]);
+export type PageSize = z.output<typeof PageSizeSchema>;
 
 export const CreateResumeSchema = z.object({
   title: z.string().trim().min(1).max(120).default("Untitled CV"),
@@ -113,3 +114,14 @@ export const ResumeSchema = ResumeSummarySchema.extend({ data: ResumeDataSchema 
 export type ResumeDto = z.output<typeof ResumeSchema>;
 
 export const StepIdSchema = z.enum(STEP_IDS);
+
+export const ResumeVersionSchema = z.object({
+  id: z.string(),
+  reason: z.string(),
+  templateId: z.string(),
+  createdAt: z.string(),
+});
+export type ResumeVersionDto = z.output<typeof ResumeVersionSchema>;
+
+export const CreateVersionSchema = z.object({ reason: z.enum(["manual", "download"]).default("manual") });
+export type CreateVersionDto = z.output<typeof CreateVersionSchema>;

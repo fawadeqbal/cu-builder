@@ -5,6 +5,7 @@ import { cvStrength, stepState } from "@cvb/domain";
 import { STEPS, type StepId } from "@/lib/steps";
 import type { CV } from "@cvb/domain";
 import type { TemplateId } from "@cvb/templates/catalog";
+import type { ExportActions } from "@/lib/exports";
 import { FinishStep } from "./FinishStep";
 import {
   ArrowLeftIcon,
@@ -41,8 +42,7 @@ type Props = {
   onTemplate: (t: TemplateId) => void;
   accent: string | null;
   onAccent: (a: string | null) => void;
-  onDownload: () => void;
-  onExport: () => void;
+  actions: ExportActions;
 };
 
 export const STEP_ICONS: Record<StepId, (p: { className?: string }) => ReactNode> = {
@@ -81,7 +81,7 @@ function isEmptyStep(cv: CV, id: string): boolean {
  * The step-by-step editor: a step rail on the left (icons only when the pane is narrow,
  * a compact dropdown on phones) and the current step's form on the right.
  */
-export function Wizard({ cv, onChange, step, onStep, template, onTemplate, accent, onAccent, onDownload, onExport }: Props) {
+export function Wizard({ cv, onChange, step, onStep, template, onTemplate, accent, onAccent, actions }: Props) {
   const index = Math.min(Math.max(step, 0), STEPS.length - 1);
   const current = STEPS[index];
   const [showErrors, setShowErrors] = useState(false);
@@ -146,7 +146,7 @@ export function Wizard({ cv, onChange, step, onStep, template, onTemplate, accen
             {current.id === "projects" && <ProjectsSection cv={cv} onChange={onChange} />}
             {current.id === "extras" && <ExtrasSection cv={cv} onChange={onChange} />}
             {current.id === "finish" && (
-              <FinishStep cv={cv} template={template} onTemplate={onTemplate} accent={accent} onAccent={onAccent} onGoTo={goTo} onDownload={onDownload} onExport={onExport} />
+              <FinishStep cv={cv} template={template} onTemplate={onTemplate} accent={accent} onAccent={onAccent} onGoTo={goTo} actions={actions} />
             )}
 
             {current.tips.length > 0 && <Tips tips={current.tips} />}
@@ -184,10 +184,11 @@ export function Wizard({ cv, onChange, step, onStep, template, onTemplate, accen
             ) : (
               <button
                 type="button"
-                onClick={onDownload}
+                onClick={() => actions.exportAs("pdf")}
+                disabled={actions.busy === "pdf"}
                 className="flex items-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-dark"
               >
-                <DownloadIcon className="size-4" /> Download PDF
+                <DownloadIcon className="size-4" /> {actions.busy === "pdf" ? "Preparing PDF…" : "Download PDF"}
               </button>
             )}
           </div>

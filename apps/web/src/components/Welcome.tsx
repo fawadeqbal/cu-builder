@@ -9,20 +9,38 @@ type Props = {
   onStart: () => void;
   onExample: () => void;
   onImport: () => void;
+  signedIn: boolean;
 };
 
 const POINTS = [
   { title: "Answer simple questions", text: "One short step at a time, with tips on what to write." },
   { title: "Watch it take shape", text: "Your CV updates live in a clean, recruiter-friendly layout." },
-  { title: "Download a PDF", text: "Pick a template and save an A4 PDF, ready to send." },
+  { title: "Download and share", text: "Save a PDF or Word file, or send a link to your CV." },
 ];
 
-export function Welcome({ onStart, onExample, onImport }: Props) {
+export function Welcome({ onStart, onExample, onImport, signedIn }: Props) {
   return (
     <div className="min-h-dvh bg-stone-100">
       <header className="mx-auto flex max-w-6xl items-center gap-2 px-5 py-5">
         <span className="grid size-8 place-items-center rounded-md bg-brand text-xs font-bold text-white">CV</span>
         <span className="text-base font-semibold tracking-tight text-stone-900">CV Builder</span>
+        <nav className="ml-auto flex items-center gap-1 text-sm font-medium">
+          <Link href="/templates" className="hidden rounded-lg px-3 py-2 text-stone-600 hover:bg-white hover:text-stone-900 sm:block">
+            Templates
+          </Link>
+          <Link href="/pricing" className="rounded-lg px-3 py-2 text-stone-600 hover:bg-white hover:text-stone-900">
+            Pricing
+          </Link>
+          {signedIn ? (
+            <Link href="/app" className="rounded-lg bg-stone-900 px-3 py-2 text-white hover:bg-stone-700">
+              My CVs
+            </Link>
+          ) : (
+            <Link href="/sign-in?next=/app" className="rounded-lg bg-white px-3 py-2 text-stone-800 shadow-xs ring-1 ring-stone-200 hover:bg-stone-50">
+              Sign in
+            </Link>
+          )}
+        </nav>
       </header>
 
       <main className="mx-auto grid max-w-6xl items-center gap-12 px-5 pb-16 pt-4 lg:grid-cols-[1.05fr_1fr] lg:pt-10">
@@ -32,7 +50,7 @@ export function Welcome({ onStart, onExample, onImport }: Props) {
               Make a professional CV in a few easy steps
             </h1>
             <p className="max-w-lg text-lg leading-relaxed text-stone-600">
-              Free, no sign-up. Fill in your details, choose a design and download your CV as a PDF.
+              Free, no sign-up needed. Fill in your details, choose a design and download your CV as a PDF. Create an account to keep it safe on every device.
             </p>
           </div>
 
@@ -73,6 +91,12 @@ export function Welcome({ onStart, onExample, onImport }: Props) {
           >
             Already have a saved CV file? Import it
           </button>
+          <Link
+            href={signedIn ? "/app?import=1" : "/sign-up?next=%2Fapp%3Fimport%3D1"}
+            className="self-start text-sm font-medium text-stone-500 underline-offset-4 hover:text-brand hover:underline"
+          >
+            Have a CV as PDF or Word? Upload it and we&apos;ll fill in the steps
+          </Link>
           <Link
             href="/templates"
             className="self-start text-sm font-medium text-brand underline-offset-4 hover:underline"

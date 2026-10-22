@@ -7,5 +7,6 @@ import { ResumesService } from "./resumes.service.js";
 @Module({
   controllers: [ResumesController],
   providers: [ResumesService, { provide: RESUMES_REPOSITORY, useClass: PrismaResumesRepository }],
+  exports: [ResumesService],
 })
 export class ResumesModule {}

@@ -1,15 +1,14 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { FullPageMessage } from "./ui/FullPageMessage";
 
 // The builder reads saved data from localStorage, so it only renders in the browser.
-const Builder = dynamic(() => import("./Builder"), {
+const GuestBuilder = dynamic(() => import("./GuestBuilder"), {
   ssr: false,
-  loading: () => (
-    <div className="grid h-dvh place-items-center bg-stone-100 text-sm text-stone-500">Loading CV Builder…</div>
-  ),
+  loading: () => <FullPageMessage>Loading CV Builder…</FullPageMessage>,
 });
 
 export function BuilderLoader() {
-  return <Builder />;
+  return <GuestBuilder />;
 }

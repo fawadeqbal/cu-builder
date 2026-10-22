@@ -4,16 +4,19 @@ import type { NextConfig } from "next";
 
 const monorepoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
-// On GitHub Pages the site lives under /<repo-name>; the deploy workflow sets this.
-// Locally it is empty, so the app runs at http://localhost:3000.
-const basePath = process.env.PAGES_BASE_PATH ?? "";
+// Where the web server reaches the API. In production Caddy sends /api straight to the API,
+// so this rewrite only matters in development and as a fallback.
+const apiOrigin = process.env.API_INTERNAL_URL ?? "http://localhost:4000";
 
 const nextConfig: NextConfig = {
-  output: "export",
-  basePath,
+  // A self-contained Node server (apps/web/.next/standalone) for the Docker image on the VPS.
+  output: "standalone",
   images: { unoptimized: true },
   // Workspace packages (@cvb/*) live outside this folder.
   outputFileTracingRoot: monorepoRoot,
+  async rewrites() {
+    return [{ source: "/api/:path*", destination: `${apiOrigin}/api/:path*` }];
+  },
   turbopack: {
     root: monorepoRoot,
     rules: {

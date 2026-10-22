@@ -1,0 +1,68 @@
+Sara Ahmed
+Full Stack Developer
+React · Next.js · Node.js · PostgreSQL · Docker
+sara.ahmed@example.com
++92 300 1234567
+Lahore, Pakistan
+saraahmed.dev
+github.com/sara-ahmed
+linkedin.com/in/sara-ahmed
+Full stack developer with four years of experience building web applications with React, Next.js and Node.js. Comfortable
+owning a feature end to end, from database design and REST APIs to responsive, accessible interfaces, and shipping it
+with Docker and CI/CD. Enjoys turning messy business workflows into simple tools people actually use.
+Experience
+Full Stack Developer Mar 2024 – Present
+Bright Labs · Lahore, Pakistan
+Build and maintain a multi-tenant booking platform used by 120+ clinics, with a
+Node.js API and a Next.js dashboard.
+Designed the PostgreSQL schema and indexes for appointments and payments,
+cutting the slowest report query from 4 s to 300 ms.
+Added role-based access control and audit logs for admin, staff and patient
+accounts.
+Set up GitHub Actions pipelines that test, build and deploy Docker images on every
+merge.
+Next.js, React, Node.js, Express, PostgreSQL, Prisma, Docker, GitHub Actions
+Frontend Developer Jun 2022 – Feb 2024
+Pixel Works · Remote
+Turned Figma designs into a reusable React component library shared by three
+products.
+Improved Lighthouse performance scores from 62 to 94 with code splitting and
+image optimization.
+React, TypeScript, Tailwind CSS, Storybook
+Projects
+TaskFlow — Team Task Board 2025
+github.com/sara-ahmed/taskflow
+Kanban board with drag and drop, assignees and a 'My tasks' filter; status
+changes save instantly with optimistic updates.
+JWT authentication and a documented REST API with Express and MongoDB.
+React, Tailwind CSS, Express, MongoDB, dnd-kit
+ShopLite — E-commerce Store 2024
+shoplite.example.com
+Storefront with product search, cart and Stripe checkout, plus an admin panel for
+products and orders.
+Next.js, PostgreSQL, Stripe, Docker
+Skills
+Frontend
+React, Next.js, TypeScript,
+Tailwind CSS, TanStack Query
+Backend
+Node.js, Express, NestJS, REST
+APIs, JWT
+Databases
+PostgreSQL, Prisma, MongoDB,
+Redis
+DevOps
+Docker, GitHub Actions, Nginx,
+Linux
+Education
+BS Computer Science
+University of the Punjab
+2018 – 2022 · Lahore, Pakistan ·
+CGPA 3.4 / 4.0
+Certificates
+AWS Cloud Practitioner
+Amazon Web Services · 2024
+Languages
+English Professional working
+proficiency
+Urdu Native

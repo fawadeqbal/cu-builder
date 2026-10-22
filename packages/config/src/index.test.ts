@@ -8,6 +8,7 @@ describe("loadEnv", () => {
       REDIS_URL: "redis://localhost:6379",
       API_CORS_ORIGINS: "http://a.test, http://b.test",
       DEV_AUTH: "true",
+      BETTER_AUTH_SECRET: "x".repeat(32),
     });
     expect(env.API_PORT).toBe(4000);
     expect(env.API_CORS_ORIGINS).toEqual(["http://a.test", "http://b.test"]);

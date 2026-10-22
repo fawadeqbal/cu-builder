@@ -1,18 +1,18 @@
 "use client";
 
+import type { ResumeDto } from "@cvb/contracts";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { emptyCV } from "@cvb/domain";
-import { loadSaved, save, type Saved } from "@/lib/cv";
-import { sampleCV } from "@cvb/domain";
+import { normalizeCV, sampleCV } from "@cvb/domain";
+import { FRESH, loadSaved, save, type Saved } from "@/lib/cv";
 import type { CV } from "@cvb/domain";
 import {
   ACCENTS,
   CVDocument,
+  isTemplateId,
   LAYOUTS,
   STYLES,
-  TEMPLATES,
   TIERS,
   type LayoutKind,
   type Style,
@@ -21,17 +21,48 @@ import {
   type Tier,
   templateTags,
 } from "@cvb/templates";
-import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, PreviewIcon } from "@cvb/ui";
+import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, LockIcon, PreviewIcon } from "@cvb/ui";
 import { TierBadge } from "@cvb/ui";
-import { isUnlocked } from "@/lib/access";
+import { isUnlocked, usePlan } from "@/lib/access";
+import { track } from "@/lib/analytics";
+import { api, isApiError } from "@/lib/api";
+import { useCatalog } from "@/lib/catalog";
+import type { Gate } from "@/lib/plans";
+import { useResume } from "@/lib/queries";
+import { UpgradeDialog } from "./UpgradeDialog";
 
-const FRESH: Saved = { cv: emptyCV, template: "classic", accent: null, step: 0, started: false };
 const A4_PX = 793.7; // 210mm at 96dpi
 
 /** The full template gallery: filter by tier, style, layout and ATS, recolour, preview, choose. */
 export default function TemplateGallery() {
+  const resumeId = useSearchParams().get("resume");
+  const resume = useResume(resumeId ?? "", Boolean(resumeId));
+  if (resumeId && !resume.data) {
+    return <div className="grid h-dvh place-items-center bg-stone-50 text-sm text-stone-500">{resume.isError ? "We couldn't open that CV." : "Loading templates…"}</div>;
+  }
+  return <Gallery resume={resume.data ?? null} />;
+}
+
+const fromResume = (r: ResumeDto): Saved => ({
+  cv: normalizeCV(r.data),
+  template: isTemplateId(r.templateId) ? r.templateId : "classic",
+  accent: r.accent,
+  pageSize: r.pageSize,
+  step: 0,
+  started: true,
+});
+
+/**
+ * Picks a template for one CV: the CV in this browser (guests), a CV in the account
+ * (`?resume=<id>`), or a new account CV when a signed-in user opens the gallery directly.
+ */
+function Gallery({ resume }: { resume: ResumeDto | null }) {
   const router = useRouter();
-  const [saved] = useState<Saved>(() => loadSaved() ?? FRESH);
+  const { plan, signedIn } = usePlan();
+  const { templates: TEMPLATES } = useCatalog();
+  const [gate, setGate] = useState<Gate | null>(null);
+  const [error, setError] = useState("");
+  const [saved] = useState<Saved>(() => (resume ? fromResume(resume) : (loadSaved() ?? FRESH)));
   const hasOwnCV = !!saved.cv.personal.name.trim();
   const [useMine, setUseMine] = useState(hasOwnCV);
   const cv: CV = useMine && hasOwnCV ? saved.cv : sampleCV;
@@ -54,7 +85,7 @@ export default function TemplateGallery() {
         (!atsOnly || t.ats) &&
         (!q || `${t.name} ${t.description} ${t.bestFor} ${t.style} ${t.tier}`.toLowerCase().includes(q)),
     );
-  }, [tier, styles, layout, atsOnly, query]);
+  }, [tier, styles, layout, atsOnly, query, TEMPLATES]);
 
   const filtered = styles.length > 0 || layout !== "any" || atsOnly || query.trim() !== "" || tier !== "all";
   const clear = () => {
@@ -65,9 +96,27 @@ export default function TemplateGallery() {
     setQuery("");
   };
 
-  function choose(id: TemplateId) {
-    save({ ...saved, template: id, accent });
-    router.push("/");
+  const backHref = resume ? `/edit/${resume.id}` : signedIn ? "/app" : "/";
+
+  async function choose(id: TemplateId) {
+    const meta = TEMPLATES.find((t) => t.id === id);
+    if (meta && !isUnlocked(plan, meta.tier)) return setGate({ kind: "tier", tier: meta.tier, name: meta.name });
+    track("template_selected", { template: id, from: "gallery" });
+    try {
+      if (resume) {
+        await api.patch(`/resumes/${resume.id}`, { templateId: id, accent });
+        router.push(`/edit/${resume.id}`);
+      } else if (signedIn) {
+        const created = await api.post<ResumeDto>("/resumes", { title: "Untitled CV", templateId: id, accent });
+        router.push(`/edit/${created.id}`);
+      } else {
+        save({ ...saved, template: id, accent });
+        router.push("/");
+      }
+    } catch (e) {
+      if (isApiError(e, "PLAN_REQUIRED")) setGate({ kind: "feature", feature: "resume.multiple" });
+      else setError(e instanceof Error ? e.message : "Something went wrong");
+    }
   }
 
   const count = (t: Tier | "all") => (t === "all" ? TEMPLATES.length : TEMPLATES.filter((x) => x.tier === t).length);
@@ -80,17 +129,17 @@ export default function TemplateGallery() {
     <div className="min-h-dvh bg-stone-50">
       <header className="sticky top-0 z-30 border-b border-stone-200 bg-white/90 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-2.5">
+          <Link href={backHref} className="flex items-center gap-2.5">
             <span className="grid size-8 place-items-center rounded-lg bg-brand text-[11px] font-bold tracking-wide text-white shadow-sm shadow-brand/30">
               CV
             </span>
             <span className="text-sm font-semibold text-stone-900">Templates</span>
           </Link>
           <Link
-            href="/"
+            href={backHref}
             className="ml-auto flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-stone-600 transition hover:bg-stone-100 hover:text-stone-900"
           >
-            <ArrowLeftIcon className="size-4" /> Back to editor
+            <ArrowLeftIcon className="size-4" /> {resume || !signedIn ? "Back to editor" : "My CVs"}
           </Link>
         </div>
       </header>
@@ -254,8 +303,9 @@ export default function TemplateGallery() {
                   cv={cv}
                   accent={accent}
                   current={t.id === saved.template}
+                  locked={!isUnlocked(plan, t.tier)}
                   onPreview={() => setOpen(t.id)}
-                  onChoose={() => choose(t.id)}
+                  onChoose={() => void choose(t.id)}
                 />
               </li>
             ))}
@@ -273,8 +323,14 @@ export default function TemplateGallery() {
           current={saved.template}
           onNavigate={setOpen}
           onClose={() => setOpen(null)}
-          onChoose={choose}
+          onChoose={(id) => void choose(id)}
         />
+      )}
+      <UpgradeDialog gate={gate} onClose={() => setGate(null)} />
+      {error && (
+        <div role="alert" className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-md bg-red-600 px-4 py-2 text-sm text-white shadow-lg">
+          {error}
+        </div>
       )}
     </div>
   );
@@ -320,6 +376,7 @@ function TemplateCard({
   cv,
   accent,
   current,
+  locked,
   onPreview,
   onChoose,
 }: {
@@ -327,6 +384,7 @@ function TemplateCard({
   cv: CV;
   accent: string | null;
   current: boolean;
+  locked: boolean;
   onPreview: () => void;
   onChoose: () => void;
 }) {
@@ -356,10 +414,10 @@ function TemplateCard({
           <button
             type="button"
             onClick={onChoose}
-            disabled={!isUnlocked(meta.tier)}
-            className="rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white shadow-lg hover:bg-brand-dark"
+            className="flex items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white shadow-lg hover:bg-brand-dark"
           >
-            {current ? "Keep using" : "Use template"}
+            {locked && <LockIcon className="size-3.5" />}
+            {current ? "Keep using" : locked ? "Unlock" : "Use template"}
           </button>
         </div>
       </div>

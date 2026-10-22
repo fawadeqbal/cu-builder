@@ -19,6 +19,11 @@
   print-color-adjust: exact;
 }
 
+.paper[data-size="letter"] {
+  width: 215.9mm;
+  min-height: 279.4mm;
+}
+
 .paper a {
   text-decoration: none;
 }

@@ -232,3 +232,19 @@ export function templateTags(t: TemplateMeta): string {
   const layout = LAYOUTS.find((l) => l.id === t.layout)?.name;
   return [style, layout, t.ats ? "ATS-friendly" : null, `Best for: ${t.bestFor}`].filter(Boolean).join(" · ");
 }
+
+/** An admin's change to one template (see the admin console). */
+export type TemplateOverride = { templateId: string; enabled: boolean; tier: Tier | null; sortOrder: number | null };
+
+/**
+ * The catalog as visitors see it: unpublished templates left out, tiers changed, and templates
+ * with a sort order placed first (lowest first), the rest in their usual order.
+ */
+export function applyOverrides(list: readonly TemplateMeta[], overrides: readonly TemplateOverride[]): TemplateMeta[] {
+  const byId = new Map(overrides.map((o) => [o.templateId, o]));
+  return list
+    .map((t, index) => ({ t, index, o: byId.get(t.id) }))
+    .filter(({ o }) => o?.enabled !== false)
+    .sort((a, b) => (a.o?.sortOrder ?? Infinity) - (b.o?.sortOrder ?? Infinity) || a.index - b.index)
+    .map(({ t, o }) => (o?.tier ? { ...t, tier: o.tier } : t));
+}

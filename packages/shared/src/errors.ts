@@ -9,6 +9,7 @@ export type ErrorCode =
   | "UNAUTHENTICATED"
   | "FORBIDDEN"
   | "PLAN_REQUIRED"
+  | "PASSWORD_REQUIRED"
   | "RATE_LIMITED"
   | "INTERNAL";
 
@@ -56,6 +57,13 @@ export class PlanRequiredError extends AppError {
   readonly code = "PLAN_REQUIRED" as const;
   constructor(feature: string, requiredPlan: string) {
     super(`${feature} needs the ${requiredPlan} plan`, { feature, requiredPlan });
+  }
+}
+
+export class PasswordRequiredError extends AppError {
+  readonly code = "PASSWORD_REQUIRED" as const;
+  constructor(message = "This CV is protected with a password") {
+    super(message);
   }
 }
 

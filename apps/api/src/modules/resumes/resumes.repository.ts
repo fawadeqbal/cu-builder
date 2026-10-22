@@ -26,6 +26,19 @@ export interface ResumesRepository {
   /** Applies the patch; with `snapshotReason`, first stores the previous version in the same transaction. */
   update(id: string, patch: ResumePatch, snapshotReason?: string): Promise<ResumeRecord>;
   softDelete(id: string): Promise<void>;
+  /** Deleted in the last 30 days, newest first. */
+  listTrash(userId: string): Promise<ResumeRecord[]>;
+  findDeleted(id: string, userId: string): Promise<ResumeRecord | null>;
+  restore(id: string): Promise<ResumeRecord>;
+
+  listVersions(resumeId: string): Promise<VersionRecord[]>;
+  latestVersionAt(resumeId: string): Promise<Date | null>;
+  /** Stores the resume's current content as a version. */
+  snapshot(resumeId: string, reason: string): Promise<VersionRecord>;
+  /** Saves the current content as "before-restore", then copies the version back. */
+  restoreVersion(resumeId: string, versionId: string): Promise<ResumeRecord | null>;
 }
+
+export type VersionRecord = { id: string; resumeId: string; reason: string; templateId: string; createdAt: Date };
 
 export const RESUMES_REPOSITORY = Symbol.for("cvb.api.ResumesRepository");

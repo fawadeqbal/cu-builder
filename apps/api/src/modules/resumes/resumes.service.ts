@@ -1,10 +1,20 @@
-import type { CreateResumeDto, Page, ResumeDto, ResumeSummary, UpdateResumeDto } from "@cvb/contracts";
+import type { CreateResumeDto, Page, ResumeDto, ResumeSummary, ResumeVersionDto, UpdateResumeDto } from "@cvb/contracts";
 import { canUseTemplateTier, emptyCV, LIMITS, requiredPlanForTier } from "@cvb/domain";
 import { NotFoundError, PlanRequiredError, ValidationError } from "@cvb/shared";
 import { isTemplateId, templateMeta } from "@cvb/templates/catalog";
 import { Inject, Injectable } from "@nestjs/common";
 import type { AuthUser } from "../../common/auth/auth.types.js";
-import { RESUMES_REPOSITORY, type ResumeRecord, type ResumesRepository } from "./resumes.repository.js";
+import { TEMPLATE_CATALOG, type TemplateCatalog } from "../templates/template-catalog.js";
+import { RESUMES_REPOSITORY, type ResumeRecord, type ResumesRepository, type VersionRecord } from "./resumes.repository.js";
+
+const DAY = 24 * 3600 * 1000;
+
+const toVersion = (v: VersionRecord): ResumeVersionDto => ({
+  id: v.id,
+  reason: v.reason,
+  templateId: v.templateId,
+  createdAt: v.createdAt.toISOString(),
+});
 
 export const toSummary = (r: ResumeRecord): ResumeSummary => ({
   id: r.id,
@@ -21,7 +31,10 @@ export const toDto = (r: ResumeRecord): ResumeDto => ({ ...toSummary(r), data: r
 /** Resume use cases. Plan rules come from @cvb/domain; storage from the injected repository. */
 @Injectable()
 export class ResumesService {
-  constructor(@Inject(RESUMES_REPOSITORY) private readonly resumes: ResumesRepository) {}
+  constructor(
+    @Inject(RESUMES_REPOSITORY) private readonly resumes: ResumesRepository,
+    @Inject(TEMPLATE_CATALOG) private readonly catalog: TemplateCatalog,
+  ) {}
 
   async list(user: AuthUser, page: { cursor?: string; limit: number }): Promise<Page<ResumeSummary>> {
     const { items, nextCursor } = await this.resumes.listByUser(user.id, page);
@@ -34,7 +47,7 @@ export class ResumesService {
 
   async create(user: AuthUser, dto: CreateResumeDto): Promise<ResumeDto> {
     await this.assertCanAddResume(user);
-    this.assertTemplateAllowed(user, dto.templateId);
+    await this.assertTemplateAllowed(user, dto.templateId);
     const created = await this.resumes.create({
       userId: user.id,
       title: dto.title,
@@ -48,9 +61,43 @@ export class ResumesService {
 
   async update(user: AuthUser, id: string, dto: UpdateResumeDto): Promise<ResumeDto> {
     const current = await this.owned(user, id);
-    if (dto.templateId && dto.templateId !== current.templateId) this.assertTemplateAllowed(user, dto.templateId);
+    if (dto.templateId && dto.templateId !== current.templateId) await this.assertTemplateAllowed(user, dto.templateId);
     const { snapshot, ...patch } = dto;
-    return toDto(await this.resumes.update(id, patch, snapshot ? "manual" : undefined));
+    // A restore point when asked, and automatically at most once a day while someone edits.
+    let reason = snapshot ? "manual" : undefined;
+    if (!reason && patch.data) {
+      const last = await this.resumes.latestVersionAt(id);
+      if (!last || Date.now() - last.getTime() > DAY) reason = "daily";
+    }
+    return toDto(await this.resumes.update(id, patch, reason));
+  }
+
+  async versions(user: AuthUser, id: string): Promise<ResumeVersionDto[]> {
+    await this.owned(user, id);
+    return (await this.resumes.listVersions(id)).map(toVersion);
+  }
+
+  async createVersion(user: AuthUser, id: string, reason: "manual" | "download"): Promise<ResumeVersionDto> {
+    await this.owned(user, id);
+    return toVersion(await this.resumes.snapshot(id, reason));
+  }
+
+  async restoreVersion(user: AuthUser, id: string, versionId: string): Promise<ResumeDto> {
+    await this.owned(user, id);
+    const restored = await this.resumes.restoreVersion(id, versionId);
+    if (!restored) throw new NotFoundError("Version", versionId);
+    return toDto(restored);
+  }
+
+  async trash(user: AuthUser): Promise<ResumeSummary[]> {
+    return (await this.resumes.listTrash(user.id)).map(toSummary);
+  }
+
+  async restoreFromTrash(user: AuthUser, id: string): Promise<ResumeDto> {
+    const deleted = await this.resumes.findDeleted(id, user.id);
+    if (!deleted) throw new NotFoundError("Deleted resume", id);
+    await this.assertCanAddResume(user);
+    return toDto(await this.resumes.restore(id));
   }
 
   async duplicate(user: AuthUser, id: string): Promise<ResumeDto> {
@@ -71,16 +118,18 @@ export class ResumesService {
     return resume;
   }
 
-  private async assertCanAddResume(user: AuthUser): Promise<void> {
+  /** Throws PlanRequiredError when the user is at their plan's CV limit. */
+  async assertCanAddResume(user: AuthUser): Promise<void> {
     const limit = LIMITS[user.plan].resumes;
     if ((await this.resumes.countByUser(user.id)) >= limit) {
       throw new PlanRequiredError("More than one CV", "standard");
     }
   }
 
-  private assertTemplateAllowed(user: AuthUser, templateId: string): void {
+  private async assertTemplateAllowed(user: AuthUser, templateId: string): Promise<void> {
     if (!isTemplateId(templateId)) throw new ValidationError(`Unknown template "${templateId}"`);
-    const { tier, name } = templateMeta(templateId);
+    const { name } = templateMeta(templateId);
+    const tier = await this.catalog.tierOf(templateId);
     if (!canUseTemplateTier(user.plan, tier)) throw new PlanRequiredError(`The ${name} template`, requiredPlanForTier(tier));
   }
 }

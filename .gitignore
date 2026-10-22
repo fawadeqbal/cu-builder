@@ -19,9 +19,17 @@ packages/db/src/generated
 .env
 .env.*
 !.env.example
+!*.env.*.example
+!.env.*.example
 
 # misc
 .DS_Store
 *.pem
 *.log
 .vercel
+/.storage/
+/storage/
+
+# production secrets and backups on the server
+infra/.env.production
+infra/backups/

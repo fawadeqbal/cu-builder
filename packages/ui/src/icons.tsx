@@ -189,3 +189,66 @@ export const TemplatesIcon = (p: IconProps) => (
     <rect x="11" y="10" width="6" height="7" rx="1.25" />
   </Icon>
 );
+
+export const ShareIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="14.5" cy="5" r="2.2" />
+    <circle cx="5.5" cy="10" r="2.2" />
+    <circle cx="14.5" cy="15" r="2.2" />
+    <path d="M7.5 8.9 12.5 6.1M7.5 11.1l5 2.8" />
+  </Icon>
+);
+
+export const HistoryIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3.5 10a6.5 6.5 0 1 0 1.9-4.6L3.5 7.3" />
+    <path d="M3.5 3.5v3.8h3.8M10 6.5V10l2.5 1.5" />
+  </Icon>
+);
+
+export const LockIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="4" y="9" width="12" height="8" rx="2" />
+    <path d="M6.5 9V6.5a3.5 3.5 0 0 1 7 0V9" />
+  </Icon>
+);
+
+export const CopyIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="7" y="7" width="10" height="10" rx="2" />
+    <path d="M13 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" />
+  </Icon>
+);
+
+export const UploadIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M10 13V3.5M6.5 7 10 3.5 13.5 7" />
+    <path d="M3.5 12.5v2a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-2" />
+  </Icon>
+);
+
+export const CloudIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M6 15.5h8.5a3.5 3.5 0 0 0 .4-7A5 5 0 0 0 5.3 8 3.75 3.75 0 0 0 6 15.5Z" />
+  </Icon>
+);
+
+export const LogoutIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M8 16.5H5a1.5 1.5 0 0 1-1.5-1.5V5A1.5 1.5 0 0 1 5 3.5h3" />
+    <path d="M13 13.5 16.5 10 13 6.5M16.5 10H8" />
+  </Icon>
+);
+
+export const DocIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M11.5 2.5H6A1.5 1.5 0 0 0 4.5 4v12A1.5 1.5 0 0 0 6 17.5h8a1.5 1.5 0 0 0 1.5-1.5V6.5Z" />
+    <path d="M11.5 2.5v4h4M7.5 10.5h5M7.5 13.5h5" />
+  </Icon>
+);
+
+export const CloseIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M5 5l10 10M15 5 5 15" />
+  </Icon>
+);

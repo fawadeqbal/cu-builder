@@ -21,9 +21,37 @@ export const RedisEnvSchema = z.object({
   REDIS_URL: z.url().refine((u) => u.startsWith("redis"), "REDIS_URL must be a redis:// URL"),
 });
 
+const optional = z
+  .string()
+  .optional()
+  .transform((v) => (v && v.trim() ? v.trim() : undefined));
+
+export const StorageEnvSchema = z.object({
+  STORAGE_DIR: z.string().default("./storage"),
+});
+
+/** Public origin of the web app; the API sits behind it at /api on the same domain. */
+export const AppUrlEnvSchema = z.object({
+  APP_URL: z.url().default("http://localhost:3000"),
+});
+
 export const ApiEnvSchema = BaseEnvSchema.extend(DatabaseEnvSchema.shape)
   .extend(RedisEnvSchema.shape)
+  .extend(StorageEnvSchema.shape)
+  .extend(AppUrlEnvSchema.shape)
   .extend({
+    BETTER_AUTH_SECRET: z.string().min(32, "BETTER_AUTH_SECRET must be at least 32 characters"),
+    GOOGLE_CLIENT_ID: optional,
+    GOOGLE_CLIENT_SECRET: optional,
+    LINKEDIN_CLIENT_ID: optional,
+    LINKEDIN_CLIENT_SECRET: optional,
+    STRIPE_SECRET_KEY: optional,
+    STRIPE_WEBHOOK_SECRET: optional,
+    /** Comma-separated emails that become admins when they sign up. */
+    ADMIN_EMAILS: z
+      .string()
+      .default("")
+      .transform((v) => v.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean)),
     API_PORT: z.coerce.number().int().min(1).max(65535).default(4000),
     API_CORS_ORIGINS: z
       .string()
@@ -35,7 +63,12 @@ export type ApiEnv = z.output<typeof ApiEnvSchema>;
 
 export const WorkerEnvSchema = BaseEnvSchema.extend(DatabaseEnvSchema.shape)
   .extend(RedisEnvSchema.shape)
+  .extend(StorageEnvSchema.shape)
+  .extend(AppUrlEnvSchema.shape)
   .extend({
+    /** smtp://user:pass@host:587 — without it, emails are logged instead of sent. */
+    SMTP_URL: optional,
+    EMAIL_FROM: z.string().default("CV Builder <no-reply@cvbuilder.local>"),
     WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(64).default(5),
   });
 export type WorkerEnv = z.output<typeof WorkerEnvSchema>;

@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useRef } from "react";
-import { ACCENTS, TEMPLATES, TIERS, templateMeta, type TemplateId } from "@cvb/templates/catalog";
-import { CheckIcon, ChevronDownIcon } from "@cvb/ui";
+import { ACCENTS, TIERS, type TemplateId } from "@cvb/templates/catalog";
+import { CheckIcon, ChevronDownIcon, LockIcon } from "@cvb/ui";
+import { isUnlocked, usePlan } from "@/lib/access";
+import { useCatalog } from "@/lib/catalog";
 import { TierBadge } from "@cvb/ui";
 
 type Props = {
@@ -11,12 +13,15 @@ type Props = {
   accent: string | null;
   onTemplate: (t: TemplateId) => void;
   onAccent: (a: string | null) => void;
+  templatesHref: string;
 };
 
 /** Toolbar dropdown: switch template and accent quickly, or open the full gallery. */
-export function TemplatePicker({ template, accent, onTemplate, onAccent }: Props) {
+export function TemplatePicker({ template, accent, onTemplate, onAccent, templatesHref }: Props) {
   const ref = useRef<HTMLDetailsElement>(null);
-  const meta = templateMeta(template);
+  const { templates, meta: metaOf } = useCatalog();
+  const { plan } = usePlan();
+  const meta = metaOf(template);
   const current = accent ?? meta.accent;
   const close = () => ref.current?.removeAttribute("open");
 
@@ -62,7 +67,7 @@ export function TemplatePicker({ template, accent, onTemplate, onAccent }: Props
               <div className="px-2 pb-1 pt-2">
                 <TierBadge tier={tier.id} />
               </div>
-              {TEMPLATES.filter((t) => t.tier === tier.id).map((t) => (
+              {templates.filter((t) => t.tier === tier.id).map((t) => (
                 <button
                   key={t.id}
                   type="button"
@@ -76,6 +81,7 @@ export function TemplatePicker({ template, accent, onTemplate, onAccent }: Props
                 >
                   <span className="size-2.5 shrink-0 rounded-full" style={{ background: t.accent }} />
                   <span className="flex-1 font-medium">{t.name}</span>
+                  {!isUnlocked(plan, t.tier) && t.id !== template && <LockIcon className="size-3.5 text-stone-400" aria-label="Preview only, needs an upgrade" />}
                   {t.id === template && <CheckIcon className="size-4" />}
                 </button>
               ))}
@@ -84,7 +90,7 @@ export function TemplatePicker({ template, accent, onTemplate, onAccent }: Props
         </div>
 
         <Link
-          href="/templates"
+          href={templatesHref}
           className="flex items-center justify-center gap-1.5 border-t border-stone-100 px-3 py-2.5 text-sm font-semibold text-brand hover:bg-brand/[0.04]"
         >
           Browse all templates →

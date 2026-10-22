@@ -2,20 +2,19 @@
  * Builds the CV PDF in the browser and downloads it, without the print dialog.
  *
  * The sheet is rendered by the browser itself (modern-screenshot draws the live DOM through an SVG
- * foreignObject, so fonts, colours and bullets match the preview) and placed on A4 pages with
+ * foreignObject, so fonts, colours and bullets match the preview) and placed on A4 or US Letter pages with
  * jsPDF. Page breaks avoid splitting a line of text or an entry. On top of the image every line
  * of text is written again as invisible PDF text, and every link becomes a link annotation, so
  * the PDF can still be searched, copied from, read by applicant tracking systems, and clicked.
  */
 
-const PAGE_W = 210;
-const PAGE_H = 297;
+import { downloadBlob } from "./download";
+import { PAGE_SIZES, type PageSize } from "./page";
+
 // Same margins as the @page rule in globals.css, so the PDF matches printing.
 const M_TOP = 10;
 const M_SIDE = 12;
 const M_BOTTOM = 12;
-const CONTENT_W = PAGE_W - M_SIDE * 2; // 186mm
-const CONTENT_H = PAGE_H - M_TOP - M_BOTTOM; // 275mm
 const PIXEL_RATIO = 3; // ~280 dpi on A4: sharp in print, still a small file
 
 /** Blocks that must not be split across pages (mirrors break-inside: avoid in the templates). */
@@ -25,11 +24,29 @@ type Box = { top: number; bottom: number };
 type TextLine = { text: string; x: number; y: number; w: number; h: number; size: number; bold: boolean };
 type LinkBox = { url: string; x: number; y: number; w: number; h: number };
 
-export type PdfOptions = { fileName: string; title: string; author: string };
+export type PdfOptions = {
+  fileName: string;
+  title: string;
+  author: string;
+  pageSize?: PageSize;
+  /** Small grey line at the bottom of every page (the Free plan's credit). */
+  footer?: string;
+};
 
 /** `source` is a rendered `.paper` element holding the CV. */
-export async function downloadCvPdf(source: HTMLElement, { fileName, title, author }: PdfOptions): Promise<void> {
+export async function downloadCvPdf(source: HTMLElement, options: PdfOptions): Promise<void> {
+  downloadBlob(await buildCvPdf(source, options), options.fileName);
+}
+
+/** Builds the PDF and returns it as a Blob. */
+export async function buildCvPdf(
+  source: HTMLElement,
+  { title, author, pageSize = "A4", footer }: Omit<PdfOptions, "fileName">,
+): Promise<Blob> {
   const [{ domToCanvas }, { jsPDF }] = await Promise.all([import("modern-screenshot"), import("jspdf")]);
+  const page = PAGE_SIZES[pageSize];
+  const CONTENT_W = page.w - M_SIDE * 2;
+  const CONTENT_H = page.h - M_TOP - M_BOTTOM;
 
   // Lay out an off-screen copy at the printed content width, without the sheet's own padding.
   const host = document.createElement("div");
@@ -64,7 +81,7 @@ export async function downloadCvPdf(source: HTMLElement, { fileName, title, auth
     });
     const scale = canvas.width / origin.width; // canvas px per CSS px
 
-    const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true });
+    const pdf = new jsPDF({ unit: "mm", format: page.pdf, orientation: "portrait", compress: true });
     pdf.setProperties({ title, author, creator: "CV Builder" });
 
     const pageOf = (y: number) => {
@@ -112,7 +129,19 @@ export async function downloadCvPdf(source: HTMLElement, { fileName, title, auth
       pdf.link(M_SIDE + toMm(link.x), M_TOP + toMm(link.y - cuts[page]), toMm(link.w), toMm(link.h), { url: link.url });
     }
 
-    pdf.save(fileName);
+    if (footer) {
+      const pages = pdf.getNumberOfPages();
+      for (let i = 1; i <= pages; i++) {
+        pdf.setPage(i);
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(6.5);
+        pdf.setTextColor(150, 150, 150);
+        pdf.text(footer, page.w / 2, page.h - 5, { align: "center" });
+      }
+      pdf.setTextColor(0, 0, 0);
+    }
+
+    return pdf.output("blob");
   } finally {
     host.remove();
   }

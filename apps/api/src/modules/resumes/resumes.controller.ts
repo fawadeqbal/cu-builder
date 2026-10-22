@@ -1,9 +1,11 @@
 import {
+  CreateVersionSchema,
   CreateResumeSchema,
   IdParamSchema,
   PaginationQuerySchema,
   UpdateResumeSchema,
   type CreateResumeDto,
+  type CreateVersionDto,
   type PaginationQuery,
   type UpdateResumeDto,
 } from "@cvb/contracts";
@@ -26,6 +28,39 @@ export class ResumesController {
   @Post()
   create(@CurrentUser() user: AuthUser, @Body(new ZodPipe(CreateResumeSchema)) dto: CreateResumeDto) {
     return this.resumes.create(user, dto);
+  }
+
+  @Get("trash")
+  trash(@CurrentUser() user: AuthUser) {
+    return this.resumes.trash(user);
+  }
+
+  @Post(":id/restore")
+  restore(@CurrentUser() user: AuthUser, @Param(new ZodPipe(IdParamSchema)) { id }: { id: string }) {
+    return this.resumes.restoreFromTrash(user, id);
+  }
+
+  @Get(":id/versions")
+  versions(@CurrentUser() user: AuthUser, @Param(new ZodPipe(IdParamSchema)) { id }: { id: string }) {
+    return this.resumes.versions(user, id);
+  }
+
+  @Post(":id/versions")
+  createVersion(
+    @CurrentUser() user: AuthUser,
+    @Param(new ZodPipe(IdParamSchema)) { id }: { id: string },
+    @Body(new ZodPipe(CreateVersionSchema)) dto: CreateVersionDto,
+  ) {
+    return this.resumes.createVersion(user, id, dto.reason);
+  }
+
+  @Post(":id/versions/:versionId/restore")
+  restoreVersion(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Param("versionId") versionId: string,
+  ) {
+    return this.resumes.restoreVersion(user, id, versionId);
   }
 
   @Get(":id")

@@ -1,4 +1,5 @@
-// Phase 1 schema: accounts, resumes with versions, share links, billing.
+// Phase 1 schema: accounts (Better Auth), resumes with versions, share links, imports,
+// billing, template settings and product analytics.
 // Tables and columns are snake_case in Postgres, camelCase in TypeScript.
 
 generator client {
@@ -42,19 +43,32 @@ enum PassKind {
   DAYS_30
 }
 
-model User {
-  id              String    @id @default(cuid())
-  email           String    @unique
-  name            String?
-  locale          String    @default("en")
-  plan            Plan      @default(FREE)
-  emailVerifiedAt DateTime? @map("email_verified_at")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
-  deletedAt       DateTime? @map("deleted_at")
+// ---------------------------------------------------------------- Accounts (Better Auth)
+// Model and field names follow Better Auth's schema (core + admin plugin).
 
+model User {
+  id               String    @id @default(cuid())
+  name             String
+  email            String    @unique
+  emailVerified    Boolean   @default(false) @map("email_verified")
+  image            String?
+  /// Base plan granted by an admin or a promotion; subscriptions and passes can raise it.
+  plan             Plan      @default(FREE)
+  locale           String    @default("en")
+  /// "user" or "admin" (Better Auth admin plugin).
+  role             String?   @default("user")
+  banned           Boolean?  @default(false)
+  banReason        String?   @map("ban_reason")
+  banExpires       DateTime? @map("ban_expires")
+  stripeCustomerId String?   @unique @map("stripe_customer_id")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  deletedAt        DateTime? @map("deleted_at")
+
+  sessions      Session[]
   accounts      Account[]
   resumes       Resume[]
+  imports       ResumeImport[]
   subscriptions Subscription[]
   passes        Pass[]
   credits       CreditLedger[]
@@ -62,20 +76,60 @@ model User {
   @@map("users")
 }
 
-/// A sign-in method linked to a user (Google, LinkedIn, email…).
-model Account {
-  id                String   @id @default(cuid())
-  userId            String   @map("user_id")
-  provider          String
-  providerAccountId String   @map("provider_account_id")
-  createdAt         DateTime @default(now()) @map("created_at")
+model Session {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  token          String   @unique
+  expiresAt      DateTime @map("expires_at")
+  ipAddress      String?  @map("ip_address")
+  userAgent      String?  @map("user_agent")
+  impersonatedBy String?  @map("impersonated_by")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("sessions")
+}
+
+/// A sign-in method: "credential" (email + password) or an OAuth provider.
+model Account {
+  id                    String    @id @default(cuid())
+  userId                String    @map("user_id")
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
   @@index([userId])
   @@map("accounts")
 }
+
+/// Email verification, magic-link and password-reset tokens.
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([identifier])
+  @@map("verifications")
+}
+
+// ---------------------------------------------------------------- Resumes
 
 model Resume {
   id         String    @id @default(cuid())
@@ -91,9 +145,10 @@ model Resume {
   createdAt  DateTime  @default(now()) @map("created_at")
   updatedAt  DateTime  @updatedAt @map("updated_at")
 
-  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  versions   ResumeVersion[]
-  shareLinks ShareLink[]
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  versions     ResumeVersion[]
+  shareLinks   ShareLink[]
+  importedFrom ResumeImport?
 
   @@index([userId, updatedAt(sort: Desc)])
   @@map("resumes")
@@ -121,12 +176,43 @@ model ShareLink {
   passwordHash String?   @map("password_hash")
   expiresAt    DateTime? @map("expires_at")
   viewCount    Int       @default(0) @map("view_count")
+  lastViewedAt DateTime? @map("last_viewed_at")
   createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
 
   resume Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
 
   @@index([resumeId])
   @@map("share_links")
+}
+
+enum ImportStatus {
+  QUEUED
+  PROCESSING
+  DONE
+  FAILED
+}
+
+/// An uploaded CV file being turned into a resume by the worker.
+model ResumeImport {
+  id        String       @id @default(cuid())
+  userId    String       @map("user_id")
+  fileKey   String       @map("file_key")
+  fileName  String       @map("file_name")
+  mimeType  String       @map("mime_type")
+  status    ImportStatus @default(QUEUED)
+  error     String?
+  /// Fields the parser was unsure about, for the review screen.
+  warnings  Json?
+  resumeId  String?      @unique @map("resume_id")
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resume Resume? @relation(fields: [resumeId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("resume_imports")
 }
 
 model Subscription {
@@ -145,6 +231,16 @@ model Subscription {
 
   @@index([userId])
   @@map("subscriptions")
+}
+
+/// Payment-provider webhook events already applied; makes webhook handling idempotent.
+model BillingEvent {
+  id          String          @id
+  provider    BillingProvider
+  type        String
+  processedAt DateTime        @default(now()) @map("processed_at")
+
+  @@map("billing_events")
 }
 
 /// A one-time job-hunt pass (7 or 30 days of a plan).
@@ -177,4 +273,30 @@ model CreditLedger {
 
   @@index([userId, createdAt])
   @@map("credit_ledger")
+}
+
+// ---------------------------------------------------------------- Admin and analytics
+
+/// Admin overrides for the template catalog (hide a template, move it to another tier, reorder).
+model TemplateSetting {
+  templateId String   @id @map("template_id")
+  enabled    Boolean  @default(true)
+  tier       String?
+  sortOrder  Int?     @map("sort_order")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("template_settings")
+}
+
+/// Privacy-friendly product events: an anonymous id, no personal data in `props`.
+model AnalyticsEvent {
+  id          String   @id @default(cuid())
+  name        String
+  anonymousId String   @map("anonymous_id")
+  userId      String?  @map("user_id")
+  props       Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([name, createdAt])
+  @@map("analytics_events")
 }

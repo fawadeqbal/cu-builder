@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from "react";
 import { stepZoom, type Zoom } from "@/lib/layout";
+import { PAGE_SIZES, paperSizeAttr, type PageSize } from "@/lib/page";
 import type { StepId } from "@/lib/steps";
 import type { CV } from "@cvb/domain";
 import type { TemplateId } from "@cvb/templates/catalog";
@@ -9,7 +10,6 @@ import { CVDocument } from "@cvb/templates";
 import { TemplatePicker } from "./TemplatePicker";
 import { FitPageIcon, FitWidthIcon, MinusIcon, PlusIcon, SwapIcon } from "@cvb/ui";
 
-const PAGE_MM = 297;
 const PRINT_MARGIN_MM = 10 + 12; // top + bottom @page margin in globals.css
 const PAD = 24; // space around the sheet inside the pane
 const MIN_SCALE = 0.3;
@@ -21,6 +21,8 @@ type Props = {
   onTemplate: (t: TemplateId) => void;
   accent: string | null;
   onAccent: (a: string | null) => void;
+  pageSize: PageSize;
+  templatesHref: string;
   zoom: Zoom;
   onZoom: (z: Zoom) => void;
   /** The wizard step being edited: its section is highlighted and scrolled into view. */
@@ -35,7 +37,7 @@ type Metrics = { paperW: number; paperH: number; fitWidth: number; fitPage: numb
 const clampScale = (s: number) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, s));
 
 /** The live A4 preview with its toolbar: template, zoom and page count. */
-export function Preview({ cv, template, onTemplate, accent, onAccent, zoom, onZoom, activeStep, onEditSection, onSwap }: Props) {
+export function Preview({ cv, template, onTemplate, accent, onAccent, pageSize, templatesHref, zoom, onZoom, activeStep, onEditSection, onSwap }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const paperRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
@@ -56,17 +58,17 @@ export function Preview({ cv, template, onTemplate, accent, onAccent, zoom, onZo
       const paperW = paper.offsetWidth;
       const paperH = paper.offsetHeight;
       if (!paperW) return;
-      const pageH = (paperW * PAGE_MM) / 210;
-      const availW = Math.max(120, scroll.clientWidth - PAD * 2);
+            const availW = Math.max(120, scroll.clientWidth - PAD * 2);
       const availH = Math.max(120, scroll.clientHeight - PAD * 2);
-      const pxPerMm = paperW / 210;
+      const { w, h } = PAGE_SIZES[pageSize];
+      const pxPerMm = paperW / w;
       const contentMm = paperH / pxPerMm - PRINT_MARGIN_MM;
       setM({
         paperW,
         paperH,
         fitWidth: Math.min(1, availW / paperW),
-        fitPage: Math.min(1, availW / paperW, availH / pageH),
-        pages: Math.max(1, Math.ceil(contentMm / (PAGE_MM - PRINT_MARGIN_MM) - 0.02)),
+        fitPage: Math.min(1, availW / paperW, availH / (h * pxPerMm)),
+        pages: Math.max(1, Math.ceil(contentMm / (h - PRINT_MARGIN_MM) - 0.02)),
       });
     };
 
@@ -75,7 +77,7 @@ export function Preview({ cv, template, onTemplate, accent, onAccent, zoom, onZo
     observer.observe(scroll);
     observer.observe(paper);
     return () => observer.disconnect();
-  }, []);
+  }, [pageSize]);
 
   // Ctrl/⌘ + wheel (and trackpad pinch) zooms the sheet instead of the whole page.
   useEffect(() => {
@@ -128,7 +130,7 @@ export function Preview({ cv, template, onTemplate, accent, onAccent, zoom, onZo
         </span>
 
         <div className="@md:ml-auto">
-          <TemplatePicker template={template} accent={accent} onTemplate={onTemplate} onAccent={onAccent} />
+          <TemplatePicker template={template} accent={accent} onTemplate={onTemplate} onAccent={onAccent} templatesHref={templatesHref} />
         </div>
 
         <div className="ml-auto flex items-center gap-0.5">
@@ -181,6 +183,7 @@ export function Preview({ cv, template, onTemplate, accent, onAccent, zoom, onZo
             <div
               ref={paperRef}
               className={`paper${onEditSection ? " preview-live" : ""}`}
+              data-size={paperSizeAttr(pageSize)}
               onClick={onPaperClick}
             >
               <CVDocument cv={cv} template={template} accent={accent} />

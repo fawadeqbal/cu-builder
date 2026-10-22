@@ -1,0 +1,24 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { trackVisit } from "@/lib/analytics";
+import { useGuestDocument } from "@/lib/document";
+import { useMe } from "@/lib/queries";
+import Builder from "./Builder";
+import { FullPageMessage } from "./ui/FullPageMessage";
+
+/** The builder for visitors without an account. Signed-in people go to their CVs instead. */
+export default function GuestBuilder() {
+  const me = useMe();
+  const router = useRouter();
+  const doc = useGuestDocument();
+
+  useEffect(trackVisit, []);
+  useEffect(() => {
+    if (me.data) router.replace("/app");
+  }, [me.data, router]);
+
+  if (me.isLoading || me.data) return <FullPageMessage>Loading CV Builder…</FullPageMessage>;
+  return <Builder doc={doc} />;
+}

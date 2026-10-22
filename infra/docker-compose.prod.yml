@@ -1,0 +1,93 @@
+# Production stack for one VPS. See docs/DEPLOYMENT.md.
+#   docker compose -f infra/docker-compose.prod.yml --env-file infra/.env.production up -d
+#
+# Caddy terminates HTTPS (certificates from Let's Encrypt) and routes /api/* to the API and
+# everything else to the web server. Postgres and Redis are not exposed outside the network.
+
+x-server: &server
+  image: ${IMAGE_PREFIX:-ghcr.io/fawadeqbal/cu-builder}-server:${IMAGE_TAG:-latest}
+  restart: unless-stopped
+  env_file: .env.production
+  environment:
+    NODE_ENV: production
+    DATABASE_URL: postgresql://${POSTGRES_USER:-cvb}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-cvb}?schema=public
+    REDIS_URL: redis://redis:6379
+    STORAGE_DIR: /data/storage
+  volumes:
+    - storage:/data/storage
+  depends_on:
+    postgres: { condition: service_healthy }
+    redis: { condition: service_healthy }
+
+services:
+  caddy:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [web, api]
+
+  web:
+    image: ${IMAGE_PREFIX:-ghcr.io/fawadeqbal/cu-builder}-web:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+
+  # Applies database migrations, then exits. The api waits for it.
+  migrate:
+    <<: *server
+    restart: "no"
+    command: ["pnpm", "--filter", "@cvb/db", "db:deploy"]
+
+  api:
+    <<: *server
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  worker:
+    <<: *server
+    command: ["node", "apps/worker/dist/main.js"]
+    healthcheck: { disable: true }
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  postgres:
+    image: postgres:16.10-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cvb}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-cvb}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cvb}"]
+      interval: 5s
+      retries: 20
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 20
+
+volumes:
+  pgdata:
+  redisdata:
+  storage:
+  caddy_data:
+  caddy_config:

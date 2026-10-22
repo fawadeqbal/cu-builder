@@ -30,7 +30,7 @@ How the code is organised, why, and the rules that keep it maintainable as the p
 ```
 cu-builder/
 ├── apps/
-│   ├── web/            Next.js app (editor, template gallery, PDF export)
+│   ├── web/            Next.js app (builder, dashboard, sharing, pricing, account, admin)
 │   ├── api/            NestJS HTTP API (/api/v1)
 │   └── worker/         NestJS standalone worker (BullMQ consumers)
 ├── packages/
@@ -40,11 +40,13 @@ cu-builder/
 │   ├── config/         Validated environment schemas for the Node apps
 │   ├── db/             Prisma schema, migrations, client factory, Nest DatabaseModule
 │   ├── queue/          JobProducer port, BullMQ adapter, Nest QueueModule
+│   ├── storage/        FileStorage port: local disk adapter (S3-compatible later), in-memory double
 │   ├── templates/      CV templates (React), template catalog, print stylesheet
 │   ├── ui/             Shared React icons and small components
 │   ├── config-typescript/  @cvb/tsconfig: base, library, react-library, nestjs, nextjs
 │   └── config-eslint/      @cvb/eslint-config: base, next, nest
-├── docs/               SCOPE.md and future ADRs
+├── docs/               SCOPE.md, DEPLOYMENT.md and future ADRs
+├── infra/              Dockerfile, production compose, Caddyfile, deploy and backup scripts
 ├── docker-compose.yml  Postgres + Redis for local development
 ├── turbo.json          Task graph and caching
 └── pnpm-workspace.yaml
@@ -91,12 +93,13 @@ Arrows mean "may import". Anything not drawn is forbidden.
 | Package | Responsibility | Key exports | Built with |
 | --- | --- | --- | --- |
 | `@cvb/shared` | Generic building blocks | `Result`, `ok`/`err`, `AppError` family (`NotFoundError`, `PlanRequiredError`…), `assertNever`, `slugify`, `wordCount` | tsup (ESM) |
-| `@cvb/domain` | Business rules | `CV` types, `emptyCV`, `normalizeCV`, `sampleCV`, `cvChecks`, `cvStrength`, `stepState`, `PLANS`, `FEATURES`, `can`, `LIMITS`, `canUseTemplateTier` | tsup |
-| `@cvb/contracts` | Boundary shapes | `ResumeDataSchema`, `CreateResumeSchema`, `UpdateResumeSchema`, `ResumeSchema`, `ApiErrorSchema`, `PaginationQuerySchema`, `QUEUES`, `JOBS`, job payload schemas | tsup |
+| `@cvb/domain` | Business rules | `CV` types, `emptyCV`, `normalizeCV`, `sampleCV`, `cvChecks`, `cvStrength`, `stepState`, `parseResumeText` (import), `cvToText` (TXT export), `PLANS`, `FEATURES`, `can`, `LIMITS`, `canUseTemplateTier`, `OFFERS`, `effectivePlan` | tsup |
+| `@cvb/contracts` | Boundary shapes | Resume, version, share-link, import, billing, account, admin and analytics schemas; `ApiErrorSchema`, `PaginationQuerySchema`, `QUEUES`, `JOBS`, job payload schemas | tsup |
 | `@cvb/config` | Environment | `ApiEnvSchema`, `WorkerEnvSchema`, `loadEnv` | tsup |
 | `@cvb/db` | Persistence | `createDbClient`, Prisma model types and enums, `planToDomain`/`planToDb`; `@cvb/db/nest`: `DatabaseModule`, `DB` token | Prisma generate + tsc |
 | `@cvb/queue` | Background jobs | `JobProducer`, `JOB_PRODUCER`, `BullMqJobProducer`, `InMemoryJobProducer`, `parseJob`; `@cvb/queue/nest`: `QueueModule` | tsup |
-| `@cvb/templates` | CV rendering | `CVDocument`, all templates; `@cvb/templates/catalog`: `TEMPLATES`, `TIERS`, `ACCENTS`, `templateMeta`; `@cvb/templates/styles.css` | tsup + CSS copy |
+| `@cvb/storage` | Files | `FileStorage`, `FILE_STORAGE`, `LocalDiskStorage`, `InMemoryStorage` | tsup |
+| `@cvb/templates` | CV rendering | `CVDocument`, all templates; `@cvb/templates/catalog`: `TEMPLATES`, `TIERS`, `ACCENTS`, `templateMeta`, `applyOverrides`; `@cvb/templates/styles.css` (A4 and US Letter sheets) | tsup + CSS copy |
 | `@cvb/ui` | Shared React UI | Icons, `TierBadge` | tsup |
 | `@cvb/tsconfig` | TS settings | `base`, `library`, `react-library`, `nestjs`, `nextjs` | — |
 | `@cvb/eslint-config` | Lint rules | `base`, `next`, `nest` | — |
@@ -146,16 +149,30 @@ Errors anywhere ─▶ AppExceptionFilter ─▶ { error: { code, message, detai
 | Configuration | `AppConfigModule` validates env with `ApiEnvSchema` once; inject `APP_CONFIG`. |
 | Validation | `new ZodPipe(Schema)` on `@Body`, `@Query`, `@Param`, using `@cvb/contracts`. |
 | Errors | Throw `AppError` subclasses from `@cvb/shared`; `AppExceptionFilter` maps codes to HTTP status (e.g. `PLAN_REQUIRED` → 402). Never throw raw HTTP exceptions from services. |
-| Auth | Global `AuthGuard`; `@Public()` opts out; `@CurrentUser()` injects `AuthUser`. Phase 1 replaces the development header sign-in with real sessions; nothing else changes. |
-| Plan gating | Services call `can()`, `LIMITS` and `canUseTemplateTier()` from `@cvb/domain`; denial throws `PlanRequiredError`. |
+| Auth | **Better Auth** (`modules/auth/better-auth.ts`) is mounted at `/api/auth` and owns sign-up, sign-in (password, magic link, Google, LinkedIn), sessions, email verification, password reset, account deletion and the admin plugin, storing everything in our Prisma tables. The global `AuthGuard` turns the session cookie into an `AuthUser` (role from the database, plan from `EntitlementsService`); `@Public()` opts out, `@Roles("admin")` restricts, `@CurrentUser()` / `@OptionalUser()` inject. The `x-dev-user` header works only with `DEV_AUTH=true` outside production. |
+| Plan gating | The effective plan is `effectivePlan()` over the base plan, live subscriptions and running passes. Services call `can()`, `LIMITS` and the template catalog's tier; denial throws `PlanRequiredError` (402), which the web app turns into an upgrade prompt. |
+| Rate limits | `@nestjs/throttler` globally (300/min per IP), tighter on analytics and share-link password attempts; Better Auth's own limiter in production. |
 | Tracing | `x-request-id` on every request and response, included in error bodies and logs. |
 | Health | `GET /health/live` (process up), `GET /health/ready` (Postgres and Redis reachable). |
 | Versioning | All routes under `/api/v1`. Breaking changes go to `/api/v2` alongside v1. |
 
-### 4.3 Endpoints today
+### 4.3 Endpoints
 
-| Method | Path | Notes |
-| --- | --- | --- |
+All under `/api/v1` except Better Auth (`/api/auth/*`).
+
+| Area | Routes |
+| --- | --- |
+| Health | `GET health/live`, `GET health/ready` (public) |
+| Account | `GET session` (public: user or null), `GET me`, `PATCH me`, `GET me/export` (all data as JSON), `GET auth-providers` (public) |
+| Resumes | `GET resumes`, `POST resumes`, `GET/PATCH/DELETE resumes/:id`, `POST resumes/:id/duplicate`, `GET resumes/trash`, `POST resumes/:id/restore`, `GET/POST resumes/:id/versions`, `POST resumes/:id/versions/:versionId/restore` |
+| Sharing | `GET/POST resumes/:id/share-links`, `PATCH/DELETE share-links/:id`, `GET public/r/:slug` and `POST public/r/:slug/unlock` (public) |
+| Import | `POST imports` (multipart, PDF/DOCX ≤ 5 MB), `GET imports`, `GET imports/:id` |
+| Billing | `GET billing/offers` (public), `GET billing/status`, `POST billing/checkout`, `POST billing/portal`, `POST billing/webhooks/:provider` (public, raw body, signature-checked, idempotent) |
+| Templates | `GET templates/settings` (public: admin overrides) |
+| Analytics | `POST events` (public, batched, throttled) |
+| Admin | `GET admin/metrics`, `GET admin/users`, `PATCH admin/users/:id`, `GET admin/templates`, `PATCH admin/templates/:templateId` (role admin) |
+
+--- | --- | --- |
 | GET | `/api/v1/health/live` | Public |
 | GET | `/api/v1/health/ready` | Public |
 | GET | `/api/v1/me` | Signed-in user and plan |
@@ -174,8 +191,9 @@ A NestJS **application context** (no HTTP server) that runs one `@Processor` per
 
 ```
 worker/src/
-├── email/            EmailProcessor + EmailSender port (ConsoleEmailSender adapter today)
-├── resume-import/    ResumeImportProcessor + ResumeParser port (placeholder until Phase 1)
+├── email/            EmailProcessor + EmailSender port (SMTP adapter, console adapter without SMTP_URL) + templates
+├── resume-import/    ResumeImportProcessor + ResumeParser port (unpdf / mammoth → parseResumeText) + ImportResults port
+├── maintenance/      Daily job scheduler: empties 30-day trash, deletes week-old uploads, expired tokens
 ├── config/           WorkerConfigModule (WorkerEnvSchema)
 └── worker.module.ts  DatabaseModule + QueueModule + one module per queue
 ```
@@ -187,16 +205,33 @@ Rules:
 - Expected permanent failures throw BullMQ's `UnrecoverableError` (no retries). Everything else retries with exponential backoff (`DEFAULT_JOB_OPTIONS`: 3 attempts).
 - Scale by running more worker processes; concurrency per process comes from `WORKER_CONCURRENCY`.
 
-Planned queues: `ai` (writing, tailoring, scoring), `export` (DOCX), `notifications` (reminders, digests), `billing-webhooks`.
+Queues today: `email`, `resume-import`, `maintenance`. Planned: `ai` (writing, tailoring, scoring), `notifications` (reminders, digests).
 
 ---
 
 ## 6. The web app (Next.js)
 
-- Imports templates (`@cvb/templates`), styles (`@cvb/templates/styles.css`), rules (`@cvb/domain`) and UI (`@cvb/ui`).
-- `src/lib/cv.ts` is the storage adapter (browser `localStorage` today). Phase 1 replaces it with an API client typed by `@cvb/contracts`; components keep calling the same functions.
-- `src/lib/access.ts` decides what the visitor can use, delegating to `@cvb/domain`.
-- Still a static export (GitHub Pages) until accounts ship; then it moves to a server deployment.
+A Next.js server (`output: "standalone"`) on the same origin as the API: Caddy sends `/api/*` to the API, and in development the web server rewrites `/api/*` to `API_INTERNAL_URL`. Same origin means the Better Auth session cookie just works.
+
+```
+web/src/
+├── app/                 Routes: / (guest builder), /app (My CVs), /edit/[id], /templates, /r/[slug],
+│                        /pricing, /account, /account/billing, /admin, /sign-in, /sign-up, password pages
+├── components/          Builder (the editor), dialogs (Share, History, Upgrade), dashboard, auth, billing, admin
+└── lib/
+    ├── document.ts      DocumentController port: useGuestDocument (localStorage) and useCloudDocument (API)
+    ├── api.ts           fetch client for /api/v1, typed by @cvb/contracts, ApiError with stable codes
+    ├── queries.ts       TanStack Query hooks and keys
+    ├── auth-client.ts   Better Auth React client (magic link, admin plugins)
+    ├── access.ts        usePlan(), isUnlocked(), hasFeature() over @cvb/domain
+    ├── catalog.ts       useCatalog(): template catalog with admin overrides
+    ├── pdf.ts, docx.ts  Client-side PDF (modern-screenshot + jsPDF, text layer, links) and Word exports
+    └── guest-migration.ts  Moves a guest's CV into the account after sign-in
+```
+
+- **One editor, two stores.** `Builder` only knows a `DocumentController`. Guests get browser storage; signed-in users get autosave to the API (debounced), an offline queue in `localStorage` that flushes when the connection returns, polling for changes from other devices, and a "newer version on another device" choice when both sides changed (last write wins).
+- **Gating never dead-ends.** Locked templates stay previewable (a "trying" state that isn't saved); downloads, Word/TXT, share links and extra CVs open the `UpgradeDialog`, which links to pricing (or sign-up for guests). The API enforces the same rules.
+- **Analytics** are batched funnel events without personal data (`lib/analytics.ts` → `POST /events`).
 
 ---
 
@@ -215,16 +250,19 @@ Planned queues: `ai` (writing, tailoring, scoring), `export` (DOCX), `notificati
 
 | Pattern | Where | Why |
 | --- | --- | --- |
-| Ports and adapters (hexagonal) | Repositories, `JobProducer`, `EmailSender`, `ResumeParser` | Swap infrastructure, test without it |
+| Ports and adapters (hexagonal) | Repositories, `JobProducer`, `EmailSender`, `ResumeParser`, `ImportResults`, `FileStorage`, `PaymentGateway`, `TemplateCatalog`, `MaintenanceStore`; on the web, `DocumentController` | Swap infrastructure, test without it |
 | Repository | `*Repository` + Prisma adapter | Keeps queries out of use cases |
 | Dependency injection | Nest providers with symbol tokens | Explicit wiring at the composition root |
-| Strategy | Email senders, parsers; later AI providers and payment gateways | Pick an implementation per environment or market |
+| Strategy | Email senders, payment gateways (Stripe, local wallets), document stores (guest, cloud) | Pick an implementation per environment or market |
+| Query service (CQRS-lite) | `AdminService` | Reports that join across features read Prisma directly instead of bending repositories |
+| Idempotent receiver | `BillingEvent` table keyed by provider event id | Payment webhooks can arrive twice |
+| Facade | `EntitlementsService` | One call answers "what plan does this user have right now" |
 | Registry | Template catalog + `COMPONENTS` map | Add templates without touching consumers |
 | Factory | `createDbClient`, `redisConnection`, `DatabaseModule.forRootAsync`, `QueueModule.forRootAsync` | One way to build shared infrastructure |
 | Adapter / anti-corruption | `planToDomain`/`planToDb`, `toRecord`, `toDto` | Database and HTTP shapes never leak into the domain |
 | Specification / policy | `can()`, `canUseTemplateTier()`, `LIMITS` | Entitlements as data, testable in isolation |
 | Result type | `@cvb/shared` `Result` | Expected failures without exceptions where it reads better |
-| Null object / placeholder | `NotYetAvailableParser`, `ConsoleEmailSender` | Ship the wiring before the provider |
+| Null object / placeholder | `UnavailableGateway` (local payments), `ConsoleEmailSender`, `StaticTemplateCatalog` | Ship the wiring before the provider |
 
 ---
 
@@ -256,7 +294,7 @@ Planned queues: `ai` (writing, tailoring, scoring), `export` (DOCX), `notificati
 | --- | --- | --- |
 | Unit | Vitest | `domain`, `contracts`, `shared`, `config`, `queue`; API services with in-memory repositories; worker processors with fake ports |
 | Integration | Vitest + Postgres/Redis (CI services) | Prisma adapters and queue round-trips (to add per feature) |
-| End to end | Playwright | Web flows: build, preview, download, templates (to add in Phase 1) |
+| End to end | Playwright | Guest build → sign-up with migration → autosave → gating → share link + public page → Word/PDF → import → admin (script kept outside the repo for now; to move into `apps/web/e2e`) |
 | Contract | Type-level check in `contracts/src/resume.ts` | Schema and domain type can never drift |
 
 `pnpm check` runs lint, typecheck and tests across the repo; CI runs the same plus a build and `prisma migrate deploy` against a fresh Postgres.
@@ -270,11 +308,11 @@ cp .env.example .env
 pnpm install
 pnpm services:up          # Postgres + Redis (Docker)
 pnpm db:migrate           # apply migrations
-pnpm db:seed              # dev user + example CV
+pnpm db:seed              # dev@cvbuilder.local (Premium) and admin@cvbuilder.local, password "password123"
 pnpm dev                  # web :3000, api :4000, worker
 ```
 
-Call the API as the seeded user during development:
+Open http://localhost:3000 and sign in, or create an account (emails are printed by the worker when `SMTP_URL` is empty). With `DEV_AUTH=true`, scripts can also call the API as a user:
 
 ```bash
 curl -H "x-dev-user: dev@cvbuilder.local" http://localhost:4000/api/v1/resumes
@@ -320,5 +358,9 @@ curl -H "x-dev-user: dev@cvbuilder.local" http://localhost:4000/api/v1/resumes
 | 6 | zod contracts shared across boundaries | One source of truth for validation and types |
 | 7 | Business rules in a framework-free package | Same rules in browser, API and worker; trivial to test |
 | 8 | Development header sign-in until Phase 1 auth | Lets features be built now; disabled in production by config |
+| 9 | Better Auth for accounts | Library, not a service: our database, our domain, plugins for magic links and admin; Prisma adapter |
+| 10 | Own VPS: Docker Compose + Caddy | One server runs everything (web, api, worker, Postgres, Redis); automatic HTTPS; images from GHCR. See docs/DEPLOYMENT.md |
+| 11 | PDF and Word built in the browser | The preview is the PDF (same DOM), no headless browser to host; the API gates what's saved, the client gates downloads |
+| 12 | Locked templates are previewable, not savable | Scope promise ("people should always see what they would get") without a loophole in stored data |
 
 New significant decisions get a short ADR in `docs/adr/NNN-title.md` and a row here.

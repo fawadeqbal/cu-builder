@@ -8,7 +8,7 @@
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", "!**/*.test.ts", "!**/*.spec.ts"],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**", "out/**", "src/generated/**"],
-      "env": ["PAGES_BASE_PATH", "NEXT_PUBLIC_*", "DATABASE_URL"]
+      "env": ["API_INTERNAL_URL", "NEXT_PUBLIC_*", "DATABASE_URL"]
     },
     "dev": {
       "dependsOn": ["^build"],

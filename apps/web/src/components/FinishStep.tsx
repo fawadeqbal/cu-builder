@@ -5,8 +5,12 @@ import { cvChecks } from "@cvb/domain";
 import { STEPS } from "@/lib/steps";
 import type { CV } from "@cvb/domain";
 import type { TemplateId } from "@cvb/templates/catalog";
-import { ACCENTS, CVDocument, TEMPLATES, templateMeta, templateTags } from "@cvb/templates";
-import { TierBadge } from "@cvb/ui";
+import { ACCENTS, CVDocument, templateTags } from "@cvb/templates";
+import { LockIcon, TierBadge } from "@cvb/ui";
+import { isUnlocked, usePlan } from "@/lib/access";
+import { useCatalog } from "@/lib/catalog";
+import { EXPORT_LABEL, type ExportActions } from "@/lib/exports";
+import { PAGE_SIZES, paperSizeAttr, type PageSize } from "@/lib/page";
 
 type Props = {
   cv: CV;
@@ -15,12 +19,13 @@ type Props = {
   accent: string | null;
   onAccent: (a: string | null) => void;
   onGoTo: (step: number) => void;
-  onDownload: () => void;
-  onExport: () => void;
+  actions: ExportActions;
 };
 
-export function FinishStep({ cv, template, onTemplate, accent, onAccent, onGoTo, onDownload, onExport }: Props) {
-  const meta = templateMeta(template);
+export function FinishStep({ cv, template, onTemplate, accent, onAccent, onGoTo, actions }: Props) {
+  const { templates, meta: metaOf } = useCatalog();
+  const { plan } = usePlan();
+  const meta = metaOf(template);
   const list = cvChecks(cv);
   const done = list.filter((c) => c.ok).length;
 
@@ -30,7 +35,7 @@ export function FinishStep({ cv, template, onTemplate, accent, onAccent, onGoTo,
         <div className="flex items-start gap-4">
           <div aria-hidden="true" className="relative h-[150px] w-[106px] shrink-0 overflow-hidden rounded-lg bg-stone-100 ring-1 ring-stone-200">
             <div className="absolute left-0 top-0 w-[210mm] origin-top-left scale-[0.134]">
-              <div className="paper">
+              <div className="paper" data-size={paperSizeAttr(actions.pageSize)}>
                 <CVDocument cv={cv} template={template} accent={accent} />
               </div>
             </div>
@@ -45,10 +50,10 @@ export function FinishStep({ cv, template, onTemplate, accent, onAccent, onGoTo,
               {templateTags(meta)}
             </p>
             <Link
-              href="/templates"
+              href={actions.templatesHref}
               className="mt-1 inline-flex w-fit items-center gap-1.5 rounded-lg bg-stone-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-stone-700"
             >
-              Browse all {TEMPLATES.length} templates →
+              Browse all {templates.length} templates →
             </Link>
           </div>
         </div>
@@ -56,8 +61,9 @@ export function FinishStep({ cv, template, onTemplate, accent, onAccent, onGoTo,
         <div>
           <div className="mb-2 text-xs font-medium text-stone-500">Quick switch</div>
           <div role="radiogroup" aria-label="Template" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-            {TEMPLATES.map((t) => {
+            {templates.map((t) => {
               const active = t.id === template;
+              const locked = !isUnlocked(plan, t.tier);
               return (
                 <button
                   key={t.id}
@@ -82,7 +88,10 @@ export function FinishStep({ cv, template, onTemplate, accent, onAccent, onGoTo,
                       </span>
                     </span>
                   </span>
-                  <span className={`text-[11px] font-medium ${active ? "text-brand" : "text-stone-600"}`}>{t.name}</span>
+                  <span className={`flex items-center gap-0.5 text-[11px] font-medium ${active ? "text-brand" : "text-stone-600"}`}>
+                    {locked && <LockIcon className="size-2.5" aria-label="Needs an upgrade" />}
+                    {t.name}
+                  </span>
                 </button>
               );
             })}
@@ -154,20 +163,52 @@ export function FinishStep({ cv, template, onTemplate, accent, onAccent, onGoTo,
         </ul>
       </section>
 
-      <section className="flex flex-col gap-3 rounded-2xl bg-brand/5 p-5 ring-1 ring-brand/15">
+      <section className="flex flex-col gap-4 rounded-2xl bg-brand/5 p-5 ring-1 ring-brand/15">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs font-medium text-stone-600">Page size</span>
+          <div role="radiogroup" aria-label="Page size" className="flex rounded-lg bg-white p-0.5 text-xs ring-1 ring-inset ring-stone-200">
+            {(Object.keys(PAGE_SIZES) as PageSize[]).map((size) => (
+              <button
+                key={size}
+                type="button"
+                role="radio"
+                aria-checked={actions.pageSize === size}
+                onClick={() => actions.onPageSize(size)}
+                className={`rounded-md px-2.5 py-1 font-medium ${actions.pageSize === size ? "bg-brand text-white" : "text-stone-600 hover:text-stone-900"}`}
+              >
+                {PAGE_SIZES[size].label}
+              </button>
+            ))}
+          </div>
+        </div>
         <button
           type="button"
-          onClick={onDownload}
-          className="w-full rounded-xl bg-brand px-5 py-3 text-base font-semibold text-white shadow-sm hover:bg-brand-dark"
+          onClick={() => actions.exportAs("pdf")}
+          disabled={actions.busy === "pdf"}
+          className="w-full rounded-xl bg-brand px-5 py-3 text-base font-semibold text-white shadow-sm hover:bg-brand-dark disabled:cursor-wait disabled:opacity-80"
         >
-          Download PDF
+          {actions.busy === "pdf" ? "Preparing PDF…" : "Download PDF"}
         </button>
+        <div className="grid grid-cols-2 gap-2">
+          {(["docx", "txt"] as const).map((f) => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => actions.exportAs(f)}
+              disabled={actions.busy === f}
+              className="flex items-center justify-center gap-1.5 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-stone-800 ring-1 ring-inset ring-stone-200 hover:bg-stone-50"
+            >
+              {actions.locked.includes(f) && <LockIcon className="size-3.5 text-stone-400" />}
+              {actions.busy === f ? "Preparing…" : EXPORT_LABEL[f]}
+            </button>
+          ))}
+        </div>
         <p className="text-xs leading-relaxed text-stone-600">
-          Your A4 PDF downloads straight away. The text stays selectable and searchable, and links stay clickable.
+          The PDF keeps text selectable and links clickable. The Word file is a clean, one-column version you can edit; plain text is for job portals with a single text box.
         </p>
         <button
           type="button"
-          onClick={onExport}
+          onClick={() => actions.exportAs("json")}
           className="self-start text-sm font-medium text-brand underline-offset-4 hover:underline"
         >
           Save a backup file (.json) to edit later
