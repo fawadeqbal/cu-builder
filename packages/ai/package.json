@@ -12,6 +12,10 @@
     "./anthropic": {
       "types": "./dist/anthropic.d.ts",
       "import": "./dist/anthropic.js"
+    },
+    "./ollama": {
+      "types": "./dist/ollama.d.ts",
+      "import": "./dist/ollama.js"
     }
   },
   "files": [

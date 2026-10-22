@@ -97,17 +97,18 @@ const Brief = z.object({ questionsToAsk: z.array(z.string()).min(1), themes: z.a
 
 const clamp = (n: number) => Math.max(1, Math.min(5, Math.round(n)));
 
-/** The Assistant backed by a language model (Claude in production). */
+/** The Assistant backed by a language model (Claude in production, or a local Ollama model). */
 export class LlmAssistant implements Assistant {
-  readonly name = "llm";
-
-  constructor(private readonly model: TextModel) {}
+  constructor(
+    private readonly model: TextModel,
+    readonly name = "llm",
+  ) {}
 
   /** Asks for JSON, validates it, and retries once with the error if it doesn't parse. */
   private async json<T>(schema: z.ZodType<T>, prompt: string, tier: ModelTier, maxTokens: number): Promise<T> {
     const messages: ChatMessage[] = [{ role: "user", content: `${prompt}\n\n${JSON_RULE}` }];
     for (let attempt = 0; attempt < 2; attempt++) {
-      const reply = await this.model.complete({ system: AI_PRINCIPLES, messages, tier, maxTokens });
+      const reply = await this.model.complete({ system: AI_PRINCIPLES, messages, tier, maxTokens, json: true });
       try {
         return schema.parse(extractJson(reply));
       } catch (e) {

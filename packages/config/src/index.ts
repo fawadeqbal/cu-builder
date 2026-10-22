@@ -35,8 +35,17 @@ export const AppUrlEnvSchema = z.object({
   APP_URL: z.url().default("http://localhost:3000"),
 });
 
-/** Claude for AI writing. Without a key the app uses a deterministic offline assistant. */
+/**
+ * AI writing: AI_PROVIDER=ollama uses a local or self-hosted Ollama server; "anthropic" uses
+ * Claude; "offline" a deterministic stand-in. "auto" (default) is Claude when ANTHROPIC_API_KEY is
+ * set, otherwise offline.
+ */
 export const AiEnvSchema = z.object({
+  AI_PROVIDER: z.enum(["auto", "anthropic", "ollama", "offline"]).default("auto"),
+  OLLAMA_URL: z.string().default("http://localhost:11434"),
+  /** Ollama model names for quick edits and for drafts (pull them first: ollama pull qwen2.5:7b). */
+  OLLAMA_MODEL_FAST: z.string().default("qwen2.5:7b"),
+  OLLAMA_MODEL_SMART: z.string().default("qwen2.5:7b"),
   ANTHROPIC_API_KEY: optional,
   AI_MODEL_FAST: z.string().default("claude-haiku-5-5"),
   AI_MODEL_SMART: z.string().default("claude-sonnet-5-5"),

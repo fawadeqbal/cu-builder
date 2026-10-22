@@ -1,7 +1,7 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig((options) => ({
-  entry: ["src/index.ts", "src/anthropic.ts"],
+  entry: ["src/index.ts", "src/anthropic.ts", "src/ollama.ts"],
   format: ["esm"],
   dts: true,
   sourcemap: true,

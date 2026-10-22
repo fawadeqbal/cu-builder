@@ -5,9 +5,13 @@ export type ModelTier = "fast" | "smart";
 
 export type ChatMessage = { role: "user" | "assistant"; content: string };
 
-/** Port: any text-generation model. The Claude adapter lives in `@cvb/ai/anthropic`. */
+/**
+ * Port: any text-generation model. Adapters: Claude in `@cvb/ai/anthropic`, a local or
+ * self-hosted Ollama server in `@cvb/ai/ollama`. `json` says the answer must be a JSON object
+ * (adapters that can enforce it do; the prompt asks for it either way).
+ */
 export interface TextModel {
-  complete(request: { system: string; messages: ChatMessage[]; tier: ModelTier; maxTokens: number }): Promise<string>;
+  complete(request: { system: string; messages: ChatMessage[]; tier: ModelTier; maxTokens: number; json?: boolean }): Promise<string>;
 }
 
 export type RewriteMode = "grammar" | "shorter" | "formal" | "confident";
@@ -47,6 +51,14 @@ export interface Assistant {
   interviewFeedback(input: { role: string; question: string; answer: string }): Promise<AnswerFeedback>;
   starStory(input: { bullet: string; role: string; company: string }): Promise<StarStory>;
   companyBrief(input: { company: string; role: string; description?: string }): Promise<{ questionsToAsk: string[]; themes: string[] }>;
+}
+
+/** Thrown when the AI server can't be used as configured (not running, model not installed). The message says how to fix it. */
+export class AiUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AiUnavailableError";
+  }
 }
 
 /** Thrown when the model's answer can't be used (bad JSON twice, empty output). */

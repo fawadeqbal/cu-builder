@@ -1,4 +1,4 @@
-import { ASSISTANT, AiOutputError, type Assistant } from "@cvb/ai";
+import { ASSISTANT, AiOutputError, AiUnavailableError, type Assistant } from "@cvb/ai";
 import type { CV } from "@cvb/domain";
 import { UpstreamError } from "@cvb/shared";
 import { Inject, Injectable, Logger } from "@nestjs/common";
@@ -23,7 +23,7 @@ export class AiService {
       return await fn();
     } catch (e) {
       this.logger.warn(`AI ${label} failed: ${e instanceof Error ? e.message : String(e)}`);
-      throw new UpstreamError(e instanceof AiOutputError ? e.message : "The AI service is busy. Please try again in a moment.");
+      throw new UpstreamError(e instanceof AiOutputError || e instanceof AiUnavailableError ? e.message : "The AI service is busy. Please try again in a moment.");
     }
   }
 

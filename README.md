@@ -17,7 +17,7 @@ This is a **pnpm + Turborepo monorepo**: a Next.js web app, a NestJS API and a N
 | `packages/templates` | The 12 CV templates, their catalog and print styles |
 | `packages/db` | Prisma schema, migrations, client and Nest module |
 | `packages/queue` | Job producer port, BullMQ adapter and Nest module |
-| `packages/ai` | AI assistant port, Claude adapter and offline assistant |
+| `packages/ai` | AI assistant port, Claude and Ollama (local AI) adapters, offline assistant |
 | `packages/jobfeed` | Job board adapters (Remotive, Jooble, Adzuna) |
 | `packages/storage` | File storage port (local disk now, S3-compatible later) |
 | `packages/shared`, `config`, `ui` | Helpers, env validation, shared React UI |
