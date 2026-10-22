@@ -5,8 +5,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { templateMeta, isTemplateId } from "@cvb/templates/catalog";
 import { api } from "@/lib/api";
 import { keys, useVersions } from "@/lib/queries";
+import { Alert, Button, EmptyState, Icon, Skeleton } from "@cvb/ui";
 import { Dialog } from "./ui/Dialog";
-import { btn } from "./ui/styles";
 
 const REASON: Record<string, string> = {
   manual: "Saved by you",
@@ -58,41 +58,58 @@ export function HistoryDialog({ resumeId, open, onClose, onRestored, beforeChang
       title="Version history"
       description="Restoring keeps a copy of the current version, so nothing is lost."
       footer={
-        <button type="button" className={btn.secondary} disabled={snapshot.isPending} onClick={() => snapshot.mutate()}>
+        <Button variant="secondary" icon="clock" loading={snapshot.isPending} onClick={() => snapshot.mutate()}>
           {snapshot.isPending ? "Saving…" : "Save a version now"}
-        </button>
+        </Button>
       }
     >
       {versions.isLoading ? (
-        <p className="py-6 text-center text-sm text-stone-500">Loading…</p>
+        <div className="flex flex-col gap-4 py-2" aria-busy="true">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex items-center gap-3">
+              <Skeleton shape="circle" width={32} height={32} />
+              <div className="flex flex-1 flex-col gap-2">
+                <Skeleton width="45%" />
+                <Skeleton width="30%" height={10} />
+              </div>
+            </div>
+          ))}
+        </div>
       ) : !versions.data?.length ? (
-        <p className="py-6 text-center text-sm text-stone-500">
-          No versions yet. One is saved each time you download, and once a day while you edit.
-        </p>
+        <EmptyState icon="clock" title="No versions yet" className="py-6">
+          One is saved each time you download, and once a day while you edit.
+        </EmptyState>
       ) : (
         <ol className="-mx-2 flex flex-col">
           {versions.data.map((v, i) => (
-            <li key={v.id} className="flex items-center gap-3 rounded-lg px-2 py-2.5 hover:bg-stone-50">
-              <span className={`size-2 shrink-0 rounded-full ${i === 0 ? "bg-brand" : "bg-stone-300"}`} />
+            <li key={v.id} className="flex items-center gap-3 rounded-md px-2 py-2.5 hover:bg-surface-2">
+              <span className={`grid size-8 shrink-0 place-items-center rounded-full ${i === 0 ? "bg-brand-soft text-brand-ink" : "bg-surface-2 text-ink-3"}`}>
+                <Icon name="clock" size={16} />
+              </span>
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium text-stone-800">{new Date(v.createdAt).toLocaleString()}</div>
-                <div className="text-xs text-stone-500">
+                <div className="cvb-num text-sm font-semibold text-ink">{new Date(v.createdAt).toLocaleString()}</div>
+                <div className="cvb-caption">
                   {REASON[v.reason] ?? v.reason} · {isTemplateId(v.templateId) ? templateMeta(v.templateId).name : v.templateId}
                 </div>
               </div>
-              <button
-                type="button"
-                className={btn.ghost}
+              <Button
+                variant="ghost"
+                size="sm"
+                icon="undo"
                 disabled={restore.isPending}
                 onClick={() => window.confirm("Restore this version? Your current CV is kept in the history.") && restore.mutate(v.id)}
               >
                 Restore
-              </button>
+              </Button>
             </li>
           ))}
         </ol>
       )}
-      {(snapshot.error || restore.error) && <p className="mt-3 text-sm text-red-600">{(snapshot.error ?? restore.error)?.message}</p>}
+      {(snapshot.error || restore.error) && (
+        <Alert tone="danger" className="mt-3">
+          {(snapshot.error ?? restore.error)?.message}
+        </Alert>
+      )}
     </Dialog>
   );
 }

@@ -2,18 +2,19 @@
 
 import type { ApplicationDto, ReminderDto } from "@cvb/contracts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
+import { Button, IconButton } from "@cvb/ui";
 import { api } from "@/lib/api";
 import { useReminders } from "@/lib/tracker";
-import { btn, card } from "../ui/styles";
 
 type Event = { id: string; at: Date; title: string; kind: "interview" | "deadline" | "reminder"; appId: string | null; reminder?: ReminderDto };
 
+/** The inline-start edge of each event: interviews in the interview stage colour, deadlines warn, reminders inform. */
 const KIND = {
-  interview: "bg-violet-50 text-violet-800 ring-violet-200",
-  deadline: "bg-amber-50 text-amber-900 ring-amber-200",
-  reminder: "bg-sky-50 text-sky-800 ring-sky-200",
-};
+  interview: { ["--stage" as string]: "var(--stage-interview)" },
+  deadline: { ["--stage" as string]: "var(--warning)" },
+  reminder: { ["--stage" as string]: "var(--info)" },
+} as Record<Event["kind"], CSSProperties>;
 
 const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 
@@ -59,48 +60,44 @@ export function CalendarView({ apps, onOpen }: { apps: ApplicationDto[]; onOpen:
   const shift = (n: number) => setMonth((m) => new Date(m.getFullYear(), m.getMonth() + n, 1));
 
   return (
-    <div className={`${card} overflow-hidden`}>
-      <div className="flex items-center gap-2 border-b border-stone-100 px-4 py-3">
-        <h2 className="flex-1 text-base font-semibold text-stone-900">{month.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</h2>
-        <button type="button" className={btn.ghost} aria-label="Previous month" onClick={() => shift(-1)}>
-          ←
-        </button>
-        <button type="button" className={btn.ghost} onClick={() => setMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}>
+    <div className="cvb-calendar">
+      <div className="cvb-calendar-head">
+        <h2 className="cvb-h3 flex-1">{month.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</h2>
+        <IconButton icon="chevron-left" label="Previous month" size="sm" onClick={() => shift(-1)} />
+        <Button size="sm" variant="ghost" onClick={() => setMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}>
           Today
-        </button>
-        <button type="button" className={btn.ghost} aria-label="Next month" onClick={() => shift(1)}>
-          →
-        </button>
+        </Button>
+        <IconButton icon="chevron-right" label="Next month" size="sm" onClick={() => shift(1)} />
       </div>
-      <div className="grid grid-cols-7 border-b border-stone-100 bg-stone-50 text-center text-[11px] font-semibold uppercase tracking-wide text-stone-500">
-        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
-          <div key={d} className="py-2">
-            {d}
-          </div>
-        ))}
-      </div>
-      <div className="grid grid-cols-7">
-        {days.map((d) => {
-          const events = byDay.get(dayKey(d)) ?? [];
-          const inMonth = d.getMonth() === month.getMonth();
-          return (
-            <div key={d.toISOString()} className={`min-h-24 border-b border-e border-stone-100 p-1.5 ${inMonth ? "" : "bg-stone-50/60"}`}>
-              <div className={`mb-1 text-end text-xs ${dayKey(d) === today ? "font-bold text-brand" : inMonth ? "text-stone-600" : "text-stone-300"}`}>{d.getDate()}</div>
-              <ul className="flex flex-col gap-1">
-                {events.map((e) => (
-                  <li key={e.id} className={`flex items-start gap-1 rounded-md px-1.5 py-0.5 text-[11px] leading-snug ring-1 ${KIND[e.kind]} ${e.reminder?.doneAt ? "opacity-50 line-through" : ""}`}>
-                    {e.reminder && (
-                      <input type="checkbox" aria-label={`Done: ${e.title}`} className="mt-0.5 size-3 accent-brand" checked={Boolean(e.reminder.doneAt)} onChange={() => done.mutate(e.reminder!)} />
-                    )}
-                    <button type="button" className="min-w-0 flex-1 text-start" disabled={!e.appId} onClick={() => e.appId && onOpen(e.appId)}>
-                      <span className="font-semibold">{e.at.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</span> {e.title}
-                    </button>
-                  </li>
-                ))}
-              </ul>
+      <div className="overflow-x-auto">
+        <div className="cvb-calendar-grid min-w-[42rem]">
+          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+            <div key={d} className="cvb-calendar-dow">
+              {d}
             </div>
-          );
-        })}
+          ))}
+          {days.map((d) => {
+            const events = byDay.get(dayKey(d)) ?? [];
+            const inMonth = d.getMonth() === month.getMonth();
+            return (
+              <div key={d.toISOString()} className="cvb-calendar-day min-h-24" data-out={inMonth ? undefined : ""} data-today={dayKey(d) === today ? "" : undefined}>
+                <span className="cvb-calendar-date">{d.getDate()}</span>
+                <ul className="flex flex-col gap-1">
+                  {events.map((e) => (
+                    <li key={e.id} style={KIND[e.kind]} className={`cvb-event flex items-start gap-1 whitespace-normal ${e.reminder?.doneAt ? "line-through opacity-60" : ""}`}>
+                      {e.reminder && (
+                        <input type="checkbox" aria-label={`Done: ${e.title}`} className="mt-0.5 size-3 shrink-0 accent-brand" checked={Boolean(e.reminder.doneAt)} onChange={() => done.mutate(e.reminder!)} />
+                      )}
+                      <button type="button" className="min-w-0 flex-1 text-start font-normal leading-snug" disabled={!e.appId} onClick={() => e.appId && onOpen(e.appId)}>
+                        <span className="cvb-num font-semibold">{e.at.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</span> {e.title}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

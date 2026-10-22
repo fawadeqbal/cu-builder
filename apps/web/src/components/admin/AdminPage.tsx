@@ -1,23 +1,53 @@
 "use client";
 
-import type { AdminMetricsDto, AdminUpdateUserDto, AdminUserDto, MeDto, Page, TemplateSettingDto, UpdateTemplateSettingDto } from "@cvb/contracts";
+import type {
+  AdminMetricsDto,
+  AdminUpdateUserDto,
+  AdminUserDto,
+  MeDto,
+  Page,
+  TemplateSettingDto,
+  UpdateTemplateSettingDto,
+} from "@cvb/contracts";
 import { PLANS, TEMPLATE_TIERS, type Plan, type TemplateTier } from "@cvb/domain";
 import { TEMPLATES } from "@cvb/templates/catalog";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { useDeferredValue, useState } from "react";
-import { TierBadge } from "@cvb/ui";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  DataTable,
+  PageHeader,
+  ProgressBar,
+  SearchField,
+  Select,
+  Skeleton,
+  StatTile,
+  Switch,
+  Tabs,
+  TextField,
+  TierBadge,
+} from "@cvb/ui";
 import { api } from "@/lib/api";
 import { PLAN_LABEL } from "@/lib/plans";
 import { keys } from "@/lib/queries";
 import { AppHeader } from "../AppHeader";
 import { RequireAuth } from "../RequireAuth";
-import { btn, card, field } from "../ui/styles";
 import { OrgsAdmin } from "./OrgsAdmin";
 import { ExpertsAdmin } from "./ExpertsAdmin";
 
 const TABS = ["overview", "users", "templates", "organisations", "experts"] as const;
 type Tab = (typeof TABS)[number];
+const TAB_LABEL: Record<Tab, string> = {
+  overview: "Overview",
+  users: "Users",
+  templates: "Templates",
+  organisations: "Organisations",
+  experts: "Experts",
+};
 
 /** Internal console: numbers, users and the template catalog. Every call is checked by the API (role admin). */
 export function AdminPage() {
@@ -26,18 +56,17 @@ export function AdminPage() {
   return (
     <RequireAuth admin>
       {(me) => (
-        <div className="min-h-dvh bg-stone-50">
+        <div className="min-h-dvh bg-canvas">
           <AppHeader />
-          <main className="mx-auto max-w-6xl px-4 pb-20 pt-8 sm:px-6">
-            <h1 className="text-2xl font-semibold tracking-tight text-stone-900">Admin</h1>
-            <nav className="mt-4 flex gap-1 border-b border-stone-200 text-sm font-medium">
-              {TABS.map((t) => (
-                <button key={t} type="button" onClick={() => setTab(t)} className={`-mb-px border-b-2 px-3 py-2 capitalize ${tab === t ? "border-brand text-stone-900" : "border-transparent text-stone-500 hover:text-stone-800"}`}>
-                  {t}
-                </button>
-              ))}
-            </nav>
-            <div className="mt-6">
+          <main className="mx-auto flex w-full max-w-(--layout-xl) flex-col gap-6 px-4 pb-20 pt-10 sm:px-6">
+            <PageHeader title="Admin" />
+            <Tabs
+              label="Admin sections"
+              value={tab}
+              onChange={setTab}
+              items={TABS.map((t) => ({ id: t, label: TAB_LABEL[t] }))}
+            />
+            <div role="tabpanel" aria-label={TAB_LABEL[tab]}>
               {tab === "overview" && <Overview />}
               {tab === "users" && <Users me={me} />}
               {tab === "templates" && <Templates />}
@@ -52,52 +81,69 @@ export function AdminPage() {
 }
 
 const FUNNEL = ["visit", "cv_started", "cv_completed", "pdf_downloaded", "signed_up", "checkout_started", "purchased"];
+/** "cv_started" → "CV started". */
+const eventLabel = (name: string) => {
+  const s = name
+    .replace(/_/g, " ")
+    .replace(/^cv\b/, "CV")
+    .replace(/^pdf\b/, "PDF");
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
 
 function Overview() {
-  const metrics = useQuery({ queryKey: ["admin", "metrics"], queryFn: () => api.get<AdminMetricsDto>("/admin/metrics") });
+  const metrics = useQuery({
+    queryKey: ["admin", "metrics"],
+    queryFn: () => api.get<AdminMetricsDto>("/admin/metrics"),
+  });
   const m = metrics.data;
-  if (!m) return <p className="text-sm text-stone-500">Loading…</p>;
+  if (!m) return <Loading />;
   const counts = new Map(m.funnel.map((f) => [f.name, f.count]));
   const top = Math.max(1, ...FUNNEL.map((n) => counts.get(n) ?? 0));
+  const first = counts.get(FUNNEL[0]!) ?? 0;
   const tiles = [
-    ["Users", m.users.total, `${m.users.last7Days} new this week`],
-    ["CVs", m.resumes, "not counting trash"],
-    ["Paying subscribers", m.paying, "active or in grace period"],
-    ["Active passes", m.activePasses, "running right now"],
+    ["Users", m.users.total, `${m.users.last7Days} new this week`, "users"],
+    ["CVs", m.resumes, "not counting trash", "files"],
+    ["Paying subscribers", m.paying, "active or in grace period", "credit"],
+    ["Active passes", m.activePasses, "running right now", "clock"],
   ] as const;
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {tiles.map(([label, value, hint]) => (
-          <div key={label} className={`${card} p-5`}>
-            <div className="text-sm text-stone-500">{label}</div>
-            <div className="mt-1 text-3xl font-semibold tabular-nums tracking-tight text-stone-900">{value.toLocaleString()}</div>
-            <div className="mt-1 text-xs text-stone-500">{hint}</div>
-          </div>
+      <div className="cvb-stat-grid">
+        {tiles.map(([label, value, hint, icon]) => (
+          <StatTile key={label} label={label} value={value.toLocaleString()} hint={hint} icon={icon} />
         ))}
       </div>
-      <section className={`${card} p-5`}>
-        <h2 className="text-base font-semibold text-stone-900">Funnel, last 30 days</h2>
-        <p className="text-xs text-stone-500">Percentages are of visits.</p>
-        <ol className="mt-4 flex flex-col gap-2.5">
+      <Card title="Funnel, last 30 days" description="Percentages are of visits.">
+        <ol className="flex flex-col gap-4">
           {FUNNEL.map((name, i) => {
             const n = counts.get(name) ?? 0;
-            const first = counts.get(FUNNEL[0]!) ?? 0;
             return (
-              <li key={name} className="grid grid-cols-[9rem_1fr_6rem] items-center gap-3 text-sm">
-                <span className="text-stone-700">{name.replace(/_/g, " ")}</span>
-                <span className="h-2.5 overflow-hidden rounded-full bg-stone-100">
-                  <span className="block h-full rounded-full bg-brand" style={{ width: `${(n / top) * 100}%` }} />
-                </span>
-                <span className="text-end tabular-nums text-stone-600">
-                  {n.toLocaleString()}
-                  {i > 0 && first > 0 && <span className="ms-1 text-xs text-stone-400">{Math.round((n / first) * 100)}%</span>}
-                </span>
+              <li key={name}>
+                <ProgressBar
+                  value={n}
+                  max={top}
+                  label={eventLabel(name)}
+                  valueLabel={
+                    <>
+                      {n.toLocaleString()}
+                      {i > 0 && first > 0 && <span className="ms-2 text-ink-3">{Math.round((n / first) * 100)}%</span>}
+                    </>
+                  }
+                />
               </li>
             );
           })}
         </ol>
-      </section>
+      </Card>
+    </div>
+  );
+}
+
+function Loading() {
+  return (
+    <div className="flex flex-col gap-3" role="status" aria-label="Loading">
+      <Skeleton height={96} shape="block" />
+      <Skeleton height={240} shape="block" />
     </div>
   );
 }
@@ -109,7 +155,9 @@ function Users({ me }: { me: MeDto }) {
   const users = useInfiniteQuery({
     queryKey: ["admin", "users", query],
     queryFn: ({ pageParam }) =>
-      api.get<Page<AdminUserDto>>(`/admin/users?limit=25${query ? `&q=${encodeURIComponent(query)}` : ""}${pageParam ? `&cursor=${pageParam}` : ""}`),
+      api.get<Page<AdminUserDto>>(
+        `/admin/users?limit=25${query ? `&q=${encodeURIComponent(query)}` : ""}${pageParam ? `&cursor=${pageParam}` : ""}`,
+      ),
     initialPageParam: "",
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   });
@@ -124,81 +172,109 @@ function Users({ me }: { me: MeDto }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <input className={`${field} max-w-sm`} placeholder="Search by email or name" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search users" />
-      {update.error && <p className="text-sm text-red-600">{update.error.message}</p>}
-      <div className={`${card} overflow-x-auto`}>
-        <table className="w-full min-w-[720px] text-start text-sm">
-          <thead className="border-b border-stone-100 text-xs uppercase tracking-wide text-stone-500">
-            <tr>
-              <th className="px-4 py-3 font-semibold">User</th>
-              <th className="px-4 py-3 font-semibold">Plan now</th>
-              <th className="px-4 py-3 font-semibold">Base plan</th>
-              <th className="px-4 py-3 font-semibold">Role</th>
-              <th className="px-4 py-3 font-semibold">CVs</th>
-              <th className="px-4 py-3 font-semibold">Joined</th>
-              <th className="px-4 py-3 font-semibold" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-stone-100">
-            {rows.map((u) => {
-              const self = u.id === me.id;
-              return (
-                <tr key={u.id} className={u.banned ? "bg-red-50/40" : ""}>
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-stone-900">{u.name}</div>
-                    <div className="text-xs text-stone-500">{u.email}</div>
-                  </td>
-                  <td className="px-4 py-3">{PLAN_LABEL[u.plan]}</td>
-                  <td className="px-4 py-3">
-                    <select
-                      aria-label={`Base plan for ${u.email}`}
-                      className="rounded-md border-0 bg-transparent py-1 text-sm ring-1 ring-stone-200"
-                      value={u.basePlan}
-                      onChange={(e) => update.mutate({ id: u.id, patch: { basePlan: e.target.value as Plan } })}
-                    >
-                      {PLANS.map((p) => (
-                        <option key={p} value={p}>
-                          {PLAN_LABEL[p]}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-4 py-3">
-                    <select
-                      aria-label={`Role for ${u.email}`}
-                      disabled={self}
-                      className="rounded-md border-0 bg-transparent py-1 text-sm ring-1 ring-stone-200 disabled:opacity-50"
-                      value={u.role === "admin" ? "admin" : "user"}
-                      onChange={(e) => update.mutate({ id: u.id, patch: { role: e.target.value as "user" | "admin" } })}
-                    >
-                      <option value="user">User</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </td>
-                  <td className="px-4 py-3 tabular-nums">{u.resumes}</td>
-                  <td className="px-4 py-3 text-stone-500">{new Date(u.createdAt).toLocaleDateString()}</td>
-                  <td className="px-4 py-3 text-end">
-                    {!self && (
-                      <button
-                        type="button"
-                        className={`text-sm font-medium ${u.banned ? "text-stone-700" : "text-red-600"} hover:underline`}
-                        onClick={() => (u.banned || window.confirm(`Suspend ${u.email}? They are signed out everywhere.`)) && update.mutate({ id: u.id, patch: { banned: !u.banned } })}
-                      >
-                        {u.banned ? "Reinstate" : "Suspend"}
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        {rows.length === 0 && !users.isLoading && <p className="px-4 py-8 text-center text-sm text-stone-500">No users found.</p>}
-      </div>
+      <SearchField
+        className="max-w-sm"
+        label="Search users"
+        placeholder="Search by email or name"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+      />
+      {update.error && <Alert tone="danger">{update.error.message}</Alert>}
+      <DataTable<AdminUserDto>
+        caption="Users"
+        rows={rows}
+        rowKey={(u) => u.id}
+        empty={users.isLoading ? undefined : "No users found."}
+        columns={[
+          {
+            key: "user",
+            label: "User",
+            render: (u) => (
+              <div className="flex min-w-48 flex-col">
+                <span className="flex flex-wrap items-center gap-2 text-ink">
+                  {u.name}
+                  {u.banned && (
+                    <Badge tone="danger" icon="lock">
+                      Suspended
+                    </Badge>
+                  )}
+                </span>
+                <span className="cvb-caption font-normal" dir="ltr">
+                  {u.email}
+                </span>
+              </div>
+            ),
+          },
+          { key: "plan", label: "Plan now", render: (u) => PLAN_LABEL[u.plan] },
+          {
+            key: "basePlan",
+            label: "Base plan",
+            render: (u) => (
+              <Select
+                size="sm"
+                className="[&_select]:py-1 min-w-32"
+                aria-label={`Base plan for ${u.email}`}
+                value={u.basePlan}
+                onChange={(e) => update.mutate({ id: u.id, patch: { basePlan: e.target.value as Plan } })}
+                options={PLANS.map((p) => ({ value: p, label: PLAN_LABEL[p] }))}
+              />
+            ),
+          },
+          {
+            key: "role",
+            label: "Role",
+            render: (u) => (
+              <Select
+                size="sm"
+                className="[&_select]:py-1 min-w-28"
+                aria-label={`Role for ${u.email}`}
+                disabled={u.id === me.id}
+                value={u.role === "admin" ? "admin" : "user"}
+                onChange={(e) => update.mutate({ id: u.id, patch: { role: e.target.value as "user" | "admin" } })}
+                options={[
+                  { value: "user", label: "User" },
+                  { value: "admin", label: "Admin" },
+                ]}
+              />
+            ),
+          },
+          { key: "resumes", label: "CVs", numeric: true, render: (u) => u.resumes },
+          {
+            key: "createdAt",
+            label: "Joined",
+            render: (u) => <span className="whitespace-nowrap">{new Date(u.createdAt).toLocaleDateString()}</span>,
+          },
+          {
+            key: "actions",
+            label: (
+              <span className="relative block">
+                <span className="cvb-sr">Actions</span>
+              </span>
+            ),
+            render: (u) =>
+              u.id !== me.id && (
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    variant={u.banned ? "secondary" : "ghost"}
+                    icon={u.banned ? "undo" : "lock"}
+                    className={u.banned ? undefined : "text-danger"}
+                    onClick={() =>
+                      (u.banned || window.confirm(`Suspend ${u.email}? They are signed out everywhere.`)) &&
+                      update.mutate({ id: u.id, patch: { banned: !u.banned } })
+                    }
+                  >
+                    {u.banned ? "Reinstate" : "Suspend"}
+                  </Button>
+                </div>
+              ),
+          },
+        ]}
+      />
       {users.hasNextPage && (
-        <button type="button" className={`${btn.secondary} self-center`} disabled={users.isFetchingNextPage} onClick={() => void users.fetchNextPage()}>
+        <Button className="self-center" loading={users.isFetchingNextPage} onClick={() => void users.fetchNextPage()}>
           {users.isFetchingNextPage ? "Loading…" : "Load more"}
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -206,9 +282,13 @@ function Users({ me }: { me: MeDto }) {
 
 function Templates() {
   const qc = useQueryClient();
-  const settings = useQuery({ queryKey: ["admin", "templates"], queryFn: () => api.get<TemplateSettingDto[]>("/admin/templates") });
+  const settings = useQuery({
+    queryKey: ["admin", "templates"],
+    queryFn: () => api.get<TemplateSettingDto[]>("/admin/templates"),
+  });
   const update = useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: UpdateTemplateSettingDto }) => api.patch<TemplateSettingDto>(`/admin/templates/${id}`, patch),
+    mutationFn: ({ id, patch }: { id: string; patch: UpdateTemplateSettingDto }) =>
+      api.patch<TemplateSettingDto>(`/admin/templates/${id}`, patch),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["admin", "templates"] });
       void qc.invalidateQueries({ queryKey: keys.templateSettings });
@@ -217,72 +297,86 @@ function Templates() {
   const byId = new Map((settings.data ?? []).map((s) => [s.templateId, s]));
 
   return (
-    <div className={`${card} overflow-x-auto`}>
-      <table className="w-full min-w-[640px] text-start text-sm">
-        <thead className="border-b border-stone-100 text-xs uppercase tracking-wide text-stone-500">
-          <tr>
-            <th className="px-4 py-3 font-semibold">Template</th>
-            <th className="px-4 py-3 font-semibold">Published</th>
-            <th className="px-4 py-3 font-semibold">Tier</th>
-            <th className="px-4 py-3 font-semibold">Order</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-stone-100">
-          {TEMPLATES.map((t) => {
-            const s = byId.get(t.id);
-            const tier = s?.tier ?? t.tier;
+    <DataTable<(typeof TEMPLATES)[number]>
+      caption="Templates"
+      rows={[...TEMPLATES]}
+      rowKey={(t) => t.id}
+      columns={[
+        {
+          key: "template",
+          label: "Template",
+          render: (t) => {
+            const tier = byId.get(t.id)?.tier ?? t.tier;
             return (
-              <tr key={t.id}>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <span className="size-2.5 rounded-full" style={{ background: t.accent }} />
-                    <span className="font-medium text-stone-900">{t.name}</span>
-                    <TierBadge tier={tier} />
-                  </div>
-                  <div className="text-xs text-stone-500">{t.description}</div>
-                </td>
-                <td className="px-4 py-3">
-                  <input
-                    type="checkbox"
-                    aria-label={`Publish ${t.name}`}
-                    className="size-4 accent-brand"
-                    checked={s?.enabled ?? true}
-                    onChange={(e) => update.mutate({ id: t.id, patch: { enabled: e.target.checked } })}
+              <div className="flex min-w-60 flex-col gap-0.5">
+                <div className="flex items-center gap-2">
+                  {/* The template's own accent colour (data, not interface). */}
+                  <span
+                    className="size-2.5 shrink-0 rounded-full"
+                    style={{ background: t.accent }}
+                    aria-hidden="true"
                   />
-                </td>
-                <td className="px-4 py-3">
-                  <select
-                    aria-label={`Tier for ${t.name}`}
-                    className="rounded-md border-0 bg-transparent py-1 text-sm ring-1 ring-stone-200"
-                    value={s?.tier ?? ""}
-                    onChange={(e) => update.mutate({ id: t.id, patch: { tier: (e.target.value || null) as TemplateTier | null } })}
-                  >
-                    <option value="">Default ({t.tier})</option>
-                    {TEMPLATE_TIERS.map((x) => (
-                      <option key={x} value={x}>
-                        {x}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td className="px-4 py-3">
-                  <input
-                    type="number"
-                    aria-label={`Order for ${t.name}`}
-                    className="w-20 rounded-md border-0 py-1 text-sm ring-1 ring-stone-200"
-                    defaultValue={s?.sortOrder ?? ""}
-                    placeholder="—"
-                    onBlur={(e) => {
-                      const v = e.target.value === "" ? null : Number(e.target.value);
-                      if (v !== (s?.sortOrder ?? null)) update.mutate({ id: t.id, patch: { sortOrder: v } });
-                    }}
-                  />
-                </td>
-              </tr>
+                  <span className="text-ink">{t.name}</span>
+                  <TierBadge tier={tier} />
+                </div>
+                <span className="cvb-caption font-normal">{t.description}</span>
+              </div>
             );
-          })}
-        </tbody>
-      </table>
-    </div>
+          },
+        },
+        {
+          key: "enabled",
+          label: "Published",
+          render: (t) => (
+            <Switch
+              aria-label={`Publish ${t.name}`}
+              checked={byId.get(t.id)?.enabled ?? true}
+              onChange={(on) => update.mutate({ id: t.id, patch: { enabled: on } })}
+            />
+          ),
+        },
+        {
+          key: "tier",
+          label: "Tier",
+          render: (t) => (
+            <Select
+              size="sm"
+              className="[&_select]:py-1 min-w-40"
+              aria-label={`Tier for ${t.name}`}
+              value={byId.get(t.id)?.tier ?? ""}
+              onChange={(e) =>
+                update.mutate({ id: t.id, patch: { tier: (e.target.value || null) as TemplateTier | null } })
+              }
+              options={[
+                { value: "", label: `Default (${t.tier})` },
+                ...TEMPLATE_TIERS.map((x) => ({ value: x, label: x })),
+              ]}
+            />
+          ),
+        },
+        {
+          key: "order",
+          label: "Order",
+          render: (t) => {
+            const s = byId.get(t.id);
+            return (
+              <TextField
+                size="sm"
+                inputClassName="py-1"
+                type="number"
+                className="w-24"
+                aria-label={`Order for ${t.name}`}
+                defaultValue={s?.sortOrder ?? ""}
+                placeholder="—"
+                onBlur={(e) => {
+                  const v = e.target.value === "" ? null : Number(e.target.value);
+                  if (v !== (s?.sortOrder ?? null)) update.mutate({ id: t.id, patch: { sortOrder: v } });
+                }}
+              />
+            );
+          },
+        },
+      ]}
+    />
   );
 }

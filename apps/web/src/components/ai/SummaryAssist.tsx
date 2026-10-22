@@ -1,10 +1,10 @@
 "use client";
 
 import type { CV } from "@cvb/domain";
-import { useRef, useState } from "react";
+import { useState } from "react";
+import { Alert, Button, Dropdown } from "@cvb/ui";
 import { gateForError, useAiAssist, useAiCall } from "@/lib/ai";
 import { Dialog } from "../ui/Dialog";
-import { btn } from "../ui/styles";
 import { AiButton, Suggestion } from "./AiButton";
 
 const MODES = [
@@ -21,11 +21,9 @@ export function SummaryAssist({ cv, onChange }: { cv: CV; onChange: (summary: st
   const [options, setOptions] = useState<string[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const menu = useRef<HTMLDetailsElement>(null);
 
   async function run(kind: string, path: string, body: unknown, pick: (r: Record<string, unknown>) => string[]) {
     if (!enabled) return onGate({ kind: "account", what: "use AI writing" });
-    menu.current?.removeAttribute("open");
     setBusy(kind);
     setError("");
     try {
@@ -52,35 +50,33 @@ export function SummaryAssist({ cv, onChange }: { cv: CV; onChange: (summary: st
         {cv.summary.trim() ? "Write a new one" : "Write it for me"}
       </AiButton>
       {cv.summary.trim() && (
-        <details ref={menu} className="relative [&_summary::-webkit-details-marker]:hidden">
-          <summary className="list-none">
-            <AiButton busy={busy === "rewrite"} onClick={() => menu.current?.toggleAttribute("open")}>
-              Rewrite ▾
-            </AiButton>
-          </summary>
-          <div className="absolute start-0 z-20 mt-1 w-44 rounded-xl border border-stone-200 bg-white p-1 shadow-lg">
-            {MODES.map(([mode, label]) => (
-              <button
-                key={mode}
-                type="button"
-                className="block w-full rounded-lg px-3 py-2 text-start text-sm text-stone-700 hover:bg-stone-100"
-                onClick={() => void run("rewrite", "/ai/rewrite", { text: cv.summary, mode }, (r) => [r.text as string])}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </details>
+        <Dropdown
+          align="start"
+          label="Rewrite"
+          trigger={({ toggle, ...aria }) => (
+            <Button variant="ghost" size="sm" icon="sparkle" iconEnd="chevron-down" loading={busy === "rewrite"} onClick={toggle} className="[&>.cvb-icon:first-child]:text-brand-ink" {...aria}>
+              Rewrite
+            </Button>
+          )}
+          items={MODES.map(([mode, label]) => ({
+            label,
+            onSelect: () => void run("rewrite", "/ai/rewrite", { text: cv.summary, mode }, (r) => [r.text as string]),
+          }))}
+        />
       )}
-      {error && <span className="text-xs text-red-600">{error}</span>}
+      {error && (
+        <Alert tone="danger" className="w-full">
+          {error}
+        </Alert>
+      )}
       <Dialog open={options !== null} onClose={() => setOptions(null)} title="Pick a summary" description="Edit it afterwards to sound like you. Highlighted parts are for you to fill in." size="lg">
-        <div className="flex flex-col gap-3">
+        <div className="cvb-ai">
           {options?.map((o) => (
             <Suggestion key={o} text={o} onUse={() => use(o)} />
           ))}
-          <button type="button" className={`${btn.ghost} self-start`} onClick={() => setOptions(null)}>
+          <Button variant="ghost" className="self-start" onClick={() => setOptions(null)}>
             Keep mine
-          </button>
+          </Button>
         </div>
       </Dialog>
     </div>

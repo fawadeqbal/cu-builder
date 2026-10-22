@@ -3,8 +3,8 @@
 import { regionRules, showPhoto, type CV, type PhotoShape } from "@cvb/domain";
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { useT } from "@/lib/i18n";
+import { Alert, Button, Checkbox, Select } from "@cvb/ui";
 import { Dialog } from "../ui/Dialog";
-import { btn } from "../ui/styles";
 
 const OUT = 400; // output size in px (square)
 const MAX_CHARS = 200_000; // ≈ 150 KB of JPEG as a data URL
@@ -54,23 +54,23 @@ export function PhotoField({ cv, onChange }: { cv: CV; onChange: (cv: CV) => voi
 
   return (
     <div className="flex flex-wrap items-center gap-4">
-      <div className={`grid size-20 shrink-0 place-items-center overflow-hidden bg-stone-100 ring-1 ring-stone-200 ${shapeClass}`}>
+      <div className={`grid size-20 shrink-0 place-items-center overflow-hidden border border-line bg-surface-2 ${shapeClass}`}>
         {cv.photo ? (
           // eslint-disable-next-line @next/next/no-img-element -- a local data URL
           <img src={cv.photo} alt="" className="size-full object-cover" />
         ) : (
-          <span className="text-xs text-stone-400">{t("photo.title")}</span>
+          <span className="cvb-caption px-1 text-center">{t("photo.title")}</span>
         )}
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <div className="flex flex-wrap gap-2">
-          <button type="button" className={btn.secondary} onClick={() => input.current?.click()}>
+          <Button variant="secondary" icon="upload" onClick={() => input.current?.click()}>
             {cv.photo ? t("photo.change") : t("photo.upload")}
-          </button>
+          </Button>
           {cv.photo && (
-            <button type="button" className={btn.ghost} onClick={() => onChange({ ...cv, photo: "" })}>
+            <Button variant="ghost" icon="trash" onClick={() => onChange({ ...cv, photo: "" })}>
               {t("photo.remove")}
-            </button>
+            </Button>
           )}
           <input
             ref={input}
@@ -84,29 +84,27 @@ export function PhotoField({ cv, onChange }: { cv: CV; onChange: (cv: CV) => voi
           />
         </div>
         {cv.photo && (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-stone-700">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-ink-2">
+            <Checkbox label={t("photo.show")} checked={cv.settings.photo.show} onChange={(e) => setPhoto({ show: e.target.checked })} />
             <label className="flex items-center gap-2">
-              <input type="checkbox" className="size-4 accent-brand" checked={cv.settings.photo.show} onChange={(e) => setPhoto({ show: e.target.checked })} />
-              {t("photo.show")}
-            </label>
-            <label className="flex items-center gap-2">
-              <span className="text-stone-500">{t("photo.shape")}</span>
-              <select
-                className="rounded-md border border-stone-200 bg-white px-2 py-1 text-sm"
+              <span className="text-ink-2">{t("photo.shape")}</span>
+              <Select
+                size="sm"
                 value={cv.settings.photo.shape}
                 onChange={(e) => setPhoto({ shape: e.target.value as PhotoShape })}
-              >
-                <option value="circle">{t("photo.circle")}</option>
-                <option value="rounded">{t("photo.rounded")}</option>
-                <option value="square">{t("photo.square")}</option>
-              </select>
+                options={[
+                  { value: "circle", label: t("photo.circle") },
+                  { value: "rounded", label: t("photo.rounded") },
+                  { value: "square", label: t("photo.square") },
+                ]}
+              />
             </label>
           </div>
         )}
         {cv.photo && !showPhoto(cv) && rules.photo === "no" && (
-          <p className="text-xs text-amber-700">{t("photo.hiddenByRegion", { region: t(`region.${cv.settings.region}`) })}</p>
+          <Alert tone="warning">{t("photo.hiddenByRegion", { region: t(`region.${cv.settings.region}`) })}</Alert>
         )}
-        {error && <p className="text-xs text-red-600">{error}</p>}
+        {error && <Alert tone="danger">{error}</Alert>}
       </div>
       {source && (
         <CropDialog
@@ -163,18 +161,18 @@ function CropDialog({ source, onClose, onDone }: { source: string; onClose: () =
       size="sm"
       footer={
         <div className="flex justify-end gap-2">
-          <button type="button" className={btn.ghost} onClick={onClose}>
+          <Button variant="ghost" onClick={onClose}>
             {t("common.cancel")}
-          </button>
-          <button type="button" className={btn.primary} disabled={!size} onClick={() => img.current && onDone(exportCrop(img.current, crop))}>
+          </Button>
+          <Button variant="primary" disabled={!size} onClick={() => img.current && onDone(exportCrop(img.current, crop))}>
             {t("photo.use")}
-          </button>
+          </Button>
         </div>
       }
     >
       <div className="flex flex-col items-center gap-4" dir="ltr">
         <div
-          className="relative touch-none cursor-grab overflow-hidden rounded-xl bg-stone-900 active:cursor-grabbing"
+          className="relative touch-none cursor-grab overflow-hidden rounded-lg bg-surface-3 active:cursor-grabbing"
           style={{ width: VIEW, height: VIEW }}
           onPointerDown={down}
           onPointerMove={move}
@@ -190,9 +188,9 @@ function CropDialog({ source, onClose, onDone }: { source: string; onClose: () =
             className="pointer-events-none absolute max-w-none select-none"
             style={{ width: w, height: h, left: VIEW / 2 - w / 2 + crop.x, top: VIEW / 2 - h / 2 + crop.y }}
           />
-          <div className="pointer-events-none absolute inset-0 rounded-full shadow-[0_0_0_999px_rgb(0_0_0/0.35)]" />
+          <div className="pointer-events-none absolute inset-0 rounded-full shadow-[0_0_0_999px_var(--scrim)]" />
         </div>
-        <label className="flex w-full items-center gap-3 text-sm text-stone-600">
+        <label className="flex w-full items-center gap-3 text-sm font-medium text-ink-2">
           {t("photo.zoom")}
           <input
             type="range"

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { Dialog } from "../ui/Dialog";
-import { btn } from "../ui/styles";
+import { Alert, Button, Checkbox, EmptyState, Icon } from "@cvb/ui";
 
 const show = (v: string | string[] | null): string[] => (v === null ? [] : Array.isArray(v) ? v.filter((s) => s.trim()) : [v]);
 
@@ -72,26 +72,31 @@ export function TailorReview({
       description="Review each suggested change. Your original CV is not touched; accepted changes go into a new copy linked to this job."
       footer={
         <>
-          <button type="button" className={btn.ghost} onClick={onClose}>
+          <Button variant="ghost" onClick={onClose}>
             Cancel
-          </button>
-          <button type="button" className={btn.primary} disabled={busy || accepted.size === 0} onClick={() => void create()}>
+          </Button>
+          <Button variant="primary" icon="copy" disabled={accepted.size === 0} loading={busy} onClick={() => void create()}>
             {busy ? "Creating…" : `Create tailored copy (${accepted.size})`}
-          </button>
+          </Button>
         </>
       }
     >
       {changes.length === 0 ? (
-        <p className="py-6 text-center text-sm text-stone-500">No changes suggested: your CV already reads well for this job.</p>
+        <EmptyState icon="check-circle" title="No changes suggested">
+          Your CV already reads well for this job.
+        </EmptyState>
       ) : (
         <div className="flex flex-col gap-3">
-          <div className="flex gap-3 text-xs font-medium">
-            <button type="button" className="text-brand hover:underline" onClick={() => setAccepted(new Set(changes.map((c) => c.id)))}>
+          <div className="flex items-center gap-3">
+            <span className="cvb-caption flex-1">
+              <span className="cvb-num">{accepted.size}</span> of <span className="cvb-num">{changes.length}</span> changes selected
+            </span>
+            <Button variant="link" size="sm" onClick={() => setAccepted(new Set(changes.map((c) => c.id)))}>
               Accept all
-            </button>
-            <button type="button" className="text-stone-500 hover:underline" onClick={() => setAccepted(new Set())}>
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setAccepted(new Set())}>
               Clear
-            </button>
+            </Button>
           </div>
           {changes.map((c) => (
             <ChangeRow key={c.id} change={c} on={accepted.has(c.id)} onToggle={() => toggle(c.id)} />
@@ -99,16 +104,15 @@ export function TailorReview({
         </div>
       )}
       {notes.length > 0 && (
-        <div className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900 ring-1 ring-amber-200">
-          <p className="font-semibold">Worth adding if true</p>
-          <ul className="mt-1 list-disc ps-5">
+        <Alert tone="info" icon="lightbulb" title="Worth adding if true">
+          <ul className="list-disc ps-5">
             {notes.map((n) => (
               <li key={n}>{n}</li>
             ))}
           </ul>
-        </div>
+        </Alert>
       )}
-      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+      {error && <Alert tone="danger">{error}</Alert>}
     </Dialog>
   );
 }
@@ -117,23 +121,34 @@ function ChangeRow({ change, on, onToggle }: { change: CvChange; on: boolean; on
   const before = show(change.before);
   const after = show(change.after);
   return (
-    <label className={`flex cursor-pointer gap-3 rounded-xl border p-3 transition ${on ? "border-brand/40 bg-brand/[0.03]" : "border-stone-200 bg-white opacity-70"}`}>
-      <input type="checkbox" checked={on} onChange={onToggle} className="mt-1 size-4 shrink-0 accent-brand" />
-      <div className="min-w-0 flex-1 text-sm">
-        <div className="mb-1.5 text-xs font-semibold text-stone-600">{change.label}</div>
-        {before.length > 0 && (
-          <div className="mb-1 rounded-lg bg-red-50 px-2 py-1 text-red-900 line-through decoration-red-300">
-            {before.map((b, i) => (
-              <div key={i}>{b}</div>
-            ))}
-          </div>
-        )}
-        <div className="rounded-lg bg-emerald-50 px-2 py-1 text-emerald-900">
-          {after.map((a, i) => (
-            <div key={i}>{a}</div>
-          ))}
-        </div>
-      </div>
-    </label>
+    <div className={`rounded-lg border p-3 transition-colors ${on ? "border-brand bg-brand-soft" : "border-line bg-surface"}`}>
+      <Checkbox
+        checked={on}
+        onChange={onToggle}
+        label={<span className="text-sm font-semibold text-ink">{change.label}</span>}
+        description={
+          <span className={`mt-2 flex flex-col gap-1 text-sm ${on ? "" : "opacity-70"}`}>
+            {before.length > 0 && (
+              <span className="flex gap-2 rounded-md bg-danger-soft px-2 py-1 text-danger">
+                <Icon name="minus" size={16} className="mt-0.5 shrink-0" label="Removed" />
+                <span className="flex min-w-0 flex-col line-through decoration-danger">
+                  {before.map((b, i) => (
+                    <span key={i}>{b}</span>
+                  ))}
+                </span>
+              </span>
+            )}
+            <span className="flex gap-2 rounded-md bg-success-soft px-2 py-1 text-success">
+              <Icon name="plus" size={16} className="mt-0.5 shrink-0" label="Added" />
+              <span className="flex min-w-0 flex-col">
+                {after.map((a, i) => (
+                  <span key={i}>{a}</span>
+                ))}
+              </span>
+            </span>
+          </span>
+        }
+      />
+    </div>
   );
 }

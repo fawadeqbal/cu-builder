@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { TEMPLATES } from "@cvb/templates/catalog";
-import { sampleCV } from "@cvb/domain";
+import { useLayoutEffect, useRef, useState } from "react";
+import { TEMPLATES, TIERS, type TemplateId } from "@cvb/templates/catalog";
+import { sampleCV, type CV } from "@cvb/domain";
 import { CVDocument } from "@cvb/templates";
+import { Button, Icon, PaperSheet, PreviewCanvas, TierBadge } from "@cvb/ui";
+import { useCatalog } from "@/lib/catalog";
 import { useT } from "@/lib/i18n";
-import { LanguageSwitcher } from "./AppHeader";
+import { AppHeader } from "./AppHeader";
 
 type Props = {
   onStart: () => void;
@@ -15,108 +18,155 @@ type Props = {
 };
 
 const POINTS = [
-  { title: "welcome.f1", text: "welcome.f1d" },
-  { title: "welcome.f2", text: "welcome.f2d" },
-  { title: "welcome.f3", text: "welcome.f3d" },
+  { title: "welcome.f1", text: "welcome.f1d", icon: "edit" },
+  { title: "welcome.f2", text: "welcome.f2d", icon: "eye" },
+  { title: "welcome.f3", text: "welcome.f3d", icon: "download" },
 ] as const;
 
+const A4_PX = 793.7; // 210mm at 96dpi
+
+/** The CV page scaled to the width of the sheet it sits in. */
+function ScaledCV({ cv, template, accent }: { cv: CV; template: TemplateId; accent?: string | null }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => setScale(el.clientWidth / A4_PX);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <div ref={ref} className="absolute inset-0" dir="ltr">
+      {scale > 0 && (
+        <div className="absolute start-0 top-0 w-[210mm] origin-top-left" style={{ transform: `scale(${scale})` }}>
+          <div className="paper !shadow-none">
+            <CVDocument cv={cv} template={template} accent={accent} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The signed-out landing (and a signed-in person's empty guest builder): what it is, how it works, start. */
 export function Welcome({ onStart, onExample, onImport, signedIn }: Props) {
   const t = useT();
+  const { templates } = useCatalog();
+  const showcase = TIERS.map((tier) => templates.find((x) => x.tier === tier.id)).filter((x) => x !== undefined);
+  const linkClass =
+    "self-start text-start text-sm font-medium text-ink-2 underline-offset-4 hover:text-brand-ink hover:underline";
+
   return (
-    <div className="min-h-dvh bg-stone-100">
-      <header className="mx-auto flex max-w-6xl items-center gap-2 px-5 py-5">
-        <span className="grid size-8 place-items-center rounded-md bg-brand text-xs font-bold text-white">CV</span>
-        <span className="text-base font-semibold tracking-tight text-stone-900">CV Builder</span>
-        <nav className="ms-auto flex items-center gap-1 text-sm font-medium">
-          <LanguageSwitcher />
-          <Link href="/templates" className="hidden rounded-lg px-3 py-2 text-stone-600 hover:bg-white hover:text-stone-900 sm:block">
-            {t("nav.templates")}
-          </Link>
-          <Link href="/pricing" className="rounded-lg px-3 py-2 text-stone-600 hover:bg-white hover:text-stone-900">
-            {t("nav.pricing")}
-          </Link>
-          {signedIn ? (
-            <Link href="/app" className="rounded-lg bg-stone-900 px-3 py-2 text-white hover:bg-stone-700">
-              {t("nav.myCvs")}
-            </Link>
-          ) : (
-            <Link href="/sign-in?next=/app" className="rounded-lg bg-white px-3 py-2 text-stone-800 shadow-xs ring-1 ring-stone-200 hover:bg-stone-50">
-              {t("nav.signIn")}
-            </Link>
-          )}
-        </nav>
-      </header>
+    <div className="min-h-dvh bg-canvas">
+      <AppHeader />
 
-      <main className="mx-auto grid max-w-6xl items-center gap-12 px-5 pb-16 pt-4 lg:grid-cols-[1.05fr_1fr] lg:pt-10">
-        <div className="flex flex-col gap-8">
-          <div className="flex flex-col gap-4">
-            <h1 className="text-4xl font-bold leading-[1.1] tracking-tight text-stone-900 sm:text-5xl">
-              {t("welcome.title")}
-            </h1>
-            <p className="max-w-lg text-lg leading-relaxed text-stone-600">
-              {t("welcome.lead")}
-            </p>
-          </div>
+      <main>
+        <section className="mx-auto grid max-w-(--layout-lg) items-center gap-12 px-4 pb-16 pt-10 sm:px-6 lg:grid-cols-[1.05fr_1fr] lg:pt-16">
+          <div className="flex flex-col gap-8">
+            <div className="flex flex-col gap-4">
+              <h1 className="font-display text-[38px] font-[750] leading-[44px] tracking-[-0.025em] text-balance text-ink sm:text-[52px] sm:leading-[56px] [&:lang(ar)]:tracking-normal [&:lang(ur)]:leading-[1.9] [&:lang(ur)]:tracking-normal">
+                {t("welcome.title")}
+              </h1>
+              <p className="max-w-[34rem] text-base leading-[26px] text-ink-2 [&:lang(ur)]:leading-[2.1]">
+                {t("welcome.lead")}
+              </p>
+            </div>
 
-          <ol className="flex flex-col gap-4">
-            {POINTS.map((p, i) => (
-              <li key={p.title} className="flex gap-3">
-                <span className="grid size-7 shrink-0 place-items-center rounded-full bg-white text-sm font-semibold text-brand ring-1 ring-stone-200">
-                  {i + 1}
-                </span>
-                <div>
-                  <div className="font-semibold text-stone-900">{t(p.title)}</div>
-                  <div className="text-sm text-stone-600">{t(p.text)}</div>
-                </div>
-              </li>
-            ))}
-          </ol>
+            <ol className="cvb-steps max-w-md">
+              {POINTS.map((p) => (
+                <li key={p.title}>
+                  <div className="cvb-step cursor-default hover:bg-transparent" data-status="todo">
+                    <span className="cvb-step-bullet text-brand-ink">
+                      <Icon name={p.icon} size={16} />
+                    </span>
+                    <span className="cvb-step-text">
+                      <span className="cvb-step-label [&:lang(ur)]:leading-[2]">{t(p.title)}</span>
+                      <span className="cvb-step-meta text-ink-2 [&:lang(ur)]:leading-[2]">{t(p.text)}</span>
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ol>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={onStart}
-              className="rounded-lg bg-brand px-6 py-3 text-base font-semibold text-white shadow-sm hover:bg-brand-dark"
-            >
-              {t("welcome.create")}
-            </button>
-            <button
-              type="button"
-              onClick={onExample}
-              className="rounded-lg bg-white px-5 py-3 text-base font-medium text-stone-800 shadow-xs ring-1 ring-stone-300 hover:bg-stone-50"
-            >
-              {t("welcome.example")}
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={onImport}
-            className="self-start text-sm font-medium text-stone-500 underline-offset-4 hover:text-brand hover:underline"
-          >
-            {t("welcome.importJson")}
-          </button>
-          <Link
-            href={signedIn ? "/app?import=1" : "/sign-up?next=%2Fapp%3Fimport%3D1"}
-            className="self-start text-sm font-medium text-stone-500 underline-offset-4 hover:text-brand hover:underline"
-          >
-            {t("welcome.upload")}
-          </Link>
-          <Link
-            href="/templates"
-            className="self-start text-sm font-medium text-brand underline-offset-4 hover:underline"
-          >
-            {t("welcome.browse", { count: TEMPLATES.length })}
-          </Link>
-        </div>
-
-        <div aria-hidden="true" className="relative hidden h-[540px] overflow-hidden lg:block">
-          <div className="absolute left-1/2 top-0 w-[210mm] origin-top -translate-x-1/2 scale-[0.62]">
-            <div className="paper rotate-[-1.5deg]">
-              <CVDocument cv={sampleCV} template="classic" />
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <Button variant="primary" size="lg" icon="plus" onClick={onStart}>
+                  {t("welcome.create")}
+                </Button>
+                <Button size="lg" icon="file" onClick={onExample}>
+                  {t("welcome.example")}
+                </Button>
+              </div>
+              <div className="flex flex-col gap-3">
+                <button type="button" onClick={onImport} className={linkClass}>
+                  {t("welcome.importJson")}
+                </button>
+                <Link href={signedIn ? "/app?import=1" : "/sign-up?next=%2Fapp%3Fimport%3D1"} className={linkClass}>
+                  {t("welcome.upload")}
+                </Link>
+              </div>
             </div>
           </div>
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-stone-100" />
-        </div>
+
+          <div aria-hidden="true" inert className="hidden lg:block">
+            <PreviewCanvas className="p-10">
+              <PaperSheet maxWidth={420} className="rotate-[-1.5deg] rtl:rotate-[1.5deg]">
+                <ScaledCV cv={sampleCV} template="classic" />
+              </PaperSheet>
+            </PreviewCanvas>
+          </div>
+        </section>
+
+        <section className="border-t border-line bg-surface" aria-labelledby="welcome-templates">
+          <div className="mx-auto flex max-w-(--layout-lg) flex-col gap-6 px-4 py-16 sm:px-6">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <h2 id="welcome-templates" className="cvb-h2">
+                {t("nav.templates")}
+              </h2>
+              <Link
+                href="/templates"
+                className="text-sm font-semibold text-brand-ink underline-offset-4 hover:underline"
+              >
+                {t("welcome.browse", { count: TEMPLATES.length })}
+              </Link>
+            </div>
+            <ul className="grid grid-cols-2 gap-4 sm:gap-6 xl:grid-cols-4">
+              {showcase.map((m) => (
+                <li key={m.id} className="min-w-0">
+                  <article className="cvb-template relative h-full has-[a:focus-visible]:shadow-[var(--focus-ring)]">
+                    <div className="cvb-template-thumb" aria-hidden="true" inert>
+                      <PaperSheet accent={m.accent}>
+                        <ScaledCV cv={sampleCV} template={m.id} />
+                      </PaperSheet>
+                    </div>
+                    <div className="cvb-template-meta gap-2">
+                      <div className="cvb-template-row">
+                        <span
+                          className="size-2.5 shrink-0 rounded-full ring-1 ring-line-strong"
+                          style={{ background: m.accent }}
+                        />
+                        <h3 className="cvb-h3 min-w-0 flex-1 truncate">
+                          <Link
+                            href="/templates"
+                            className="text-ink outline-none after:absolute after:inset-0 after:content-['']"
+                          >
+                            {m.name}
+                          </Link>
+                        </h3>
+                      </div>
+                      <div className="cvb-template-row">
+                        <TierBadge tier={m.tier} />
+                      </div>
+                    </div>
+                  </article>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
       </main>
     </div>
   );

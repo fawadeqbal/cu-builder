@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   allowedTemplates,
   brandCssVariables,
+  brandStylesheet,
   classifyHost,
   contrastRatio,
   dnsPointsAtUs,
@@ -78,7 +79,9 @@ describe("branding", () => {
   it("normalises stored branding and derives CSS variables", () => {
     const b = normalizeBranding({ primaryColor: "#0A6", accentColor: "red", logoUrl: "javascript:alert(1)", templateIds: ["modern", 3], hideBrand: "yes" });
     expect(b).toMatchObject({ primaryColor: "#00aa66", accentColor: "", logoUrl: "", templateIds: ["modern"], hideBrand: false });
-    expect(brandCssVariables(b)).toEqual({ "--color-brand": "#00aa66", "--color-brand-dark": "#008852" });
+    expect(brandCssVariables(b)).toMatchObject({ "--brand": "#00aa66", "--brand-hover": "#008b54", "--appbar-bg": "#00aa66" });
+    expect(brandStylesheet(b)).toContain('[data-theme="dark"]');
+    expect(brandStylesheet(normalizeBranding(null))).toBe("");
     expect(brandCssVariables(normalizeBranding(null))).toEqual({});
   });
 

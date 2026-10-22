@@ -362,7 +362,7 @@
   --tint: color-mix(in srgb, var(--ac) 9%, #fff);
   --sans: var(--font-inter), "Liberation Sans", Arial, sans-serif;
   --serif: var(--font-source-serif), Georgia, "Times New Roman", serif;
-  --mono: var(--font-mono), ui-monospace, Menlo, Consolas, monospace;
+  --mono: var(--font-cv-mono), ui-monospace, Menlo, Consolas, monospace;
   font-family: var(--sans);
   font-size: 8.8pt;
   line-height: 1.4;

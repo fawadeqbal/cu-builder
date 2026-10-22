@@ -7,12 +7,11 @@ import { isTemplateId } from "@cvb/templates/catalog";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
-import { DownloadIcon, LockIcon } from "@cvb/ui";
+import { Alert, Button, EmptyState, Icon, TextField } from "@cvb/ui";
 import { ApiError, isApiError } from "@/lib/api";
 import { fileSlug } from "@/lib/cv";
 import { paperSizeAttr } from "@/lib/page";
 import { downloadCvPdf } from "@/lib/pdf";
-import { btn, field } from "../ui/styles";
 import { FullPageMessage } from "../ui/FullPageMessage";
 
 /** The read-only page behind a share link: the CV, a download button, nothing to sign in to. */
@@ -30,15 +29,20 @@ export default function PublicResume({ slug }: { slug: string }) {
   if (view.data) return <Sheet resume={view.data} slug={slug} />;
   if (isApiError(view.error, "PASSWORD_REQUIRED")) return <PasswordGate slug={slug} onUnlocked={setUnlocked} />;
   return (
-    <FullPageMessage>
-      <div className="flex max-w-sm flex-col items-center gap-3">
-        <p className="text-base font-semibold text-stone-800">This link isn&apos;t available</p>
-        <p>It may have been turned off, have expired, or the address is mistyped.</p>
-        <Link href="/" className="font-semibold text-brand hover:underline">
-          Make your own CV with CV Builder
-        </Link>
-      </div>
-    </FullPageMessage>
+    <div className="grid min-h-dvh place-items-center bg-canvas px-4 py-10">
+      <EmptyState
+        icon="link"
+        title="This link isn't available"
+        className="w-full max-w-(--layout-sm) rounded-lg border border-line bg-surface"
+        actions={
+          <Button variant="primary" href="/">
+            Make your own CV with CV Builder
+          </Button>
+        }
+      >
+        It may have been turned off, have expired, or the address is mistyped.
+      </EmptyState>
+    </div>
   );
 }
 
@@ -53,20 +57,34 @@ function PasswordGate({ slug, onUnlocked }: { slug: string; onUnlocked: (r: Publ
     unlock.mutate();
   };
   return (
-    <div className="grid min-h-dvh place-items-center bg-stone-100 px-4">
-      <form onSubmit={submit} className="flex w-full max-w-sm flex-col gap-4 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-        <span className="grid size-10 place-items-center rounded-xl bg-stone-100 text-stone-700">
-          <LockIcon className="size-5" />
+    <div className="grid min-h-dvh place-items-center bg-canvas px-4 py-10">
+      <form
+        onSubmit={submit}
+        className="flex w-full max-w-sm flex-col gap-4 rounded-lg border border-line bg-surface p-6"
+      >
+        <span className="grid size-10 place-items-center rounded-lg bg-surface-2 text-ink-2">
+          <Icon name="lock" size={20} />
         </span>
-        <div>
-          <h1 className="text-lg font-semibold text-stone-900">This CV is password protected</h1>
-          <p className="mt-1 text-sm text-stone-600">Enter the password you were given to view it.</p>
+        <div className="flex flex-col gap-1">
+          <h1 className="cvb-h2">This CV is password protected</h1>
+          <p className="text-sm text-ink-2">Enter the password you were given to view it.</p>
         </div>
-        <input type="password" required autoFocus aria-label="Password" className={field} value={password} onChange={(e) => setPassword(e.target.value)} />
-        {unlock.error && <p className="text-sm text-red-600">{isApiError(unlock.error, "RATE_LIMITED") ? "Too many tries. Please wait a minute." : unlock.error.message}</p>}
-        <button type="submit" className={btn.primary} disabled={unlock.isPending}>
+        <TextField
+          label="Password"
+          type="password"
+          required
+          autoFocus
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        {unlock.error && (
+          <Alert tone="danger">
+            {isApiError(unlock.error, "RATE_LIMITED") ? "Too many tries. Please wait a minute." : unlock.error.message}
+          </Alert>
+        )}
+        <Button type="submit" variant="primary" block loading={unlock.isPending}>
           {unlock.isPending ? "Checking…" : "View CV"}
-        </button>
+        </Button>
       </form>
     </div>
   );
@@ -80,7 +98,12 @@ async function publicRequest<T>(path: string, body?: unknown): Promise<T> {
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const json = (await res.json().catch(() => null)) as ({ error?: { code: string; message: string } } & T) | null;
-  if (!res.ok) throw new ApiError(res.status, json?.error?.code ?? "HTTP_ERROR", json?.error?.message ?? `Request failed (${res.status})`);
+  if (!res.ok)
+    throw new ApiError(
+      res.status,
+      json?.error?.code ?? "HTTP_ERROR",
+      json?.error?.message ?? `Request failed (${res.status})`,
+    );
   return json as T;
 }
 
@@ -106,7 +129,10 @@ function useViewPings(slug: string, viewId: string | null) {
         send();
       } else since = Date.now();
     };
-    const timer = window.setInterval(() => document.visibilityState === "visible" && Date.now() - started < 30 * 60_000 && send(), 15_000);
+    const timer = window.setInterval(
+      () => document.visibilityState === "visible" && Date.now() - started < 30 * 60_000 && send(),
+      15_000,
+    );
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("pagehide", send);
     return () => {
@@ -136,7 +162,9 @@ function Sheet({ resume, slug }: { resume: PublicResumeDto; slug: string }) {
       if (!wrap.current || !paper.current) return;
       const w = paper.current.offsetWidth;
       setSize({ w, h: paper.current.offsetHeight });
-      setScale(Math.min(1, (wrap.current.clientWidth - 16) / w));
+      const pad = getComputedStyle(wrap.current);
+      const inner = wrap.current.clientWidth - parseFloat(pad.paddingInlineStart) - parseFloat(pad.paddingInlineEnd);
+      setScale(Math.min(1, inner / w));
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -149,8 +177,17 @@ function Sheet({ resume, slug }: { resume: PublicResumeDto; slug: string }) {
     if (!sheet) return;
     setBusy(true);
     try {
-      await downloadCvPdf(sheet, { fileName: `${fileSlug(cv)}-cv.pdf`, title: resume.title, author: resume.ownerName, pageSize: resume.pageSize });
-      if (resume.viewId) void publicRequest(`/public/r/${encodeURIComponent(slug)}/ping`, { viewId: resume.viewId, downloaded: true }).catch(() => undefined);
+      await downloadCvPdf(sheet, {
+        fileName: `${fileSlug(cv)}-cv.pdf`,
+        title: resume.title,
+        author: resume.ownerName,
+        pageSize: resume.pageSize,
+      });
+      if (resume.viewId)
+        void publicRequest(`/public/r/${encodeURIComponent(slug)}/ping`, {
+          viewId: resume.viewId,
+          downloaded: true,
+        }).catch(() => undefined);
     } finally {
       setBusy(false);
     }
@@ -158,29 +195,36 @@ function Sheet({ resume, slug }: { resume: PublicResumeDto; slug: string }) {
 
   return (
     <>
-      <div className="no-print min-h-dvh bg-stone-100">
-        <header className="sticky top-0 z-20 border-b border-stone-200 bg-white/90 backdrop-blur">
-          <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
+      <div className="no-print min-h-dvh bg-canvas">
+        <header className="sticky top-0 z-20 border-b border-line bg-surface">
+          <div className="mx-auto flex min-h-14 max-w-(--layout-md) items-center gap-3 px-4 py-2 sm:px-6">
             <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-semibold text-stone-900">{cv.personal.name || resume.ownerName}</div>
-              {cv.personal.headline && <div className="truncate text-xs text-stone-500">{cv.personal.headline}</div>}
+              <h1 className="truncate font-display text-base font-semibold text-ink [&:lang(ur)]:leading-[1.9]">
+                {cv.personal.name || resume.ownerName}
+              </h1>
+              {cv.personal.headline && (
+                <p className="cvb-caption truncate text-ink-3 [&:lang(ur)]:leading-[1.9]">{cv.personal.headline}</p>
+              )}
             </div>
-            <button type="button" onClick={() => void download()} disabled={busy} className={btn.primary}>
-              <DownloadIcon className="size-4" /> {busy ? "Preparing…" : "Download PDF"}
-            </button>
+            <Button variant="primary" icon="download" loading={busy} onClick={() => void download()}>
+              {busy ? "Preparing…" : "Download PDF"}
+            </Button>
           </div>
         </header>
-        <main ref={wrap} className="mx-auto max-w-5xl px-2 py-6 sm:px-4">
-          <div className="mx-auto" style={{ width: size.w ? size.w * scale : undefined, height: size.h ? size.h * scale : undefined }}>
-            <div className="origin-top-left" style={{ transform: `scale(${scale})` }}>
+        <main ref={wrap} className="mx-auto max-w-(--layout-md) px-4 py-10 sm:px-6">
+          <div
+            className="mx-auto"
+            style={{ width: size.w ? size.w * scale : undefined, height: size.h ? size.h * scale : undefined }}
+          >
+            <div className="origin-top-left rtl:origin-top-right" style={{ transform: `scale(${scale})` }}>
               <div ref={paper} className="paper" data-size={paperSizeAttr(resume.pageSize)}>
                 <CVDocument cv={cv} template={template} accent={resume.accent} />
               </div>
             </div>
           </div>
-          <p className="mt-8 text-center text-xs text-stone-500">
+          <p className="cvb-caption mt-8 text-center text-ink-3">
             Made with{" "}
-            <Link href="/" className="font-semibold text-brand hover:underline">
+            <Link href="/" className="font-semibold text-brand-ink hover:underline">
               CV Builder
             </Link>
             . Make yours free.

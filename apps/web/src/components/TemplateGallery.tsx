@@ -1,7 +1,6 @@
 "use client";
 
 import type { ResumeDto } from "@cvb/contracts";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { normalizeCV, sampleCV } from "@cvb/domain";
@@ -21,14 +20,32 @@ import {
   type Tier,
   templateTags,
 } from "@cvb/templates";
-import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, LockIcon, PreviewIcon } from "@cvb/ui";
-import { TierBadge } from "@cvb/ui";
+import {
+  Badge,
+  Button,
+  Chip,
+  ColorSwatches,
+  Dialog,
+  EmptyState,
+  IconButton,
+  PageHeader,
+  PaperSheet,
+  PreviewCanvas,
+  SearchField,
+  SegmentedControl,
+  Switch,
+  Tabs,
+  TierBadge,
+  Toast,
+} from "@cvb/ui";
 import { isUnlocked, usePlan } from "@/lib/access";
 import { track } from "@/lib/analytics";
 import { api, isApiError } from "@/lib/api";
 import { useCatalog } from "@/lib/catalog";
 import type { Gate } from "@/lib/plans";
 import { useResume } from "@/lib/queries";
+import { AppHeader } from "./AppHeader";
+import { FullPageMessage } from "./ui/FullPageMessage";
 import { UpgradeDialog } from "./UpgradeDialog";
 
 const A4_PX = 793.7; // 210mm at 96dpi
@@ -38,7 +55,7 @@ export default function TemplateGallery() {
   const resumeId = useSearchParams().get("resume");
   const resume = useResume(resumeId ?? "", Boolean(resumeId));
   if (resumeId && !resume.data) {
-    return <div className="grid h-dvh place-items-center bg-stone-50 text-sm text-stone-500">{resume.isError ? "We couldn't open that CV." : "Loading templates…"}</div>;
+    return <FullPageMessage>{resume.isError ? "We couldn't open that CV." : "Loading templates…"}</FullPageMessage>;
   }
   return <Gallery resume={resume.data ?? null} />;
 }
@@ -121,122 +138,76 @@ function Gallery({ resume }: { resume: ResumeDto | null }) {
   }
 
   const count = (t: Tier | "all") => (t === "all" ? TEMPLATES.length : TEMPLATES.filter((x) => x.tier === t).length);
-  const chip = (on: boolean) =>
-    `rounded-full px-3 py-1.5 text-[13px] font-medium ring-1 transition ${
-      on ? "bg-stone-900 text-white ring-stone-900" : "bg-white text-stone-600 ring-stone-200 hover:ring-stone-300 hover:text-stone-900"
-    }`;
+  const tierTabs = (["all", ...TIERS.map((t) => t.id)] as const).map((id) => ({
+    id,
+    label: TIERS.find((t) => t.id === id)?.name ?? "All templates",
+    count: count(id),
+  }));
 
   return (
-    <div className="min-h-dvh bg-stone-50">
-      <header className="sticky top-0 z-30 border-b border-stone-200 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:px-6">
-          <Link href={backHref} className="flex items-center gap-2.5">
-            <span className="grid size-8 place-items-center rounded-lg bg-brand text-[11px] font-bold tracking-wide text-white shadow-sm shadow-brand/30">
-              CV
-            </span>
-            <span className="text-sm font-semibold text-stone-900">Templates</span>
-          </Link>
-          <Link
-            href={backHref}
-            className="ms-auto flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-stone-600 transition hover:bg-stone-100 hover:text-stone-900"
-          >
-            <ArrowLeftIcon className="size-4" /> {resume || !signedIn ? "Back to editor" : "My CVs"}
-          </Link>
-        </div>
-      </header>
+    <div className="min-h-dvh bg-canvas">
+      <AppHeader />
 
-      <main className="mx-auto max-w-7xl px-4 pb-20 pt-8 sm:px-6">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-semibold tracking-tight text-stone-900">Choose a template</h1>
-            <p className="mt-1.5 max-w-xl text-[15px] text-stone-600">
-              {TEMPLATES.length} designs in four tiers. Switch any time: your content stays exactly as it is.
-            </p>
+      <main className="mx-auto flex max-w-(--layout-xl) flex-col gap-6 px-4 pb-20 pt-10 sm:px-6">
+        <PageHeader
+          back={{ href: backHref, label: resume || !signedIn ? "Back to editor" : "My CVs" }}
+          title="Choose a template"
+          description={`${TEMPLATES.length} designs in four tiers. Switch any time: your content stays exactly as it is.`}
+          actions={
+            hasOwnCV && (
+              <SegmentedControl<"mine" | "example">
+                label="Preview with"
+                value={useMine ? "mine" : "example"}
+                onChange={(v) => setUseMine(v === "mine")}
+                options={[
+                  { value: "mine", label: "Preview with My CV" },
+                  { value: "example", label: "Preview with Example" },
+                ]}
+              />
+            )
+          }
+        />
+
+        <div className="flex flex-col gap-3">
+          <div className="overflow-x-auto">
+            <Tabs<Tier | "all"> label="Tier" items={tierTabs} value={tier} onChange={setTier} />
           </div>
-          {hasOwnCV && (
-            <div className="flex rounded-lg bg-stone-100 p-0.5 text-[13px] ring-1 ring-inset ring-stone-200">
-              {[
-                [true, "My CV"],
-                [false, "Example"],
-              ].map(([v, label]) => (
-                <button
-                  key={String(v)}
-                  type="button"
-                  onClick={() => setUseMine(v as boolean)}
-                  className={`rounded-md px-3 py-1.5 font-medium ${useMine === v ? "bg-white text-stone-900 shadow-sm" : "text-stone-500"}`}
-                >
-                  Preview with {label as string}
-                </button>
-              ))}
-            </div>
+          {tier !== "all" && (
+            <p className="flex items-center gap-2 text-sm text-ink-2">
+              <TierBadge tier={tier} /> {TIERS.find((t) => t.id === tier)?.blurb}
+            </p>
           )}
         </div>
 
-        {/* Tiers */}
-        <div role="tablist" aria-label="Tier" className="mt-7 flex gap-1 overflow-x-auto border-b border-stone-200">
-          {(["all", ...TIERS.map((t) => t.id)] as const).map((id) => {
-            const on = tier === id;
-            const info = TIERS.find((t) => t.id === id);
-            return (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={on}
-                onClick={() => setTier(id)}
-                className={`-mb-px flex shrink-0 items-center gap-2 border-b-2 px-3.5 py-2.5 text-sm font-medium transition ${
-                  on ? "border-brand text-stone-900" : "border-transparent text-stone-500 hover:text-stone-800"
-                }`}
-              >
-                {info ? info.name : "All templates"}
-                <span className={`rounded-full px-1.5 text-[11px] tabular-nums ${on ? "bg-brand/10 text-brand" : "bg-stone-100 text-stone-500"}`}>
-                  {count(id)}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        {tier !== "all" && (
-          <p className="mt-3 flex items-center gap-2 text-sm text-stone-600">
-            <TierBadge tier={tier} /> {TIERS.find((t) => t.id === tier)?.blurb}
-          </p>
-        )}
-
         {/* Filters */}
-        <div className="mt-5 flex flex-col gap-4 rounded-2xl border border-stone-200 bg-white p-4 shadow-xs lg:flex-row lg:flex-wrap lg:items-center lg:gap-x-8">
+        <section
+          aria-label="Filters"
+          className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-5 lg:flex-row lg:flex-wrap lg:items-center lg:gap-x-8"
+        >
           <FilterGroup label="Style">
             {STYLES.map((s) => {
               const on = styles.includes(s.id);
               return (
-                <button
+                <Chip
                   key={s.id}
-                  type="button"
-                  aria-pressed={on}
+                  selected={on}
                   onClick={() => setStyles((cur) => (on ? cur.filter((x) => x !== s.id) : [...cur, s.id]))}
-                  className={chip(on)}
                 >
                   {s.name}
-                </button>
+                </Chip>
               );
             })}
           </FilterGroup>
 
           <FilterGroup label="Layout">
             {[{ id: "any" as const, name: "Any" }, ...LAYOUTS].map((l) => (
-              <button key={l.id} type="button" aria-pressed={layout === l.id} onClick={() => setLayout(l.id)} className={chip(layout === l.id)}>
+              <Chip key={l.id} selected={layout === l.id} onClick={() => setLayout(l.id)}>
                 {l.name}
-              </button>
+              </Chip>
             ))}
           </FilterGroup>
 
-          <label className="flex cursor-pointer items-center gap-2.5 text-[13px] font-medium text-stone-700">
-            <span className="relative inline-flex">
-              <input type="checkbox" className="peer sr-only" checked={atsOnly} onChange={(e) => setAtsOnly(e.target.checked)} />
-              <span className="h-5 w-9 rounded-full bg-stone-200 transition peer-checked:bg-emerald-500 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand" />
-              <span className="absolute start-0.5 top-0.5 size-4 rounded-full bg-white shadow transition peer-checked:translate-x-4" />
-            </span>
-            ATS-friendly only
-          </label>
+          <Switch label="ATS-friendly only" checked={atsOnly} onChange={setAtsOnly} className="text-sm font-medium" />
 
           <FilterGroup label="Colour">
             <button
@@ -244,74 +215,65 @@ function Gallery({ resume }: { resume: ResumeDto | null }) {
               title="Each template's own colour"
               aria-pressed={accent === null}
               onClick={() => setAccent(null)}
-              className={`grid size-7 place-items-center rounded-full bg-[conic-gradient(#1e4b8f,#0f766e,#c2410c,#7c5e10,#6b21a8,#1e4b8f)] ring-1 ring-black/10 ${
-                accent === null ? "outline-2 outline-offset-2 outline-stone-900" : ""
-              }`}
+              className="cvb-swatch aria-pressed:shadow-[0_0_0_2px_var(--surface),0_0_0_4px_var(--ink)]"
+              style={{ background: `conic-gradient(${[...ACCENTS.map((a) => a.value), ACCENTS[0]?.value].join(",")})` }}
             >
               <span className="sr-only">Template colours</span>
             </button>
-            {ACCENTS.map((a) => (
-              <button
-                key={a.value}
-                type="button"
-                title={a.name}
-                aria-label={a.name}
-                aria-pressed={accent === a.value}
-                onClick={() => setAccent(a.value)}
-                className={`size-7 rounded-full ring-1 ring-black/10 transition hover:scale-110 ${
-                  accent === a.value ? "outline-2 outline-offset-2 outline-stone-900" : ""
-                }`}
-                style={{ background: a.value }}
-              />
-            ))}
+            <ColorSwatches
+              label="Accent colour"
+              colors={ACCENTS}
+              value={accent ?? ""}
+              onChange={setAccent}
+              className="min-w-0 flex-1 lg:flex-none"
+            />
           </FilterGroup>
 
-          <div className="relative lg:ms-auto">
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search templates"
-              className="h-9 w-full rounded-lg border border-stone-200 bg-white px-3 text-sm placeholder:text-stone-400 focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10 lg:w-56"
-            />
-          </div>
-        </div>
+          <SearchField
+            label="Search templates"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="w-full lg:ms-auto lg:w-56"
+          />
+        </section>
 
-        <div className="mt-6 flex items-center justify-between text-sm text-stone-500">
-          <span>
-            {results.length} {results.length === 1 ? "template" : "templates"}
-          </span>
-          {filtered && (
-            <button type="button" onClick={clear} className="font-medium text-brand hover:underline">
-              Clear filters
-            </button>
+        <div className="flex flex-col gap-4">
+          <div className="flex min-h-8 items-center justify-between text-sm text-ink-3">
+            <span>
+              {results.length} {results.length === 1 ? "template" : "templates"}
+            </span>
+            {filtered && (
+              <Button variant="link" size="sm" onClick={clear}>
+                Clear filters
+              </Button>
+            )}
+          </div>
+
+          {results.length === 0 ? (
+            <EmptyState
+              icon="filter"
+              title="No templates match these filters."
+              className="rounded-lg border border-dashed border-line-strong bg-surface"
+              actions={<Button onClick={clear}>Clear filters</Button>}
+            />
+          ) : (
+            <ul className="grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
+              {results.map((t) => (
+                <li key={t.id} className="min-w-0">
+                  <TemplateCard
+                    meta={t}
+                    cv={cv}
+                    accent={accent}
+                    current={t.id === saved.template}
+                    locked={!isUnlocked(plan, t.tier)}
+                    onPreview={() => setOpen(t.id)}
+                    onChoose={() => void choose(t.id)}
+                  />
+                </li>
+              ))}
+            </ul>
           )}
         </div>
-
-        {results.length === 0 ? (
-          <div className="mt-4 rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-16 text-center">
-            <p className="text-sm text-stone-600">No templates match these filters.</p>
-            <button type="button" onClick={clear} className="mt-3 text-sm font-semibold text-brand hover:underline">
-              Clear filters
-            </button>
-          </div>
-        ) : (
-          <ul className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {results.map((t) => (
-              <li key={t.id}>
-                <TemplateCard
-                  meta={t}
-                  cv={cv}
-                  accent={accent}
-                  current={t.id === saved.template}
-                  locked={!isUnlocked(plan, t.tier)}
-                  onPreview={() => setOpen(t.id)}
-                  onChoose={() => void choose(t.id)}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
       </main>
 
       {open && (
@@ -329,8 +291,12 @@ function Gallery({ resume }: { resume: ResumeDto | null }) {
       )}
       <UpgradeDialog gate={gate} onClose={() => setGate(null)} />
       {error && (
-        <div role="alert" className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-md bg-red-600 px-4 py-2 text-sm text-white shadow-lg">
-          {error}
+        <div role="alert" className="pointer-events-none fixed inset-x-4 bottom-6 z-50 flex justify-center">
+          <div className="pointer-events-auto">
+            <Toast tone="danger" onDismiss={() => setError("")}>
+              {error}
+            </Toast>
+          </div>
         </div>
       )}
     </div>
@@ -339,15 +305,17 @@ function Gallery({ resume }: { resume: ResumeDto | null }) {
 
 function FilterGroup({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <span className="me-1 w-14 shrink-0 text-xs font-semibold uppercase tracking-wide text-stone-400 lg:w-auto">{label}</span>
+    <div role="group" aria-label={label} className="flex flex-wrap items-center gap-2">
+      <span className="cvb-overline me-1 w-14 shrink-0 text-ink-3 lg:w-auto" aria-hidden="true">
+        {label}
+      </span>
       {children}
     </div>
   );
 }
 
-/** An A4 sheet scaled to the width of its box. */
-function ScaledSheet({ cv, template, accent, className = "" }: { cv: CV; template: TemplateId; accent: string | null; className?: string }) {
+/** An A4 sheet scaled to the width of its box (fills a PaperSheet). */
+function ScaledSheet({ cv, template, accent }: { cv: CV; template: TemplateId; accent: string | null }) {
   const ref = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0);
   useLayoutEffect(() => {
@@ -360,9 +328,9 @@ function ScaledSheet({ cv, template, accent, className = "" }: { cv: CV; templat
     return () => ro.disconnect();
   }, []);
   return (
-    <div ref={ref} className={`relative aspect-[210/297] overflow-hidden bg-white ${className}`}>
+    <div ref={ref} className="absolute inset-0" dir="ltr">
       {scale > 0 && (
-        <div className="absolute left-0 top-0 w-[210mm] origin-top-left" style={{ transform: `scale(${scale})` }}>
+        <div className="absolute start-0 top-0 w-[210mm] origin-top-left" style={{ transform: `scale(${scale})` }}>
           <div className="paper !shadow-none">
             <CVDocument cv={cv} template={template} accent={accent} />
           </div>
@@ -390,51 +358,58 @@ function TemplateCard({
   onChoose: () => void;
 }) {
   return (
-    <article
-      className={`group flex h-full flex-col overflow-hidden rounded-2xl border bg-white shadow-xs transition hover:-translate-y-0.5 hover:shadow-lg ${
-        current ? "border-brand ring-2 ring-brand/20" : "border-stone-200"
-      }`}
-    >
-      <div className="relative border-b border-stone-100 bg-stone-100 p-4">
-        <button type="button" onClick={onPreview} className="block w-full overflow-hidden rounded-md shadow-md ring-1 ring-black/5" aria-label={`Preview ${meta.name}`}>
-          <ScaledSheet cv={cv} template={meta.id} accent={accent} />
-        </button>
-        {current && (
-          <span className="absolute end-6 top-6 inline-flex items-center gap-1 rounded-full bg-brand px-2 py-0.5 text-[11px] font-semibold text-white shadow-sm">
-            <CheckIcon className="size-3" /> In use
+    <article className="cvb-template group h-full" data-current={current ? "" : undefined}>
+      <div className="cvb-template-thumb">
+        <PaperSheet accent={accent ?? meta.accent}>
+          <span inert>
+            <ScaledSheet cv={cv} template={meta.id} accent={accent} />
           </span>
+        </PaperSheet>
+        <button
+          type="button"
+          onClick={onPreview}
+          className="absolute inset-0 cursor-zoom-in focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-focus"
+          aria-label={`Preview ${meta.name}`}
+        />
+        {current && (
+          <Badge tone="brand" variant="solid" icon="check">
+            In use
+          </Badge>
         )}
-        <div className="pointer-events-none absolute inset-x-4 bottom-4 flex justify-center gap-2 opacity-0 transition group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100">
-          <button
-            type="button"
-            onClick={onPreview}
-            className="flex items-center gap-1.5 rounded-lg bg-white/95 px-3 py-2 text-sm font-semibold text-stone-800 shadow-lg ring-1 ring-black/5 hover:bg-white"
-          >
-            <PreviewIcon className="size-4" /> Preview
-          </button>
-          <button
-            type="button"
+        <div className="pointer-events-none absolute inset-x-3 bottom-3 z-[2] flex flex-wrap justify-center gap-2 opacity-0 transition-opacity group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100">
+          <Button size="sm" icon="eye" onClick={onPreview} className="shadow-md">
+            Preview
+          </Button>
+          <Button
+            size="sm"
+            variant="primary"
+            icon={locked ? "lock" : undefined}
             onClick={onChoose}
-            className="flex items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white shadow-lg hover:bg-brand-dark"
+            className="shadow-md"
           >
-            {locked && <LockIcon className="size-3.5" />}
             {current ? "Keep using" : locked ? "Unlock" : "Use template"}
-          </button>
+          </Button>
         </div>
       </div>
-      <div className="flex flex-1 flex-col gap-1 p-4">
-        <div className="flex items-center gap-2">
-          <span className="size-2.5 rounded-full" style={{ background: accent ?? meta.accent }} />
-          <h2 className="text-[15px] font-semibold text-stone-900">{meta.name}</h2>
-          <TierBadge tier={meta.tier} className="ms-auto" />
+      <div className="cvb-template-meta flex-1 gap-1">
+        <div className="cvb-template-row">
+          <span
+            className="size-2.5 shrink-0 rounded-full ring-1 ring-line-strong"
+            style={{ background: accent ?? meta.accent }}
+            aria-hidden="true"
+          />
+          <h2 className="cvb-h3 min-w-0 flex-1 truncate">{meta.name}</h2>
+        </div>
+        <div className="cvb-template-row flex-wrap">
+          <TierBadge tier={meta.tier} />
           {meta.ats && (
-            <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 ring-1 ring-inset ring-emerald-200">
+            <Badge tone="success" icon="check">
               ATS
-            </span>
+            </Badge>
           )}
         </div>
-        <p className="text-sm leading-snug text-stone-600">{meta.description}</p>
-        <p className="mt-auto pt-2 text-xs text-stone-500">{meta.bestFor}</p>
+        <p className="text-sm text-ink-2">{meta.description}</p>
+        <p className="cvb-caption mt-auto pt-2 text-ink-3">{meta.bestFor}</p>
       </div>
     </article>
   );
@@ -461,103 +436,96 @@ function PreviewDialog({
   onClose: () => void;
   onChoose: (id: TemplateId) => void;
 }) {
-  const index = Math.max(0, list.findIndex((t) => t.id === id));
+  const index = Math.max(
+    0,
+    list.findIndex((t) => t.id === id),
+  );
   const meta = list[index] ?? list[0];
   const go = (dir: 1 | -1) => onNavigate(list[(index + dir + list.length) % list.length].id);
 
+  // Escape, focus and scroll locking come from the dialog; the arrow keys browse.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
       if (e.key === "ArrowRight") go(1);
       if (e.key === "ArrowLeft") go(-1);
     };
     window.addEventListener("keydown", onKey);
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = overflow;
-    };
+    return () => window.removeEventListener("keydown", onKey);
   });
 
-  return (
-    <div role="dialog" aria-modal="true" aria-label={`${meta.name} preview`} className="fixed inset-0 z-50 flex bg-stone-950/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="m-auto flex h-[min(92dvh,1000px)] w-[min(96vw,1180px)] overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className="preview-canvas relative hidden min-w-0 flex-1 overflow-y-auto p-8 md:block">
-          <div className="mx-auto w-full max-w-[640px] shadow-xl">
-            <ScaledSheet cv={cv} template={meta.id} accent={accent} />
-          </div>
-          <button type="button" onClick={() => go(-1)} aria-label="Previous template" className="absolute start-4 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-white text-stone-700 shadow-lg ring-1 ring-black/5 hover:bg-stone-50">
-            <ArrowLeftIcon className="size-5" />
-          </button>
-          <button type="button" onClick={() => go(1)} aria-label="Next template" className="absolute end-4 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-white text-stone-700 shadow-lg ring-1 ring-black/5 hover:bg-stone-50">
-            <ArrowRightIcon className="size-5" />
-          </button>
-        </div>
+  const swatches = [{ value: meta.accent, name: "Template colour" }, ...ACCENTS.filter((a) => a.value !== meta.accent)];
 
-        <aside className="flex w-full flex-col gap-5 overflow-y-auto border-s border-stone-200 p-6 md:w-80">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <div className="text-xs font-medium text-stone-500">
-                {index + 1} of {list.length}
-              </div>
-              <h2 className="mt-1 text-xl font-semibold text-stone-900">{meta.name}</h2>
-            </div>
-            <button type="button" onClick={onClose} aria-label="Close" className="grid size-8 place-items-center rounded-lg text-stone-500 hover:bg-stone-100">
-              ✕
-            </button>
-          </div>
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      size="xl"
+      title={meta.name}
+      description={
+        <span className="cvb-num" dir="ltr">
+          {index + 1} of {list.length}
+        </span>
+      }
+      footer={
+        <>
+          <span className="cvb-caption me-auto hidden self-center text-ink-3 md:inline">
+            Use ← → to browse · Esc to close
+          </span>
+          <Button variant="primary" onClick={() => onChoose(meta.id)}>
+            {meta.id === current ? "Keep using this template" : "Use this template"}
+          </Button>
+        </>
+      }
+    >
+      <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_17rem]">
+        <PreviewCanvas className="relative grid-cols-[minmax(0,1fr)] px-14 py-6 sm:px-16">
+          <PaperSheet accent={accent ?? meta.accent} maxWidth={560}>
+            <span inert>
+              <ScaledSheet cv={cv} template={meta.id} accent={accent} />
+            </span>
+          </PaperSheet>
+          <span className="absolute start-2 top-1/2 -translate-y-1/2">
+            <IconButton
+              icon="chevron-left"
+              variant="secondary"
+              label="Previous template"
+              onClick={() => go(-1)}
+              tooltip={false}
+            />
+          </span>
+          <span className="absolute end-2 top-1/2 -translate-y-1/2">
+            <IconButton
+              icon="chevron-right"
+              variant="secondary"
+              label="Next template"
+              onClick={() => go(1)}
+              tooltip={false}
+            />
+          </span>
+        </PreviewCanvas>
+
+        <div className="flex flex-col gap-4">
           <div className="flex flex-wrap gap-1.5">
             <TierBadge tier={meta.tier} />
             {meta.ats && (
-              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">ATS-friendly</span>
+              <Badge tone="success" icon="check">
+                ATS-friendly
+              </Badge>
             )}
           </div>
-          <p className="text-sm leading-relaxed text-stone-600">{meta.description}</p>
-          <p className="text-xs text-stone-500">{templateTags(meta)}</p>
-
-          <div className="md:hidden">
-            <div className="mx-auto w-full max-w-xs overflow-hidden rounded-md shadow-lg ring-1 ring-black/5">
-              <ScaledSheet cv={cv} template={meta.id} accent={accent} />
-            </div>
+          <p className="text-sm text-ink-2">{meta.description}</p>
+          <p className="cvb-caption text-ink-3">{templateTags(meta)}</p>
+          <div className="flex flex-col gap-2">
+            <span className="cvb-overline text-ink-3">Colour</span>
+            <ColorSwatches
+              label="Colour"
+              colors={swatches}
+              value={accent ?? meta.accent}
+              onChange={(v) => onAccent(v === meta.accent ? null : v)}
+            />
           </div>
-
-          <div>
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400">Colour</div>
-            <div className="flex flex-wrap gap-1.5">
-              <button
-                type="button"
-                title="Template colour"
-                onClick={() => onAccent(null)}
-                className={`size-7 rounded-full ring-1 ring-black/10 ${accent === null ? "outline-2 outline-offset-2 outline-stone-900" : ""}`}
-                style={{ background: meta.accent }}
-              />
-              {ACCENTS.filter((a) => a.value !== meta.accent).map((a) => (
-                <button
-                  key={a.value}
-                  type="button"
-                  title={a.name}
-                  aria-label={a.name}
-                  onClick={() => onAccent(a.value)}
-                  className={`size-7 rounded-full ring-1 ring-black/10 transition hover:scale-110 ${accent === a.value ? "outline-2 outline-offset-2 outline-stone-900" : ""}`}
-                  style={{ background: a.value }}
-                />
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-auto flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => onChoose(meta.id)}
-              className="rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-dark"
-            >
-              {meta.id === current ? "Keep using this template" : "Use this template"}
-            </button>
-            <p className="text-center text-xs text-stone-500">Use ← → to browse · Esc to close</p>
-          </div>
-        </aside>
+        </div>
       </div>
-    </div>
+    </Dialog>
   );
 }

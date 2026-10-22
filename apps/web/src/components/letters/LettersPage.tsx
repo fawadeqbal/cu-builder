@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { PlusIcon, TrashIcon } from "@cvb/ui";
+import { Badge, Button, EmptyState, IconButton, PageHeader, Skeleton } from "@cvb/ui";
 import { gateForError } from "@/lib/ai";
 import { api } from "@/lib/api";
 import type { Gate } from "@/lib/plans";
@@ -13,13 +13,12 @@ import { keys, useLetters } from "@/lib/queries";
 import { AppHeader } from "../AppHeader";
 import { RequireAuth } from "../RequireAuth";
 import { UpgradeDialog } from "../UpgradeDialog";
-import { btn, card } from "../ui/styles";
 
 export function LettersPage() {
   return (
     <RequireAuth>
       {() => (
-        <div className="min-h-dvh bg-stone-50">
+        <div className="min-h-dvh bg-canvas">
           <AppHeader />
           <Letters />
         </div>
@@ -44,38 +43,52 @@ function Letters() {
   });
   const list = letters.data ?? [];
   return (
-    <main className="mx-auto max-w-6xl px-4 pb-20 pt-8 sm:px-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-stone-900">Cover letters</h1>
-          <p className="mt-1 text-sm text-stone-600">Styled to match your CV. Start one from a saved job to get an AI first draft.</p>
-        </div>
-        <button type="button" className={btn.primary} disabled={create.isPending} onClick={() => create.mutate()}>
-          <PlusIcon className="size-4" /> New letter
-        </button>
-      </div>
+    <main className="mx-auto flex max-w-(--layout-md) flex-col gap-6 px-4 pb-20 pt-10 sm:px-6">
+      <PageHeader
+        title="Cover letters"
+        description="Styled to match your CV. Start one from a saved job to get an AI first draft."
+        actions={
+          <Button variant="primary" icon="plus" loading={create.isPending} onClick={() => create.mutate()}>
+            New letter
+          </Button>
+        }
+      />
       {letters.isLoading ? (
-        <p className="py-16 text-center text-sm text-stone-500">Loading…</p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} height={148} shape="block" />
+          ))}
+        </div>
       ) : list.length === 0 ? (
-        <div className="mt-8 rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-14 text-center text-sm text-stone-600">
-          No letters yet. Open <Link href="/jobs?tab=saved" className="font-semibold text-brand hover:underline">Jobs</Link>, pick a job and choose “Cover letter”, or start a blank one.
+        <div className="cvb-card">
+          <EmptyState icon="mail" title="No letters yet">
+            Open{" "}
+            <Link href="/jobs?tab=saved" className="font-semibold text-brand-ink hover:underline">
+              Jobs
+            </Link>
+            , pick a job and choose “Cover letter”, or start a blank one.
+          </EmptyState>
         </div>
       ) : (
-        <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="Your cover letters">
           {list.map((l) => (
-            <li key={l.id} className={`${card} flex flex-col gap-2 p-4`}>
-              <Link href={`/letters/${l.id}`} className="text-[15px] font-semibold text-stone-900 hover:text-brand">
+            <li key={l.id} className="cvb-card relative flex flex-col gap-2 p-5 transition-colors hover:border-line-strong">
+              <Link href={`/letters/${l.id}`} className="cvb-h3 text-ink after:absolute after:inset-0 after:rounded-lg after:content-[''] hover:text-brand-ink focus-visible:outline-none focus-visible:after:shadow-(--focus-ring)">
                 {l.title}
               </Link>
-              <p className="line-clamp-3 text-sm text-stone-600">{l.data.paragraphs.find((p) => p.trim()) || "Empty letter"}</p>
-              <div className="mt-auto flex items-center justify-between pt-2 text-xs text-stone-500">
+              <p className="line-clamp-3 text-sm text-ink-2">{l.data.paragraphs.find((p) => p.trim()) || "Empty letter"}</p>
+              {l.shareEnabled && (
                 <span>
-                  Edited {new Date(l.updatedAt).toLocaleDateString()}
-                  {l.shareEnabled && <> · shared · {l.viewCount} views</>}
+                  <Badge tone="info" icon="link">
+                    Shared · <span className="cvb-num">{l.viewCount}</span> views
+                  </Badge>
                 </span>
-                <button type="button" aria-label="Delete letter" className="rounded p-1 hover:bg-stone-100 hover:text-red-600" onClick={() => window.confirm("Delete this letter?") && remove.mutate(l.id)}>
-                  <TrashIcon className="size-4" />
-                </button>
+              )}
+              <div className="mt-auto flex items-center gap-2 pt-1">
+                <span className="cvb-caption flex-1">Edited {new Date(l.updatedAt).toLocaleDateString()}</span>
+                <span className="relative z-10">
+                  <IconButton icon="trash" size="sm" label="Delete letter" onClick={() => window.confirm("Delete this letter?") && remove.mutate(l.id)} />
+                </span>
               </div>
             </li>
           ))}

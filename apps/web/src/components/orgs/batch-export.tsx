@@ -54,7 +54,11 @@ async function candidatePdf(c: CandidateDto, org: OrgDto): Promise<Blob> {
 }
 
 /** One ZIP with a PDF per ready candidate, in the agency's template. */
-export async function exportCandidatesZip(candidates: CandidateDto[], org: OrgDto, onProgress: (done: number, total: number) => void): Promise<void> {
+export async function exportCandidatesZip(
+  candidates: CandidateDto[],
+  org: OrgDto,
+  onProgress: (done: number, total: number) => void,
+): Promise<void> {
   const ready = candidates.filter((c) => c.status === "ready" && c.data);
   const { zipSync } = await import("fflate");
   const files: Record<string, Uint8Array> = {};

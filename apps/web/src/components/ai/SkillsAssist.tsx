@@ -2,6 +2,7 @@
 
 import { newId, type CV } from "@cvb/domain";
 import { useState } from "react";
+import { Alert, Chip, Icon } from "@cvb/ui";
 import { gateForError, useAiAssist, useAiCall } from "@/lib/ai";
 import { AiButton } from "./AiButton";
 
@@ -38,28 +39,25 @@ export function SkillsAssist({ cv, onChange }: { cv: CV; onChange: (cv: CV) => v
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-2xl border border-violet-100 bg-violet-50/40 p-3">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-stone-600">Not sure what to list? Get suggestions from your experience.</span>
+    <div className="cvb-ai">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="cvb-ai-head min-w-0 flex-1 font-normal">
+          <Icon name="sparkle" size={18} />
+          Not sure what to list? Get suggestions from your experience.
+        </span>
         <AiButton busy={busy} onClick={() => void suggest()}>
           Suggest skills
         </AiButton>
       </div>
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <Alert tone="danger">{error}</Alert>}
       {skills.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap items-center gap-2">
           {skills.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => add(s)}
-              className="rounded-full border border-violet-200 bg-white px-2.5 py-1 text-xs font-medium text-violet-800 hover:bg-violet-100"
-              title={`Add ${s} to ${cv.skills[0]?.category || "your skills"}`}
-            >
-              + {s}
-            </button>
+            <Chip key={s} icon="plus" onClick={() => add(s)} title={`Add ${s} to ${cv.skills[0]?.category || "your skills"}`}>
+              {s}
+            </Chip>
           ))}
-          <span className="self-center text-[11px] text-stone-500">Only add what you can talk about in an interview.</span>
+          <span className="cvb-caption">Only add what you can talk about in an interview.</span>
         </div>
       )}
     </div>

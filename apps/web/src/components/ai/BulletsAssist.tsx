@@ -3,8 +3,8 @@
 import { isActionLed, isQuantified } from "@cvb/domain";
 import { useState } from "react";
 import { gateForError, useAiAssist, useAiCall } from "@/lib/ai";
+import { Alert, Badge, Button, Icon, Spinner } from "@cvb/ui";
 import { Dialog } from "../ui/Dialog";
-import { btn } from "../ui/styles";
 import { AiButton, Suggestion } from "./AiButton";
 
 type Props = { bullets: string[]; role?: string; company?: string; onChange: (bullets: string[]) => void };
@@ -68,35 +68,50 @@ export function BulletsAssist({ bullets, role, company, onChange }: Props) {
                 <button
                   type="button"
                   onClick={() => void improve(l.i)}
-                  className="flex w-full items-start gap-3 rounded-xl border border-stone-200 bg-white p-3 text-start text-sm text-stone-800 hover:border-violet-300"
+                  className="flex w-full flex-wrap items-start gap-2 rounded-md border border-line bg-surface p-3 text-start text-sm text-ink transition hover:border-brand hover:bg-brand-soft focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none"
                 >
-                  <span className="flex-1">{l.text}</span>
-                  {!isQuantified(l.text) && <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">no number</span>}
-                  {!isActionLed(l.text) && <span className="shrink-0 rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-medium text-stone-600">weak start</span>}
+                  <span className="min-w-0 flex-1 basis-48">{l.text}</span>
+                  {!isQuantified(l.text) && (
+                    <Badge tone="warning" icon="alert-triangle" className="shrink-0">
+                      no number
+                    </Badge>
+                  )}
+                  {!isActionLed(l.text) && <Badge className="shrink-0">weak start</Badge>}
                 </button>
               </li>
             ))}
           </ul>
         ) : (
           <div className="flex flex-col gap-3">
-            <p className="rounded-lg bg-stone-50 px-3 py-2 text-sm text-stone-600">
-              <span className="font-medium text-stone-800">Original:</span> {bullets[index]}
+            <p className="rounded-md bg-surface-2 px-3 py-2 text-sm text-ink-2">
+              <span className="font-semibold text-ink">Original:</span> {bullets[index]}
             </p>
             {!isQuantified(bullets[index] ?? "") && (
-              <p className="text-xs text-amber-800">Tip: add a real number if you have one (how many users, how much faster, how much saved). The highlighted parts are for you to fill in.</p>
+              <p className="flex items-start gap-2 text-xs leading-5 text-ink-2">
+                <Icon name="lightbulb" size={16} className="shrink-0 text-info" />
+                Tip: add a real number if you have one (how many users, how much faster, how much saved). The highlighted parts are for you to fill in.
+              </p>
             )}
-            {busy && <p className="py-6 text-center text-sm text-stone-500">Writing suggestions…</p>}
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            {options.map((o) => (
-              <Suggestion key={o} text={o} onUse={() => use(o)} />
-            ))}
-            <div className="flex justify-between pt-1">
-              <button type="button" className={btn.ghost} onClick={() => setIndex(null)}>
-                ← Another line
-              </button>
-              <button type="button" className={btn.secondary} disabled={busy} onClick={() => void improve(index)}>
+            {busy && (
+              <p className="flex items-center justify-center gap-2 py-6 text-sm text-ink-3">
+                <Spinner /> Writing suggestions…
+              </p>
+            )}
+            {error && <Alert tone="danger">{error}</Alert>}
+            {options.length > 0 && (
+              <div className="cvb-ai">
+                {options.map((o) => (
+                  <Suggestion key={o} text={o} onUse={() => use(o)} />
+                ))}
+              </div>
+            )}
+            <div className="flex flex-wrap justify-between gap-2 pt-1">
+              <Button variant="ghost" icon="arrow-left" onClick={() => setIndex(null)}>
+                Another line
+              </Button>
+              <Button variant="secondary" disabled={busy} onClick={() => void improve(index)}>
                 Try again
-              </button>
+              </Button>
             </div>
           </div>
         )}

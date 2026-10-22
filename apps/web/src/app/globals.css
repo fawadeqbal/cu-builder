@@ -1,23 +1,88 @@
 @import "tailwindcss";
+/* The design system (packages/ui, "Folio"): tokens first (unlayered, so they win over Tailwind's
+   defaults), then the cvb-* component classes in the components layer so utilities can still
+   adjust them. */
+@import "@cvb/ui/tokens.css";
+@import "@cvb/ui/styles.css" layer(components);
 
 /* Shared UI components carry Tailwind classes; scan them too. */
 @source "../../../../packages/ui/src";
 
-@theme inline {
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+/* Dark mode follows the theme attribute (and the system when none is chosen). */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
 }
 
-/* Not inline: utilities read var(--color-brand), so a white-label partner can restyle the app
-   at runtime (components/branding/BrandingProvider sets these on <html>). */
+/* Semantic colour utilities: bg-surface, text-ink-2, border-line, bg-brand, text-on-brand, … They read
+   the tokens, so they switch with the theme and follow a white-label brand. Never use raw palette
+   colours (stone-*, white, red-*) in the app. */
+/* Tailwind's own palette is switched off: only the tokens below exist, so a stray stone-* or
+   red-* class produces no colour instead of an off-system one. */
 @theme {
-  --color-brand: #1e4b8f;
-  --color-brand-dark: #173a70;
+  --color-*: initial;
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-scrim: var(--scrim);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-line-control: var(--line-control);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-ink-disabled: var(--ink-disabled);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-pressed: var(--brand-pressed);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-ink: var(--brand-ink);
+  --color-on-brand: var(--on-brand);
+  --color-focus: var(--focus);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-gold-ink: var(--gold-ink);
+  --color-on-gold: var(--on-gold);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-on-danger: var(--on-danger);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-stage-saved: var(--stage-saved);
+  --color-stage-applied: var(--stage-applied);
+  --color-stage-interview: var(--stage-interview);
+  --color-stage-offer: var(--stage-offer);
+  --color-stage-rejected: var(--stage-rejected);
+  --color-paper: var(--paper);
+  --color-canvas-dot: var(--canvas-dot);
+  --color-appbar-bg: var(--appbar-bg);
+  --color-appbar-ink: var(--appbar-ink);
+  --color-appbar-ink-2: var(--appbar-ink-2);
+  --color-appbar-hover: var(--appbar-hover);
+  --color-appbar-accent: var(--appbar-accent);
+  --color-appbar-line: var(--appbar-line);
+  --color-brand-dark: var(--brand-hover);
+  --font-display: var(--font-display);
 }
 
 body {
-  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  color: #1c1917;
-  background: #f5f5f4;
+  font-family: var(--font-sans);
+  color: var(--ink);
+  background: var(--canvas);
 }
 
 /* ------------------------------------------------------------------ A4 paper */
@@ -59,8 +124,8 @@ body {
 
 /* A soft dotted canvas behind the sheet, like a design tool. */
 .preview-canvas {
-  background-color: #eeedeb;
-  background-image: radial-gradient(rgb(28 25 23 / 0.09) 1px, transparent 1px);
+  background-color: var(--canvas);
+  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1px);
   background-size: 16px 16px;
 }
 
@@ -75,9 +140,9 @@ body {
   /* An inset shadow tints over the section's own background instead of replacing it,
      so coloured header bands keep their colour. */
   box-shadow:
-    inset 0 0 0 100vmax rgb(30 75 143 / 0.06),
-    0 0 0 3pt rgb(30 75 143 / 0.06),
-    0 0 0 3.8pt rgb(30 75 143 / 0.35) !important;
+    inset 0 0 0 100vmax color-mix(in srgb, var(--brand) 6%, transparent),
+    0 0 0 3pt color-mix(in srgb, var(--brand) 6%, transparent),
+    0 0 0 3.8pt color-mix(in srgb, var(--brand) 40%, transparent) !important;
 }
 .preview-live [data-step]:hover::before {
   content: "Edit";
@@ -88,9 +153,9 @@ body {
   transform: translateY(-100%);
   padding: 1.5pt 5pt;
   border-radius: 2.5pt 2.5pt 0 0;
-  background: #1e4b8f;
-  color: #fff;
-  font: 600 7pt/1.3 var(--font-inter), system-ui, sans-serif;
+  background: var(--brand);
+  color: var(--on-brand);
+  font: 600 7pt/1.3 var(--font-sans);
   letter-spacing: 0.2pt;
 }
 /* Nested targets (a section inside a section) never happen today, but keep one outline if they do. */
@@ -101,10 +166,10 @@ body {
 /* ------------------------------------------------------------------ Urdu and Arabic interface */
 
 html[lang="ar"] body {
-  font-family: var(--font-rtl), var(--font-inter), Tahoma, sans-serif;
+  font-family: var(--font-arabic);
 }
 html[lang="ur"] body {
-  font-family: var(--font-urdu), var(--font-rtl), Tahoma, sans-serif;
+  font-family: var(--font-urdu);
   line-height: 1.75;
 }
 /* Nastaliq is tall; keep form controls and buttons from clipping it. */

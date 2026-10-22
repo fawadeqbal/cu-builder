@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { authClient } from "@/lib/auth-client";
 import { useT } from "@/lib/i18n";
-import { btn, field, label } from "../ui/styles";
+import { Alert, Button, TextField } from "@cvb/ui";
 import { AuthShell } from "./AuthShell";
 
 export function ForgotPasswordForm() {
@@ -28,25 +28,36 @@ export function ForgotPasswordForm() {
   if (sent) {
     return (
       <AuthShell title={t("auth.checkEmail")} subtitle={t("auth.resetSent", { email })}>
-        <Link href="/sign-in" className={`${btn.secondary} w-full`}>
+        <Button block icon="arrow-left" href="/sign-in">
           {t("auth.backToSignIn")}
-        </Link>
+        </Button>
       </AuthShell>
     );
   }
   return (
-    <AuthShell title={t("auth.resetTitle")} subtitle={t("auth.resetSubtitle")} footer={<Link href="/sign-in" className="font-medium text-brand hover:underline">{t("auth.backToSignIn")}</Link>}>
+    <AuthShell
+      title={t("auth.resetTitle")}
+      subtitle={t("auth.resetSubtitle")}
+      footer={
+        <Link href="/sign-in" className="font-medium text-brand-ink hover:underline">
+          {t("auth.backToSignIn")}
+        </Link>
+      }
+    >
       <form onSubmit={submit} className="flex flex-col gap-4">
-        <div>
-          <label className={label} htmlFor="email">
-            {t("f.email")}
-          </label>
-          <input id="email" type="email" required className={field} autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <button type="submit" className={`${btn.primary} w-full py-2.5`} disabled={pending}>
+        <TextField
+          id="email"
+          type="email"
+          label={t("f.email")}
+          required
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        {error && <Alert tone="danger">{error}</Alert>}
+        <Button type="submit" variant="primary" size="lg" block loading={pending}>
           {pending ? t("auth.sending") : t("auth.sendReset")}
-        </button>
+        </Button>
       </form>
     </AuthShell>
   );
@@ -74,25 +85,29 @@ export function ResetPasswordForm() {
   if (!token || error) {
     return (
       <AuthShell title={t("auth.linkInvalid")} subtitle={error || t("auth.linkIncomplete")}>
-        <Link href="/forgot-password" className={`${btn.primary} w-full`}>
+        <Button variant="primary" block href="/forgot-password">
           {t("auth.newLink")}
-        </Link>
+        </Button>
       </AuthShell>
     );
   }
   return (
     <AuthShell title={t("auth.chooseNew")}>
       <form onSubmit={submit} className="flex flex-col gap-4">
-        <div>
-          <label className={label} htmlFor="password">
-            {t("auth.newPassword")}
-          </label>
-          <input id="password" type="password" required minLength={8} className={field} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
-          <p className="mt-1 text-xs text-stone-500">{t("auth.passwordHint")}</p>
-        </div>
-        <button type="submit" className={`${btn.primary} w-full py-2.5`} disabled={pending}>
+        <TextField
+          id="password"
+          type="password"
+          label={t("auth.newPassword")}
+          hint={t("auth.passwordHint")}
+          required
+          minLength={8}
+          autoComplete="new-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <Button type="submit" variant="primary" size="lg" block loading={pending}>
           {pending ? t("common.saving") : t("auth.saveNew")}
-        </button>
+        </Button>
       </form>
     </AuthShell>
   );

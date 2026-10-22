@@ -2,7 +2,7 @@
 
 import type { DomainStatusDto } from "@cvb/contracts";
 import { useState } from "react";
-import { btn, field, label } from "../ui/styles";
+import { Alert, Badge, Button, TextField } from "@cvb/ui";
 
 type Props = {
   status: DomainStatusDto;
@@ -35,69 +35,102 @@ export function DomainSetup({ status, onSave, onVerify, example }: Props) {
   const host = status.domain ?? "";
   const apex = host.split(".").length === 2;
   return (
-    <div className="flex flex-col gap-3">
-      <div>
-        <label className={label} htmlFor="custom-domain">
-          Domain
-        </label>
-        <div className="flex flex-wrap gap-2">
-          <input id="custom-domain" className={`${field} min-w-48 flex-1`} placeholder={example} value={domain} onChange={(e) => setDomain(e.target.value)} />
-          <button type="button" className={btn.secondary} disabled={busy !== null || !domain.trim() || domain.trim() === host} onClick={() => void run("save", () => onSave(domain.trim()))}>
-            {busy === "save" ? "Saving…" : "Connect"}
-          </button>
-          {host && (
-            <button type="button" className={btn.ghost} disabled={busy !== null} onClick={() => void run("save", async () => (await onSave(null), setDomain("")))}>
-              Remove
-            </button>
-          )}
-        </div>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-end gap-2">
+        <TextField
+          id="custom-domain"
+          dir="ltr"
+          label="Domain"
+          className="min-w-48 flex-1"
+          inputClassName="font-mono"
+          placeholder={example}
+          value={domain}
+          onChange={(e) => setDomain(e.target.value)}
+        />
+        <Button
+          loading={busy === "save"}
+          disabled={busy !== null || !domain.trim() || domain.trim() === host}
+          onClick={() => void run("save", () => onSave(domain.trim()))}
+        >
+          {busy === "save" ? "Saving…" : "Connect"}
+        </Button>
+        {host && (
+          <Button
+            variant="ghost"
+            disabled={busy !== null}
+            onClick={() => void run("save", async () => (await onSave(null), setDomain("")))}
+          >
+            Remove
+          </Button>
+        )}
       </div>
       {host && (
-        <div className="rounded-xl bg-stone-50 p-4 text-sm ring-1 ring-stone-200">
-          <div className="mb-2 flex items-center gap-2">
-            <span className="font-semibold text-stone-900">{host}</span>
-            <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${status.verified ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200" : "bg-amber-50 text-amber-800 ring-1 ring-amber-200"}`}>
-              {status.verified ? "Connected" : "Waiting for DNS"}
+        <div className="flex flex-col gap-3 rounded-md border border-line bg-surface-2 p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-mono font-semibold text-ink" dir="ltr">
+              {host}
             </span>
+            {status.verified ? (
+              <Badge tone="success" icon="check">
+                Connected
+              </Badge>
+            ) : (
+              <Badge tone="warning" icon="clock">
+                Waiting for DNS
+              </Badge>
+            )}
           </div>
           {!status.verified && (
             <>
-              <p className="text-stone-600">Add this record at your domain provider, then check. DNS changes can take up to a few hours.</p>
-              <table className="mt-2 w-full text-start font-mono text-xs">
-                <thead className="text-stone-500">
-                  <tr>
-                    <th className="py-1 pe-3 text-start font-medium">Type</th>
-                    <th className="py-1 pe-3 text-start font-medium">Name</th>
-                    <th className="py-1 text-start font-medium">Value</th>
-                  </tr>
-                </thead>
-                <tbody className="text-stone-800">
-                  {(!apex || status.ipv4.length === 0) && (
+              <p className="text-ink-2">
+                Add this record at your domain provider, then check. DNS changes can take up to a few hours.
+              </p>
+              <div className="cvb-table-wrap relative">
+                <table className="cvb-table" dir="ltr">
+                  <caption className="cvb-sr">DNS record</caption>
+                  <thead>
                     <tr>
-                      <td className="py-1 pe-3">CNAME</td>
-                      <td className="py-1 pe-3">{apex ? "@" : host.split(".")[0]}</td>
-                      <td className="py-1 break-all">{status.cnameTarget}</td>
+                      <th scope="col">Type</th>
+                      <th scope="col">Name</th>
+                      <th scope="col">Value</th>
                     </tr>
-                  )}
-                  {status.ipv4.map((ip) => (
-                    <tr key={ip}>
-                      <td className="py-1 pe-3">A</td>
-                      <td className="py-1 pe-3">{apex ? "@" : host.split(".")[0]}</td>
-                      <td className="py-1">{ip}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <button type="button" className={`${btn.primary} mt-3`} disabled={busy !== null} onClick={() => void run("verify", onVerify)}>
+                  </thead>
+                  <tbody className="font-mono text-[13px] text-ink">
+                    {(!apex || status.ipv4.length === 0) && (
+                      <tr>
+                        <td>CNAME</td>
+                        <td>{apex ? "@" : host.split(".")[0]}</td>
+                        <td className="break-all">{status.cnameTarget}</td>
+                      </tr>
+                    )}
+                    {status.ipv4.map((ip) => (
+                      <tr key={ip}>
+                        <td>A</td>
+                        <td>{apex ? "@" : host.split(".")[0]}</td>
+                        <td>{ip}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Button
+                className="self-start"
+                icon="globe"
+                loading={busy === "verify"}
+                disabled={busy !== null}
+                onClick={() => void run("verify", onVerify)}
+              >
                 {busy === "verify" ? "Checking…" : "Check DNS"}
-              </button>
-              {checked && !status.verified && <p className="mt-2 text-xs text-amber-800">Not pointing here yet. Try again once your DNS change is live.</p>}
+              </Button>
+              {checked && !status.verified && (
+                <Alert tone="warning">Not pointing here yet. Try again once your DNS change is live.</Alert>
+              )}
             </>
           )}
-          {status.verified && <p className="text-stone-600">HTTPS is set up automatically on the first visit.</p>}
+          {status.verified && <p className="text-ink-2">HTTPS is set up automatically on the first visit.</p>}
         </div>
       )}
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <Alert tone="danger">{error}</Alert>}
     </div>
   );
 }

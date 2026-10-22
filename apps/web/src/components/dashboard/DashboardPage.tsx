@@ -8,7 +8,7 @@ export function DashboardPage() {
   return (
     <RequireAuth>
       {(me) => (
-        <div className="min-h-dvh bg-stone-50">
+        <div className="min-h-dvh bg-canvas">
           <AppHeader />
           <Dashboard me={me} />
         </div>

@@ -38,3 +38,10 @@ export function darken(hex: string, amount = 0.2): string {
     .map((c) => Math.round(c * (1 - amount)).toString(16).padStart(2, "0"))
     .join("")}`;
 }
+
+/** Mixes towards white by `amount` (0–1): a brand colour raised for dark grounds. */
+export function lighten(hex: string, amount = 0.4): string {
+  return `#${rgb(hex)
+    .map((c) => Math.round(c + (255 - c) * amount).toString(16).padStart(2, "0"))
+    .join("")}`;
+}

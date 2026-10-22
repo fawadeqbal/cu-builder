@@ -5,24 +5,44 @@ import { CANDIDATE_BATCH_MAX } from "@cvb/contracts";
 import { CVDocument } from "@cvb/templates";
 import { TEMPLATES } from "@cvb/templates/catalog";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useRef, useState } from "react";
-import { DownloadIcon, TrashIcon, UploadIcon } from "@cvb/ui";
+import { useMemo, useState } from "react";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Checkbox,
+  Drawer,
+  EmptyState,
+  FileDrop,
+  Icon,
+  IconButton,
+  ProgressBar,
+  Select,
+  Skeleton,
+  TextArea,
+  TextField,
+  type IconName,
+  type Tone,
+} from "@cvb/ui";
 import { ApiError } from "@/lib/api";
 import { api } from "@/lib/api";
 import { orgKeys, useCandidates } from "@/lib/orgs";
-import { Dialog } from "../ui/Dialog";
-import { btn, card, field, label } from "../ui/styles";
 import { brandOf, candidateCv, candidateTemplate, exportCandidatePdf, exportCandidatesZip } from "./batch-export";
 
-const STATUS: Record<CandidateDto["status"], [string, string]> = {
-  queued: ["Waiting", "bg-stone-100 text-stone-600"],
-  parsing: ["Reading…", "bg-sky-50 text-sky-700"],
-  ready: ["Ready", "bg-emerald-50 text-emerald-700"],
-  failed: ["Failed", "bg-red-50 text-red-700"],
+const STATUS: Record<CandidateDto["status"], [string, Tone, IconName]> = {
+  queued: ["Waiting", "neutral", "clock"],
+  parsing: ["Reading…", "info", "file"],
+  ready: ["Ready", "success", "check"],
+  failed: ["Failed", "danger", "x-circle"],
 };
 
 /** Sends files with upload progress (fetch can't report it). */
-function uploadFiles(orgId: string, files: File[], onProgress: (pct: number) => void): Promise<CandidateUploadResultDto> {
+function uploadFiles(
+  orgId: string,
+  files: File[],
+  onProgress: (pct: number) => void,
+): Promise<CandidateUploadResultDto> {
   return new Promise((resolve, reject) => {
     const form = new FormData();
     for (const f of files) form.append("files", f);
@@ -31,9 +51,18 @@ function uploadFiles(orgId: string, files: File[], onProgress: (pct: number) => 
     xhr.withCredentials = true;
     xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(Math.round((e.loaded / e.total) * 100));
     xhr.onload = () => {
-      const body = JSON.parse(xhr.responseText || "null") as (CandidateUploadResultDto & { error?: { code: string; message: string } }) | null;
+      const body = JSON.parse(xhr.responseText || "null") as
+        | (CandidateUploadResultDto & { error?: { code: string; message: string } })
+        | null;
       if (xhr.status >= 200 && xhr.status < 300 && body) resolve(body);
-      else reject(new ApiError(xhr.status, body?.error?.code ?? "HTTP_ERROR", body?.error?.message ?? `Upload failed (${xhr.status})`));
+      else
+        reject(
+          new ApiError(
+            xhr.status,
+            body?.error?.code ?? "HTTP_ERROR",
+            body?.error?.message ?? `Upload failed (${xhr.status})`,
+          ),
+        );
     };
     xhr.onerror = () => reject(new Error("The upload was interrupted. Check your connection."));
     xhr.send(form);
@@ -44,7 +73,6 @@ function uploadFiles(orgId: string, files: File[], onProgress: (pct: number) => 
 export function CandidatesTab({ org, canManage }: { org: OrgDto; canManage: boolean }) {
   const qc = useQueryClient();
   const candidates = useCandidates(org.id);
-  const input = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState<number | null>(null);
   const [result, setResult] = useState<CandidateUploadResultDto | null>(null);
   const [error, setError] = useState("");
@@ -59,9 +87,8 @@ export function CandidatesTab({ org, canManage }: { org: OrgDto; canManage: bool
   }, [candidates.data]);
   const current = candidates.data?.find((c) => c.id === editing) ?? null;
 
-  async function upload(list: FileList | null) {
-    if (!list?.length) return;
-    const files = [...list];
+  async function upload(files: File[]) {
+    if (!files.length) return;
     setError("");
     setResult(null);
     if (files.length > CANDIDATE_BATCH_MAX) return setError(`Choose at most ${CANDIDATE_BATCH_MAX} files at a time.`);
@@ -73,7 +100,6 @@ export function CandidatesTab({ org, canManage }: { org: OrgDto; canManage: bool
       setError(e instanceof Error ? e.message : "Upload failed");
     } finally {
       setProgress(null);
-      if (input.current) input.current.value = "";
     }
   }
 
@@ -89,117 +115,197 @@ export function CandidatesTab({ org, canManage }: { org: OrgDto; canManage: bool
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       {canManage && (
-        <section className={`${card} flex flex-col gap-3 p-5`}>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="min-w-0 flex-1">
-              <h2 className="text-base font-semibold text-stone-900">Upload candidate CVs</h2>
-              <p className="text-sm text-stone-500">Up to {CANDIDATE_BATCH_MAX} PDF or Word files, 5 MB each. Each one is read and reformatted in your template.</p>
-            </div>
-            <input
-              ref={input}
-              type="file"
-              multiple
-              accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-              className="sr-only"
-              aria-label="Candidate CV files"
-              onChange={(e) => void upload(e.target.files)}
-            />
-            <button type="button" className={btn.primary} disabled={progress !== null} onClick={() => input.current?.click()}>
-              <UploadIcon className="size-4" /> {progress !== null ? `Uploading ${progress}%` : "Choose files"}
-            </button>
-          </div>
-          {progress !== null && (
-            <div className="h-1.5 overflow-hidden rounded-full bg-stone-100" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
-              <div className="h-full bg-brand transition-all" style={{ width: `${progress}%` }} />
-            </div>
-          )}
+        <Card title="Upload candidate CVs" description="Each one is read and reformatted in your template.">
+          <FileDrop
+            title="Drop candidate CVs here"
+            hint={`Up to ${CANDIDATE_BATCH_MAX} PDF or Word files, 5 MB each.`}
+            button="Choose files"
+            multiple
+            accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            busy={progress !== null}
+            onFiles={(files) => void upload(files)}
+          />
+          {progress !== null && <ProgressBar value={progress} label="Uploading" valueLabel={`${progress}%`} />}
           {result && (
-            <p className="text-sm text-stone-700">
-              {result.accepted.length} uploaded{result.rejected.length > 0 && `, ${result.rejected.length} skipped: ${result.rejected.map((r) => `${r.fileName} (${r.reason.toLowerCase()})`).join(", ")}`}.
-            </p>
+            <Alert tone={result.rejected.length ? "warning" : "success"}>
+              {result.accepted.length} uploaded
+              {result.rejected.length > 0 &&
+                `, ${result.rejected.length} skipped: ${result.rejected.map((r) => `${r.fileName} (${r.reason.toLowerCase()})`).join(", ")}`}
+              .
+            </Alert>
           )}
-          {error && <p className="text-sm text-red-600">{error}</p>}
-        </section>
+          {error && <Alert tone="danger">{error}</Alert>}
+        </Card>
       )}
 
       {candidates.isLoading ? (
-        <p className="py-10 text-center text-sm text-stone-500">Loading…</p>
+        <Skeleton height={160} shape="block" />
       ) : batches.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-stone-300 bg-white px-4 py-10 text-center text-sm text-stone-500">No candidates yet.</p>
+        <Card>
+          <EmptyState icon="briefcase" title="No candidates yet">
+            {canManage && (
+              <p>Upload CVs above. We read each one and lay it out in your template, ready to send to clients.</p>
+            )}
+          </EmptyState>
+        </Card>
       ) : (
         batches.map(([batchId, rows]) => {
           const ready = rows.filter((r) => r.status === "ready").length;
           const busy = rows.some((r) => r.status === "queued" || r.status === "parsing");
           const flagged = rows.filter((r) => r.lowConfidence.length > 0).length;
           const exportingThis = exporting?.startsWith(batchId);
+          const title = `Upload of ${new Date(rows[rows.length - 1]!.createdAt).toLocaleString()}`;
           return (
-            <section key={batchId} className={`${card} overflow-hidden`} aria-label={`Upload of ${new Date(rows[rows.length - 1]!.createdAt).toLocaleString()}`}>
-              <header className="flex flex-wrap items-center gap-3 border-b border-stone-100 px-4 py-3">
-                <div className="min-w-0 flex-1">
-                  <h2 className="text-sm font-semibold text-stone-900">Upload of {new Date(rows[rows.length - 1]!.createdAt).toLocaleString()}</h2>
-                  <p className="text-xs text-stone-500">
+            <section key={batchId} className="flex flex-col gap-3" aria-label={title}>
+              <header className="flex flex-wrap items-center gap-3">
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <h2 className="cvb-h3 text-ink">{title}</h2>
+                  <p className="cvb-caption flex items-center gap-1.5">
+                    {busy && <span className="cvb-spinner" aria-hidden="true" />}
                     {rows.length} files · {ready} ready{busy && " · reading the rest…"} · {flagged} need a check
                   </p>
                 </div>
-                <button type="button" className={btn.secondary} disabled={!ready || Boolean(exporting)} onClick={() => void exportBatch(batchId, rows)}>
-                  <DownloadIcon className="size-4" /> {exportingThis ? `Exporting ${exporting!.split(":")[1] ?? ""}` : "Export PDFs (ZIP)"}
-                </button>
+                <Button
+                  icon="download"
+                  loading={Boolean(exportingThis)}
+                  disabled={!ready || Boolean(exporting)}
+                  onClick={() => void exportBatch(batchId, rows)}
+                >
+                  {exportingThis ? `Exporting ${exporting!.split(":")[1] ?? ""}` : "Export PDFs (ZIP)"}
+                </Button>
               </header>
-              <ul className="divide-y divide-stone-100">
-                {rows.map((c) => (
-                  <CandidateRow key={c.id} org={org} candidate={c} canManage={canManage} onEdit={() => setEditing(c.id)} onChanged={refresh} />
-                ))}
-              </ul>
+              <div className="cvb-table-wrap relative">
+                <table className="cvb-table min-w-[36rem]">
+                  <caption className="cvb-sr">{title}</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Candidate</th>
+                      <th scope="col">Status</th>
+                      <th scope="col">Contacts</th>
+                      <th scope="col">
+                        <span className="cvb-sr">Actions</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((c) => (
+                      <CandidateRow
+                        key={c.id}
+                        org={org}
+                        candidate={c}
+                        canManage={canManage}
+                        onEdit={() => setEditing(c.id)}
+                        onChanged={refresh}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </section>
           );
         })
       )}
-      {current && <CandidateEditor key={current.id} org={org} candidate={current} canManage={canManage} onClose={() => setEditing(null)} onChanged={refresh} />}
+      {current && (
+        <CandidateEditor
+          key={current.id}
+          org={org}
+          candidate={current}
+          canManage={canManage}
+          onClose={() => setEditing(null)}
+          onChanged={refresh}
+        />
+      )}
     </div>
   );
 }
 
-function CandidateRow({ org, candidate: c, canManage, onEdit, onChanged }: { org: OrgDto; candidate: CandidateDto; canManage: boolean; onEdit: () => void; onChanged: () => void }) {
-  const update = useMutation({ mutationFn: (patch: UpdateCandidateDto) => api.patch(`/orgs/${org.id}/candidates/${c.id}`, patch), onSuccess: onChanged });
-  const remove = useMutation({ mutationFn: () => api.delete(`/orgs/${org.id}/candidates/${c.id}`), onSuccess: onChanged });
-  const [label, tone] = STATUS[c.status];
+function CandidateRow({
+  org,
+  candidate: c,
+  canManage,
+  onEdit,
+  onChanged,
+}: {
+  org: OrgDto;
+  candidate: CandidateDto;
+  canManage: boolean;
+  onEdit: () => void;
+  onChanged: () => void;
+}) {
+  const update = useMutation({
+    mutationFn: (patch: UpdateCandidateDto) => api.patch(`/orgs/${org.id}/candidates/${c.id}`, patch),
+    onSuccess: onChanged,
+  });
+  const remove = useMutation({
+    mutationFn: () => api.delete(`/orgs/${org.id}/candidates/${c.id}`),
+    onSuccess: onChanged,
+  });
+  const [label, tone, icon] = STATUS[c.status];
   return (
-    <li className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-sm">
-      <div className="min-w-0 flex-1">
-        <div className="truncate font-medium text-stone-900">{c.name || c.fileName}</div>
-        <div className="truncate text-xs text-stone-500">
-          {c.fileName}
-          {c.status === "failed" && c.error && <span className="text-red-600"> · {c.error}</span>}
-        </div>
-      </div>
-      <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${tone}`}>{label}</span>
-      {c.status === "ready" && c.lowConfidence.length > 0 && (
-        <button type="button" onClick={onEdit} className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200">
-          {c.lowConfidence.length} to check
-        </button>
-      )}
-      {c.status === "ready" && (
-        <>
-          <label className="flex items-center gap-1.5 text-xs text-stone-600">
-            <input type="checkbox" className="size-3.5 accent-brand" checked={c.hideContacts} disabled={!canManage} onChange={(e) => update.mutate({ hideContacts: e.target.checked })} />
-            Hide contacts
-          </label>
-          <button type="button" className={btn.ghost} onClick={onEdit}>
-            {canManage ? "Review" : "View"}
-          </button>
-          <button type="button" className={btn.ghost} aria-label={`Download ${c.name || c.fileName} as PDF`} onClick={() => void exportCandidatePdf(c, org)}>
-            <DownloadIcon className="size-4" />
-          </button>
-        </>
-      )}
-      {canManage && (
-        <button type="button" className={btn.ghost} aria-label={`Delete ${c.name || c.fileName}`} onClick={() => window.confirm("Delete this candidate?") && remove.mutate()}>
-          <TrashIcon className="size-4" />
-        </button>
-      )}
-    </li>
+    <tr>
+      <td className="cvb-table-primary max-w-64">
+        <div className="truncate text-ink">{c.name || c.fileName}</div>
+        {c.name && <div className="cvb-caption truncate font-normal">{c.fileName}</div>}
+        {c.status === "failed" && c.error && <div className="text-xs font-normal text-danger">{c.error}</div>}
+      </td>
+      <td>
+        <span className="flex flex-wrap items-center gap-1.5">
+          <Badge tone={tone} icon={icon}>
+            {label}
+          </Badge>
+          {c.status === "ready" && c.lowConfidence.length > 0 && (
+            <button
+              type="button"
+              onClick={onEdit}
+              className="cvb-badge cvb-badge-warning cursor-pointer hover:underline"
+            >
+              <Icon name="alert-triangle" size={14} />
+              {c.lowConfidence.length} to check
+            </button>
+          )}
+        </span>
+      </td>
+      <td>
+        {c.status === "ready" && (
+          <Checkbox
+            label="Hide contacts"
+            className="whitespace-nowrap text-sm"
+            checked={c.hideContacts}
+            disabled={!canManage}
+            onChange={(e) => update.mutate({ hideContacts: e.target.checked })}
+          />
+        )}
+      </td>
+      <td>
+        <span className="flex items-center justify-end gap-1">
+          {c.status === "ready" && (
+            <>
+              <Button variant="ghost" size="sm" onClick={onEdit}>
+                {canManage ? "Review" : "View"}
+              </Button>
+              <IconButton
+                tooltip={false}
+                icon="download"
+                size="sm"
+                label={`Download ${c.name || c.fileName} as PDF`}
+                onClick={() => void exportCandidatePdf(c, org)}
+              />
+            </>
+          )}
+          {canManage && (
+            <IconButton
+              tooltip={false}
+              icon="trash"
+              size="sm"
+              label={`Delete ${c.name || c.fileName}`}
+              onClick={() => window.confirm("Delete this candidate?") && remove.mutate()}
+            />
+          )}
+        </span>
+      </td>
+    </tr>
   );
 }
 
@@ -212,13 +318,26 @@ const PERSONAL = [
   ["linkedin", "LinkedIn"],
 ] as const;
 
-function CandidateEditor({ org, candidate, canManage, onClose, onChanged }: { org: OrgDto; candidate: CandidateDto; canManage: boolean; onClose: () => void; onChanged: () => void }) {
+function CandidateEditor({
+  org,
+  candidate,
+  canManage,
+  onClose,
+  onChanged,
+}: {
+  org: OrgDto;
+  candidate: CandidateDto;
+  canManage: boolean;
+  onClose: () => void;
+  onChanged: () => void;
+}) {
   const [cv, setCv] = useState(() => candidateCv({ ...candidate, hideContacts: false }));
   const [templateId, setTemplateId] = useState(candidate.templateId ?? org.defaultTemplateId ?? "classic");
   const [hide, setHide] = useState(candidate.hideContacts);
   const flagged = new Set(candidate.lowConfidence.map((f) => f.path));
   const save = useMutation({
-    mutationFn: (clearFlags: boolean) => api.patch(`/orgs/${org.id}/candidates/${candidate.id}`, { data: cv, templateId, hideContacts: hide, clearFlags }),
+    mutationFn: (clearFlags: boolean) =>
+      api.patch(`/orgs/${org.id}/candidates/${candidate.id}`, { data: cv, templateId, hideContacts: hide, clearFlags }),
     onSuccess: () => {
       onChanged();
       onClose();
@@ -227,102 +346,116 @@ function CandidateEditor({ org, candidate, canManage, onClose, onChanged }: { or
   const preview = { ...candidate, data: cv, templateId, hideContacts: hide };
 
   return (
-    <Dialog
+    <Drawer
       open
       onClose={onClose}
       title={candidate.name || candidate.fileName}
       description="Check the highlighted fields, then save. The preview shows what your client receives."
-      size="lg"
       footer={
         canManage ? (
-          <div className="flex flex-wrap justify-end gap-2">
-            <button type="button" className={btn.ghost} onClick={onClose}>
+          <>
+            <Button variant="ghost" onClick={onClose}>
               Cancel
-            </button>
-            <button type="button" className={btn.secondary} disabled={save.isPending} onClick={() => save.mutate(false)}>
-              Save
-            </button>
-            <button type="button" className={btn.primary} disabled={save.isPending} onClick={() => save.mutate(true)}>
-              Save and mark checked
-            </button>
-          </div>
+            </Button>
+            <span className="flex flex-wrap justify-end gap-2">
+              <Button disabled={save.isPending} onClick={() => save.mutate(false)}>
+                Save
+              </Button>
+              <Button variant="primary" disabled={save.isPending} onClick={() => save.mutate(true)}>
+                Save and mark checked
+              </Button>
+            </span>
+          </>
         ) : undefined
       }
     >
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-5">
         {candidate.lowConfidence.length > 0 && (
-          <div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900 ring-1 ring-amber-200" data-testid="low-confidence">
-            <p className="font-semibold">The reader wasn&apos;t sure about:</p>
-            <ul className="mt-1 list-disc ps-5">
-              {candidate.lowConfidence.map((f) => (
-                <li key={f.path}>
-                  {f.label}: {f.reason.toLowerCase()}
-                </li>
-              ))}
-            </ul>
+          <div data-testid="low-confidence">
+            <Alert tone="warning" title="The reader wasn't sure about:">
+              <ul className="list-disc ps-5">
+                {candidate.lowConfidence.map((f) => (
+                  <li key={f.path}>
+                    {f.label}: {f.reason.toLowerCase()}
+                  </li>
+                ))}
+              </ul>
+            </Alert>
           </div>
         )}
-        <fieldset disabled={!canManage} className="grid gap-3 sm:grid-cols-2">
+        <fieldset disabled={!canManage} className="grid gap-4 sm:grid-cols-2">
           {PERSONAL.map(([key, title]) => (
-            <div key={key}>
-              <label className={label} htmlFor={`c-${key}`}>
-                {title}
-              </label>
-              <input
-                id={`c-${key}`}
-                className={`${field} ${flagged.has(`personal.${key}`) ? "ring-amber-400" : ""}`}
-                value={cv.personal[key]}
-                onChange={(e) => setCv({ ...cv, personal: { ...cv.personal, [key]: e.target.value } })}
-              />
-            </div>
+            <TextField
+              key={key}
+              id={`c-${key}`}
+              label={title}
+              hint={flagged.has(`personal.${key}`) ? <Check /> : undefined}
+              value={cv.personal[key]}
+              onChange={(e) => setCv({ ...cv, personal: { ...cv.personal, [key]: e.target.value } })}
+            />
           ))}
-          <div className="sm:col-span-2">
-            <label className={label} htmlFor="c-summary">
-              Summary
-            </label>
-            <textarea id="c-summary" rows={3} className={field} value={cv.summary} onChange={(e) => setCv({ ...cv, summary: e.target.value })} />
-          </div>
+          <TextArea
+            id="c-summary"
+            label="Summary"
+            className="sm:col-span-2"
+            rows={3}
+            value={cv.summary}
+            onChange={(e) => setCv({ ...cv, summary: e.target.value })}
+          />
           {cv.experience.map((e, i) => (
-            <div key={e.id} className="grid gap-2 rounded-xl p-3 ring-1 ring-stone-200 sm:col-span-2 sm:grid-cols-3">
+            <div key={e.id} className="grid gap-2 rounded-md border border-line p-3 sm:col-span-2">
+              <span className="cvb-overline">Job {i + 1}</span>
               {(["role", "company", "date"] as const).map((k) => (
-                <input
+                <TextField
                   key={k}
                   aria-label={`Job ${i + 1} ${k}`}
                   placeholder={k === "date" ? "Dates" : k === "role" ? "Job title" : "Company"}
-                  className={`${field} ${flagged.has(`experience.${i}.${k}`) ? "ring-amber-400" : ""}`}
+                  hint={flagged.has(`experience.${i}.${k}`) ? <Check /> : undefined}
                   value={e[k]}
-                  onChange={(ev) => setCv({ ...cv, experience: cv.experience.map((x, j) => (j === i ? { ...x, [k]: ev.target.value } : x)) })}
+                  onChange={(ev) =>
+                    setCv({
+                      ...cv,
+                      experience: cv.experience.map((x, j) => (j === i ? { ...x, [k]: ev.target.value } : x)),
+                    })
+                  }
                 />
               ))}
             </div>
           ))}
-          <div>
-            <label className={label} htmlFor="c-template">
-              Template
-            </label>
-            <select id="c-template" className={field} value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
-              {TEMPLATES.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <label className="flex items-end gap-2 pb-2 text-sm text-stone-700">
-            <input type="checkbox" className="size-4 accent-brand" checked={hide} onChange={(e) => setHide(e.target.checked)} /> Hide contact details from clients
-          </label>
+          <Select
+            id="c-template"
+            label="Template"
+            value={templateId}
+            onChange={(e) => setTemplateId(e.target.value)}
+            options={TEMPLATES.map((t) => ({ value: t.id, label: t.name }))}
+          />
+          <Checkbox
+            label="Hide contact details from clients"
+            className="self-end pb-2"
+            checked={hide}
+            onChange={(e) => setHide(e.target.checked)}
+          />
         </fieldset>
-        <div className="overflow-hidden rounded-xl bg-stone-100 p-3 ring-1 ring-stone-200" aria-label="Preview">
-          <div className="relative mx-auto h-[420px] w-[297px] overflow-hidden bg-white shadow-sm">
-            <div className="absolute left-0 top-0 w-[210mm] origin-top-left scale-[0.375]">
+        <div className="rounded-lg border border-line bg-canvas p-3" aria-label="Preview">
+          <div dir="ltr" className="relative mx-auto h-[420px] w-[297px] overflow-hidden bg-paper shadow-sm">
+            <div className="absolute start-0 top-0 w-[210mm] origin-top-left scale-[0.375]">
               <div className="paper" data-size="a4">
                 <CVDocument cv={candidateCv(preview)} template={candidateTemplate(preview, org)} brand={brandOf(org)} />
               </div>
             </div>
           </div>
         </div>
-        {save.error && <p className="text-sm text-red-600">{save.error.message}</p>}
+        {save.error && <Alert tone="danger">{save.error.message}</Alert>}
       </div>
-    </Dialog>
+    </Drawer>
+  );
+}
+
+/** Marks a field the reader wasn't sure of, with an icon and a word as well as colour. */
+function Check() {
+  return (
+    <span className="flex items-center gap-1 text-warning">
+      <Icon name="alert-triangle" size={14} /> Check this
+    </span>
   );
 }

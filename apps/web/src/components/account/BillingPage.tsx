@@ -2,17 +2,22 @@
 
 import type { RedirectDto } from "@cvb/contracts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { track } from "@/lib/analytics";
 import { api } from "@/lib/api";
 import { PLAN_LABEL, PLAN_POINTS } from "@/lib/plans";
 import { keys, useBillingStatus } from "@/lib/queries";
-import { btn } from "../ui/styles";
+import { Alert, Button, Icon, KeyValue, ProgressBar, Skeleton } from "@cvb/ui";
+import { useCredits } from "@/lib/ai";
 import { AccountLayout, Section } from "./AccountLayout";
 
-const SOURCE = { base: "", subscription: "through your subscription", pass: "with a Job-Hunt Pass", organization: "through your organisation" } as const;
+const SOURCE = {
+  base: "",
+  subscription: "through your subscription",
+  pass: "with a Job-Hunt Pass",
+  organization: "through your organisation",
+} as const;
 
 export function BillingPage() {
   return <AccountLayout title="Account">{() => <Billing />}</AccountLayout>;
@@ -45,53 +50,119 @@ function Billing() {
   }, [success, qc]);
 
   const s = status.data;
+  const sub = s?.subscription;
   return (
     <>
       {success && (
-        <div className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-900 ring-1 ring-emerald-200">
-          Thank you! Your payment went through. A receipt is on its way to your inbox.
-        </div>
+        <Alert tone="success" title="Thank you. Your payment went through.">
+          A receipt is on its way to your inbox.
+        </Alert>
       )}
-      <Section title="Your plan">
-        {!s ? (
-          <p className="text-sm text-stone-500">Loading…</p>
-        ) : (
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-baseline gap-2">
-              <span className="text-2xl font-semibold text-stone-900">{PLAN_LABEL[s.plan]}</span>
-              {SOURCE[s.source] && <span className="text-sm text-stone-500">{SOURCE[s.source]}</span>}
-            </div>
-            <ul className="grid gap-1.5 text-sm text-stone-700 sm:grid-cols-2">
-              {PLAN_POINTS[s.plan].map((p) => (
-                <li key={p}>• {p}</li>
-              ))}
-            </ul>
-            {s.subscription && (
-              <p className="text-sm text-stone-600">
-                {PLAN_LABEL[s.subscription.plan]} subscription, {s.subscription.status.replace("_", " ")}.{" "}
-                {s.subscription.cancelAtPeriodEnd ? "Ends" : "Renews"} on {new Date(s.subscription.currentPeriodEnd).toLocaleDateString()}.
-                {s.subscription.status === "past_due" && " Your last payment failed; we'll retry it. Please update your card."}
-              </p>
-            )}
-            {s.pass && (
-              <p className="text-sm text-stone-600">
-                {PLAN_LABEL[s.pass.plan]} pass until {new Date(s.pass.endsAt).toLocaleString()}.
-              </p>
-            )}
-            <div className="flex flex-wrap gap-2">
-              <Link href="/pricing" className={btn.primary}>
-                {s.plan === "free" ? "See plans" : "Change plan or buy a pass"}
-              </Link>
+      <Section
+        title="Your plan"
+        footer={
+          s && (
+            <>
               {s.canManage && (
-                <button type="button" className={btn.secondary} disabled={portal.isPending} onClick={() => portal.mutate()}>
+                <Button icon="credit" loading={portal.isPending} onClick={() => portal.mutate()}>
                   Manage billing, invoices and card
-                </button>
+                </Button>
               )}
+              <Button variant="primary" href="/pricing">
+                {s.plan === "free" ? "See plans" : "Change plan or buy a pass"}
+              </Button>
+            </>
+          )
+        }
+      >
+        {!s ? (
+          <div className="flex flex-col gap-3" role="status" aria-label="Loading">
+            <Skeleton width="40%" height={28} />
+            <Skeleton width="70%" />
+            <Skeleton width="60%" />
+          </div>
+        ) : (
+          <div className="flex flex-col gap-5">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="font-display text-[28px]/[34px] font-bold tracking-tight text-ink">
+                {PLAN_LABEL[s.plan]}
+              </span>
+              {SOURCE[s.source] && <span className="text-ink-3">{SOURCE[s.source]}</span>}
             </div>
-            {portal.error && <p className="text-sm text-red-600">{portal.error.message}</p>}
+            {(sub || s.pass) && (
+              <KeyValue
+                items={[
+                  ...(sub
+                    ? [
+                        { label: "Subscription", value: `${PLAN_LABEL[sub.plan]}, ${sub.status.replace("_", " ")}` },
+                        {
+                          label: sub.cancelAtPeriodEnd ? "Ends on" : "Renews on",
+                          value: new Date(sub.currentPeriodEnd).toLocaleDateString(),
+                        },
+                      ]
+                    : []),
+                  ...(s.pass
+                    ? [
+                        {
+                          label: "Pass",
+                          value: `${PLAN_LABEL[s.pass.plan]} pass until ${new Date(s.pass.endsAt).toLocaleString()}`,
+                        },
+                      ]
+                    : []),
+                ]}
+              />
+            )}
+            {sub?.status === "past_due" && (
+              <Alert tone="warning">Your last payment failed; we&apos;ll retry it. Please update your card.</Alert>
+            )}
+            <div className="flex flex-col gap-2">
+              <span className="cvb-overline">What&apos;s included</span>
+              <ul className="cvb-pricing-list grid gap-2 sm:grid-cols-2">
+                {PLAN_POINTS[s.plan].map((p) => (
+                  <li key={p}>
+                    <Icon name="check" size={16} /> {p}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {portal.error && <Alert tone="danger">{portal.error.message}</Alert>}
           </div>
         )}
       </Section>
+      <Credits />
     </>
+  );
+}
+
+/** This month's AI credits: the allowance used so far and any bought packs. */
+function Credits() {
+  const credits = useCredits(true);
+  const c = credits.data;
+  if (!c) return null;
+  return (
+    <Section
+      title="AI credits"
+      description="Used for AI writing, tailoring and interview feedback."
+      actions={
+        <Button variant="link" size="sm" iconEnd="arrow-right" href="/pricing#credits">
+          Buy credits
+        </Button>
+      }
+    >
+      <ProgressBar
+        value={c.usedThisMonth}
+        max={c.allowance}
+        tone={c.remaining === 0 ? "warning" : "brand"}
+        label="Used this month"
+        valueLabel={<bdi>{`${c.usedThisMonth} of ${c.allowance}`}</bdi>}
+      />
+      <KeyValue
+        items={[
+          { label: "Left", value: <span className="cvb-num">{c.remaining}</span> },
+          { label: "Bought packs", value: <span className="cvb-num">{c.purchasedLeft}</span> },
+          { label: "Resets on", value: new Date(c.resetsAt).toLocaleDateString() },
+        ]}
+      />
+    </Section>
   );
 }

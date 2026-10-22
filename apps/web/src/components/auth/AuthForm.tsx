@@ -7,7 +7,7 @@ import { useState, type FormEvent } from "react";
 import { authClient } from "@/lib/auth-client";
 import { safeNext } from "@/lib/next-url";
 import { keys, useAuthProviders } from "@/lib/queries";
-import { btn, field, label } from "../ui/styles";
+import { Alert, Button, SegmentedControl, TextField } from "@cvb/ui";
 import { AuthShell } from "./AuthShell";
 
 type Mode = "sign-in" | "sign-up";
@@ -67,10 +67,17 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
   if (sent) {
     return (
-      <AuthShell title="Check your email" subtitle={<>We sent a sign-in link to <strong>{email}</strong>. It works for 5 minutes.</>}>
-        <button type="button" className={`${btn.secondary} w-full`} onClick={() => setSent(false)}>
+      <AuthShell
+        title="Check your email"
+        subtitle={
+          <>
+            We sent a sign-in link to <strong dir="ltr">{email}</strong>. It works for 5 minutes.
+          </>
+        }
+      >
+        <Button block onClick={() => setSent(false)}>
           Use a different email
-        </button>
+        </Button>
       </AuthShell>
     );
   }
@@ -80,122 +87,121 @@ export function AuthForm({ mode }: { mode: Mode }) {
   return (
     <AuthShell
       title={signUp ? "Create your account" : "Welcome back"}
-      subtitle={signUp ? "Keep your CVs safe and open them on any device. The CV you started here comes with you." : "Sign in to your CVs."}
+      subtitle={
+        signUp
+          ? "Keep your CVs safe and open them on any device. The CV you started here comes with you."
+          : "Sign in to your CVs."
+      }
       footer={
         signUp ? (
           <>
             Already have an account?{" "}
-            <Link href={`/sign-in${query}`} className="font-medium text-brand hover:underline">
+            <Link href={`/sign-in${query}`} className="font-medium text-brand-ink hover:underline">
               Sign in
             </Link>
           </>
         ) : (
           <>
             New here?{" "}
-            <Link href={`/sign-up${query}`} className="font-medium text-brand hover:underline">
+            <Link href={`/sign-up${query}`} className="font-medium text-brand-ink hover:underline">
               Create an account
             </Link>
           </>
         )
       }
     >
-      {hasSocial && (
-        <div className="mb-5 flex flex-col gap-2">
-          {providers.data?.google && (
-            <button type="button" className={`${btn.secondary} w-full`} onClick={() => void social("google")}>
-              <GoogleMark /> Continue with Google
-            </button>
-          )}
-          {providers.data?.linkedin && (
-            <button type="button" className={`${btn.secondary} w-full`} onClick={() => void social("linkedin")}>
-              <LinkedInMark /> Continue with LinkedIn
-            </button>
-          )}
-          {providers.data?.microsoft && (
-            <button type="button" className={`${btn.secondary} w-full`} onClick={() => void social("microsoft")}>
-              <MicrosoftMark /> Continue with Microsoft
-            </button>
-          )}
-          <div className="my-2 flex items-center gap-3 text-xs text-stone-400">
-            <span className="h-px flex-1 bg-stone-200" /> or with email <span className="h-px flex-1 bg-stone-200" />
-          </div>
-        </div>
-      )}
-
-      <div role="tablist" aria-label="Sign-in method" className="mb-4 grid grid-cols-2 rounded-lg bg-stone-100 p-0.5 text-[13px]">
-        {(
-          [
-            ["password", "Password"],
-            ["link", "Email me a link"],
-          ] as const
-        ).map(([m, text]) => (
-          <button
-            key={m}
-            type="button"
-            role="tab"
-            aria-selected={method === m}
-            onClick={() => setMethod(m)}
-            className={`rounded-md py-1.5 font-medium ${method === m ? "bg-white text-stone-900 shadow-sm" : "text-stone-500"}`}
-          >
-            {text}
-          </button>
-        ))}
-      </div>
-
-      <form onSubmit={submit} className="flex flex-col gap-4">
-        {signUp && method === "password" && (
-          <div>
-            <label className={label} htmlFor="name">
-              Your name
-            </label>
-            <input id="name" className={field} autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
+      <div className="flex flex-col gap-5">
+        {hasSocial && (
+          <div className="flex flex-col gap-2">
+            {providers.data?.google && (
+              <Button block onClick={() => void social("google")}>
+                <GoogleMark /> Continue with Google
+              </Button>
+            )}
+            {providers.data?.linkedin && (
+              <Button block onClick={() => void social("linkedin")}>
+                <LinkedInMark /> Continue with LinkedIn
+              </Button>
+            )}
+            {providers.data?.microsoft && (
+              <Button block onClick={() => void social("microsoft")}>
+                <MicrosoftMark /> Continue with Microsoft
+              </Button>
+            )}
+            <div className="mt-3 flex items-center gap-3 text-xs text-ink-3">
+              <span className="h-px flex-1 bg-line" /> or with email <span className="h-px flex-1 bg-line" />
+            </div>
           </div>
         )}
-        <div>
-          <label className={label} htmlFor="email">
-            Email
-          </label>
-          <input id="email" type="email" required className={field} autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        </div>
-        {method === "password" && (
-          <div>
-            <div className="flex items-baseline justify-between">
-              <label className={label} htmlFor="password">
-                Password
-              </label>
+
+        <SegmentedControl
+          block
+          label="Sign-in method"
+          value={method}
+          onChange={setMethod}
+          options={[
+            { value: "password", label: "Password" },
+            { value: "link", label: "Email me a link" },
+          ]}
+        />
+
+        <form onSubmit={submit} className="flex flex-col gap-4">
+          {signUp && method === "password" && (
+            <TextField
+              id="name"
+              label="Your name"
+              autoComplete="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          )}
+          <TextField
+            id="email"
+            type="email"
+            label="Email"
+            required
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          {method === "password" && (
+            <div className="flex flex-col gap-1.5">
+              <TextField
+                id="password"
+                type="password"
+                label="Password"
+                hint={signUp ? "At least 8 characters." : undefined}
+                required
+                minLength={8}
+                autoComplete={signUp ? "new-password" : "current-password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
               {!signUp && (
-                <Link href="/forgot-password" className="text-xs font-medium text-brand hover:underline">
+                <Link
+                  href="/forgot-password"
+                  className="self-end text-[13px] font-medium text-brand-ink hover:underline"
+                >
                   Forgot password?
                 </Link>
               )}
             </div>
-            <input
-              id="password"
-              type="password"
-              required
-              minLength={8}
-              className={field}
-              autoComplete={signUp ? "new-password" : "current-password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            {signUp && <p className="mt-1 text-xs text-stone-500">At least 8 characters.</p>}
-          </div>
-        )}
-        {error && (
-          <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200">
-            {error}
-          </p>
-        )}
-        <button type="submit" className={`${btn.primary} w-full py-2.5`} disabled={pending}>
-          {pending ? "Please wait…" : method === "link" ? "Send me a sign-in link" : signUp ? "Create account" : "Sign in"}
-        </button>
-        {signUp && (
-          <p className="text-center text-xs text-stone-500">
-            By creating an account you agree to our terms and privacy policy.
-          </p>
-        )}
-      </form>
+          )}
+          {error && <Alert tone="danger">{error}</Alert>}
+          <Button type="submit" variant="primary" size="lg" block loading={pending}>
+            {pending
+              ? "Please wait…"
+              : method === "link"
+                ? "Send me a sign-in link"
+                : signUp
+                  ? "Create account"
+                  : "Sign in"}
+          </Button>
+          {signUp && (
+            <p className="cvb-caption text-center">By creating an account you agree to our terms and privacy policy.</p>
+          )}
+        </form>
+      </div>
     </AuthShell>
   );
 }
@@ -203,10 +209,19 @@ export function AuthForm({ mode }: { mode: Mode }) {
 function GoogleMark() {
   return (
     <svg viewBox="0 0 18 18" className="size-4" aria-hidden="true">
-      <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62Z" />
-      <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18Z" />
+      <path
+        fill="#4285F4"
+        d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62Z"
+      />
+      <path
+        fill="#34A853"
+        d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18Z"
+      />
       <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33Z" />
-      <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58Z" />
+      <path
+        fill="#EA4335"
+        d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58Z"
+      />
     </svg>
   );
 }
@@ -215,7 +230,10 @@ function LinkedInMark() {
   return (
     <svg viewBox="0 0 18 18" className="size-4" aria-hidden="true">
       <rect width="18" height="18" rx="3" fill="#0A66C2" />
-      <path fill="#fff" d="M5.2 7.1h-2v6.6h2V7.1Zm-1-3.2a1.15 1.15 0 1 0 0 2.3 1.15 1.15 0 0 0 0-2.3Zm9.6 5.6c0-1.8-1-2.6-2.3-2.6-1 0-1.6.6-1.9 1v-.8H7.6v6.6h2V10.4c0-.9.2-1.7 1.2-1.7s1 .9 1 1.7v3.3h2V9.5Z" />
+      <path
+        fill="#fff"
+        d="M5.2 7.1h-2v6.6h2V7.1Zm-1-3.2a1.15 1.15 0 1 0 0 2.3 1.15 1.15 0 0 0 0-2.3Zm9.6 5.6c0-1.8-1-2.6-2.3-2.6-1 0-1.6.6-1.9 1v-.8H7.6v6.6h2V10.4c0-.9.2-1.7 1.2-1.7s1 .9 1 1.7v3.3h2V9.5Z"
+      />
     </svg>
   );
 }
@@ -230,4 +248,3 @@ function MicrosoftMark() {
     </svg>
   );
 }
-

@@ -8,8 +8,8 @@ import { useMemo, useState, type FormEvent } from "react";
 import { api } from "@/lib/api";
 import { useResumes } from "@/lib/queries";
 import { money, serviceKeys, turnaround, useCatalog } from "@/lib/services";
+import { Alert, Badge, Button, Icon, RadioGroup, Select, Spinner, TextArea, TextField } from "@cvb/ui";
 import { Dialog } from "../ui/Dialog";
-import { btn, field, label } from "../ui/styles";
 
 type Props = {
   open: boolean;
@@ -30,38 +30,65 @@ export function BookDialog({ open, onClose, expert, initialKind, initialResumeId
   const [kind, setKind] = useState<ServiceKind | "">(initialKind ?? "");
   const info = kinds.find((k) => k.kind === kind) ?? kinds[0];
   return (
-    <Dialog open={open} onClose={onClose} title={expert ? `Book ${expert.displayName}` : "Order an expert service"} size="lg">
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title={expert ? `Book ${expert.displayName}` : "Order an expert service"}
+      size="lg"
+    >
       {!info ? (
-        <p className="py-6 text-center text-sm text-stone-500">Loading…</p>
+        <div className="grid place-items-center py-6">
+          <Spinner />
+        </div>
       ) : (
-        <>
-          <div className="mb-4">
-            <label className={label} htmlFor="book-kind">
-              Service
-            </label>
-            <select id="book-kind" className={field} value={info.kind} onChange={(e) => setKind(e.target.value as ServiceKind)}>
-              {kinds.map((k) => (
-                <option key={k.kind} value={k.kind}>
-                  {k.name} — {k.kind === "coaching" ? "from " + money(5900) : money(k.priceCents)}
-                </option>
-              ))}
-            </select>
-            <p className="mt-1 text-xs text-stone-500">
-              {info.description} {info.turnaroundHours !== null && `Delivered within ${turnaround(info.turnaroundHours)}.`}
-              {info.revisions > 0 && ` Includes ${info.revisions} revision round${info.revisions > 1 ? "s" : ""}.`}
-            </p>
-          </div>
-          <BookForm key={info.kind} info={info} expert={expert ?? null} initialResumeId={initialResumeId} onClose={onClose} />
-        </>
+        <div className="flex flex-col gap-4">
+          <Select
+            id="book-kind"
+            label="Service"
+            value={info.kind}
+            onChange={(e) => setKind(e.target.value as ServiceKind)}
+            hint={
+              <>
+                {info.description}{" "}
+                {info.turnaroundHours !== null && `Delivered within ${turnaround(info.turnaroundHours)}.`}
+                {info.revisions > 0 && ` Includes ${info.revisions} revision round${info.revisions > 1 ? "s" : ""}.`}
+              </>
+            }
+            options={kinds.map((k) => ({
+              value: k.kind,
+              label: `${k.name} — ${k.kind === "coaching" ? "from " + money(5900) : money(k.priceCents)}`,
+            }))}
+          />
+          <BookForm
+            key={info.kind}
+            info={info}
+            expert={expert ?? null}
+            initialResumeId={initialResumeId}
+            onClose={onClose}
+          />
+        </div>
       )}
     </Dialog>
   );
 }
 
-function BookForm({ info, expert, initialResumeId, onClose }: { info: ServiceInfoDto; expert: ExpertDto | null; initialResumeId?: string; onClose: () => void }) {
+function BookForm({
+  info,
+  expert,
+  initialResumeId,
+  onClose,
+}: {
+  info: ServiceInfoDto;
+  expert: ExpertDto | null;
+  initialResumeId?: string;
+  onClose: () => void;
+}) {
   const router = useRouter();
   const resumes = useResumes(info.needsResume);
-  const included = useQuery({ queryKey: serviceKeys.included, queryFn: () => api.get<{ available: boolean }>("/services/included") });
+  const included = useQuery({
+    queryKey: serviceKeys.included,
+    queryFn: () => api.get<{ available: boolean }>("/services/included"),
+  });
   const [resumeId, setResumeId] = useState(initialResumeId ?? "");
   const [intake, setIntake] = useState<Record<string, string>>({});
   const [duration, setDuration] = useState<45 | 60>(60);
@@ -111,53 +138,72 @@ function BookForm({ info, expert, initialResumeId, onClose }: { info: ServiceInf
   return (
     <form onSubmit={submit} className="flex flex-col gap-4">
       {info.needsResume && (
-        <div>
-          <label className={label} htmlFor="book-cv">
-            CV
-          </label>
-          <select id="book-cv" className={field} value={chosenResume} onChange={(e) => setResumeId(e.target.value)} required>
-            {resumes.data?.items.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.title}
-              </option>
-            ))}
-          </select>
-          {resumes.data && resumes.data.items.length === 0 && <p className="mt-1 text-xs text-red-600">Create a CV first.</p>}
-        </div>
+        <Select
+          id="book-cv"
+          label="CV"
+          value={chosenResume}
+          onChange={(e) => setResumeId(e.target.value)}
+          required
+          error={resumes.data && resumes.data.items.length === 0 ? "Create a CV first." : undefined}
+          options={resumes.data?.items.map((r) => ({ value: r.id, label: r.title })) ?? []}
+        />
       )}
-      {info.intake.map((q) => (
-        <div key={q.key}>
-          <label className={label} htmlFor={`intake-${q.key}`}>
-            {q.label}
-            {!q.required && <span className="font-normal text-stone-400"> (optional)</span>}
-          </label>
-          {q.long ? (
-            <textarea id={`intake-${q.key}`} rows={3} className={field} required={q.required} value={intake[q.key] ?? ""} maxLength={4000} onChange={(e) => setIntake({ ...intake, [q.key]: e.target.value })} />
-          ) : (
-            <input id={`intake-${q.key}`} className={field} required={q.required} value={intake[q.key] ?? ""} maxLength={4000} onChange={(e) => setIntake({ ...intake, [q.key]: e.target.value })} />
-          )}
-        </div>
-      ))}
+      {info.intake.map((q) =>
+        q.long ? (
+          <TextArea
+            key={q.key}
+            id={`intake-${q.key}`}
+            label={q.label}
+            optional={!q.required}
+            rows={3}
+            required={q.required}
+            value={intake[q.key] ?? ""}
+            maxLength={4000}
+            onChange={(e) => setIntake({ ...intake, [q.key]: e.target.value })}
+          />
+        ) : (
+          <TextField
+            key={q.key}
+            id={`intake-${q.key}`}
+            label={q.label}
+            optional={!q.required}
+            required={q.required}
+            value={intake[q.key] ?? ""}
+            maxLength={4000}
+            onChange={(e) => setIntake({ ...intake, [q.key]: e.target.value })}
+          />
+        ),
+      )}
       {info.kind === "coaching" && expert && (
-        <fieldset>
-          <legend className={label}>Session</legend>
-          <div className="mb-3 flex gap-4 text-sm text-stone-700">
-            {([45, 60] as const).map((d) => (
-              <label key={d} className="flex items-center gap-1.5">
-                <input type="radio" name="duration" className="accent-brand" checked={duration === d} onChange={() => (setDuration(d), setSlot(""))} />
-                {d} minutes · {money(d === 45 ? 5900 : 7900)}
-              </label>
-            ))}
-          </div>
+        <div className="flex flex-col gap-3">
+          <RadioGroup<"45" | "60">
+            legend="Session"
+            name="duration"
+            orientation="horizontal"
+            value={String(duration) as "45" | "60"}
+            onChange={(v) => (setDuration(Number(v) as 45 | 60), setSlot(""))}
+            options={([45, 60] as const).map((d) => ({
+              value: String(d) as "45" | "60",
+              label: <bdi>{`${d} minutes · ${money(d === 45 ? 5900 : 7900)}`}</bdi>,
+            }))}
+          />
           {slots.isLoading ? (
-            <p className="text-sm text-stone-500">Loading times…</p>
+            <p className="flex items-center gap-2 text-sm text-ink-3">
+              <Spinner /> Loading times…
+            </p>
           ) : byDay.length === 0 ? (
-            <p className="text-sm text-stone-500">No free times in the next two weeks. Message us or choose another coach.</p>
+            <p className="text-sm text-ink-3">
+              No free times in the next two weeks. Message us or choose another coach.
+            </p>
           ) : (
-            <div className="flex max-h-64 flex-col gap-3 overflow-y-auto" role="radiogroup" aria-label="Start time">
+            <div
+              className="flex max-h-64 flex-col gap-3 overflow-y-auto rounded-md border border-line p-3"
+              role="radiogroup"
+              aria-label="Start time"
+            >
               {byDay.map(([day, times]) => (
-                <div key={day}>
-                  <div className="mb-1 text-xs font-semibold text-stone-500">{day}</div>
+                <div key={day} className="flex flex-col gap-1.5">
+                  <div className="cvb-overline">{day}</div>
                   <div className="flex flex-wrap gap-1.5">
                     {times.map((t) => (
                       <button
@@ -166,9 +212,10 @@ function BookForm({ info, expert, initialResumeId, onClose }: { info: ServiceInf
                         role="radio"
                         aria-checked={slot === t}
                         onClick={() => setSlot(t)}
-                        className={`rounded-lg px-2.5 py-1 text-xs font-medium ring-1 ${slot === t ? "bg-stone-900 text-white ring-stone-900" : "bg-white text-stone-700 ring-stone-200 hover:ring-stone-300"}`}
+                        className="cvb-chip cvb-num aria-checked:border-brand aria-checked:bg-brand-soft aria-checked:text-ink"
                       >
-                        {new Date(t).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+                        {slot === t && <Icon name="check" size={16} />}
+                        <bdi>{new Date(t).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</bdi>
                       </button>
                     ))}
                   </div>
@@ -176,22 +223,31 @@ function BookForm({ info, expert, initialResumeId, onClose }: { info: ServiceInf
               ))}
             </div>
           )}
-          <p className="mt-2 text-xs text-stone-500">Times are in your time zone. You&apos;ll get a video call link and a calendar invite.</p>
-        </fieldset>
-      )}
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <div className="flex items-center justify-between gap-3 border-t border-stone-100 pt-4">
-        <div className="text-sm">
-          {free ? (
-            <span className="font-semibold text-emerald-700">Included in your plan this month</span>
-          ) : (
-            <span className="font-semibold text-stone-900">{money(price)}</span>
-          )}
-          {!expert && <span className="block text-xs text-stone-500">We&apos;ll match you with the first available expert.</span>}
+          <p className="cvb-caption">
+            Times are in your time zone. You&apos;ll get a video call link and a calendar invite.
+          </p>
         </div>
-        <button type="submit" className={btn.primary} disabled={busy || (info.kind === "coaching" && !slot) || (info.needsResume && !chosenResume)}>
+      )}
+      {error && <Alert tone="danger">{error}</Alert>}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+        <div className="flex flex-col gap-0.5">
+          {free ? (
+            <Badge tone="success" icon="check">
+              Included in your plan this month
+            </Badge>
+          ) : (
+            <span className="cvb-price">{money(price)}</span>
+          )}
+          {!expert && <span className="cvb-caption">We&apos;ll match you with the first available expert.</span>}
+        </div>
+        <Button
+          type="submit"
+          variant="primary"
+          loading={busy}
+          disabled={(info.kind === "coaching" && !slot) || (info.needsResume && !chosenResume)}
+        >
           {busy ? "Placing order…" : free ? "Place order" : "Continue to payment"}
-        </button>
+        </Button>
       </div>
     </form>
   );

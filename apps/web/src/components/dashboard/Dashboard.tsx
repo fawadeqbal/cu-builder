@@ -9,7 +9,20 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { CopyIcon, MoreIcon, PencilIcon, PlusIcon, TrashIcon, UploadIcon } from "@cvb/ui";
+import {
+  Alert,
+  Button,
+  Dropdown,
+  EmptyState,
+  FileDrop,
+  Icon,
+  IconButton,
+  PageHeader,
+  Skeleton,
+  TextField,
+  Toast,
+  type MenuItem,
+} from "@cvb/ui";
 import { track } from "@/lib/analytics";
 import { api, isApiError } from "@/lib/api";
 import { authClient } from "@/lib/auth-client";
@@ -19,7 +32,6 @@ import { paperSizeAttr } from "@/lib/page";
 import { PLAN_LABEL, type Gate } from "@/lib/plans";
 import { keys, useImports, useResume, useResumes, useTrash } from "@/lib/queries";
 import { UpgradeDialog } from "../UpgradeDialog";
-import { btn, card } from "../ui/styles";
 import { useT } from "@/lib/i18n";
 
 /** "My CVs": every CV in the account, imports in progress, and the trash. */
@@ -95,68 +107,84 @@ export function Dashboard({ me }: { me: MeDto }) {
     upload.mutate(file);
   }
 
-  const recentImports = (imports.data ?? []).filter((i) => openedAt - new Date(i.createdAt).getTime() < 24 * 3600 * 1000).slice(0, 4);
+  const recentImports = (imports.data ?? [])
+    .filter((i) => openedAt - new Date(i.createdAt).getTime() < 24 * 3600 * 1000)
+    .slice(0, 4);
   const wantsImport = params.get("import") === "1";
 
+  const visible = list.filter((r) => !r.baseResumeId || !list.some((b) => b.id === r.baseResumeId));
+
   return (
-    <main className="mx-auto max-w-6xl px-4 pb-20 pt-8 sm:px-6">
+    <main className="mx-auto flex w-full max-w-(--layout-lg) flex-col gap-6 px-4 pb-20 pt-10 sm:px-6">
+      <PageHeader
+        title={t("dash.title")}
+        description={
+          <>
+            {list.length} {list.length === 1 ? "CV" : "CVs"}
+            {limit !== null && (
+              <>
+                {" "}
+                · your {PLAN_LABEL[me.plan]} plan keeps {limit}
+              </>
+            )}
+          </>
+        }
+        actions={
+          <>
+            <Button icon="upload" loading={upload.isPending} onClick={() => fileRef.current?.click()}>
+              {upload.isPending ? t("dash.uploading") : t("dash.upload")}
+            </Button>
+            <Button
+              variant="primary"
+              icon="plus"
+              disabled={create.isPending}
+              onClick={() => (atLimit ? setGate({ kind: "feature", feature: "resume.multiple" }) : create.mutate())}
+            >
+              New CV
+            </Button>
+          </>
+        }
+      />
+      <input
+        ref={fileRef}
+        type="file"
+        className="hidden"
+        accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        onChange={(e) => {
+          pickFile(e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
+
       {!me.emailVerified && <VerifyBanner email={me.email} />}
       {migration === "blocked" && (
-        <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200">
-          <span className="flex-1">
-            You have a CV in this browser too, but the {PLAN_LABEL[me.plan]} plan keeps one CV. Upgrade to keep both, or discard the browser copy.
-          </span>
-          <Link href="/pricing?plan=standard" className="font-semibold hover:underline">
-            Upgrade
-          </Link>
-          <button
-            type="button"
-            className="font-semibold hover:underline"
-            onClick={() => {
-              discardGuestCv();
-              setMigration("idle");
-            }}
-          >
-            Discard browser copy
-          </button>
-        </div>
+        <Alert
+          tone="warning"
+          actions={
+            <>
+              <Button size="sm" variant="highlight" icon="sparkle" href="/pricing?plan=standard">
+                Upgrade
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  discardGuestCv();
+                  setMigration("idle");
+                }}
+              >
+                Discard browser copy
+              </Button>
+            </>
+          }
+        >
+          You have a CV in this browser too, but the {PLAN_LABEL[me.plan]} plan keeps one CV. Upgrade to keep both, or
+          discard the browser copy.
+        </Alert>
       )}
 
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-stone-900">{t("dash.title")}</h1>
-          <p className="mt-1 text-sm text-stone-600">
-            {list.length} {list.length === 1 ? "CV" : "CVs"}
-            {limit !== null && <> · your {PLAN_LABEL[me.plan]} plan keeps {limit}</>}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button type="button" className={btn.secondary} disabled={upload.isPending} onClick={() => fileRef.current?.click()}>
-            <UploadIcon className="size-4" /> {upload.isPending ? t("dash.uploading") : t("dash.upload")}
-          </button>
-          <button
-            type="button"
-            className={btn.primary}
-            disabled={create.isPending}
-            onClick={() => (atLimit ? setGate({ kind: "feature", feature: "resume.multiple" }) : create.mutate())}
-          >
-            <PlusIcon className="size-4" /> New CV
-          </button>
-        </div>
-        <input
-          ref={fileRef}
-          type="file"
-          className="hidden"
-          accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-          onChange={(e) => {
-            pickFile(e.target.files?.[0]);
-            e.target.value = "";
-          }}
-        />
-      </div>
-
       {recentImports.length > 0 && (
-        <section className="mt-6 flex flex-col gap-2">
+        <section className="flex flex-col gap-2">
           {recentImports.map((i) => (
             <ImportRow key={i.id} item={i} />
           ))}
@@ -164,38 +192,63 @@ export function Dashboard({ me }: { me: MeDto }) {
       )}
 
       {resumes.isLoading ? (
-        <p className="py-16 text-center text-sm text-stone-500">{t("dash.loading")}</p>
+        <div
+          className="grid gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4"
+          role="status"
+          aria-label={t("dash.loading")}
+        >
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="cvb-card flex flex-col gap-3 overflow-hidden pb-4">
+              <Skeleton height={224} shape="block" className="rounded-none" />
+              <div className="flex flex-col gap-2 px-4">
+                <Skeleton width="70%" height={14} />
+                <Skeleton width="45%" height={10} />
+              </div>
+            </div>
+          ))}
+        </div>
       ) : list.length === 0 ? (
-        <EmptyState onCreate={() => create.mutate()} onUpload={() => fileRef.current?.click()} highlightUpload={wantsImport} onDrop={pickFile} />
+        <EmptyCvs onCreate={() => create.mutate()} highlightUpload={wantsImport} onDrop={pickFile} />
       ) : (
-        <ul className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {list
-            .filter((r) => !r.baseResumeId || !list.some((b) => b.id === r.baseResumeId))
-            .map((r) => (
-              <ResumeCard
-                key={r.id}
-                resume={r}
-                copies={list.filter((c) => c.baseResumeId === r.id)}
-                onChanged={refresh}
-                onError={onPlanError}
-                onNotice={setNotice}
-              />
-            ))}
-          {wantsImport && <DropZone onFile={pickFile} />}
+        <ul className="grid gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
+          {visible.map((r) => (
+            <ResumeCard
+              key={r.id}
+              resume={r}
+              copies={list.filter((c) => c.baseResumeId === r.id)}
+              onChanged={refresh}
+              onError={onPlanError}
+              onNotice={setNotice}
+            />
+          ))}
+          {wantsImport && (
+            <li className="flex">
+              <UploadDrop onFile={pickFile} className="flex-1 justify-center border-brand" />
+            </li>
+          )}
         </ul>
       )}
 
-      <section className="mt-12">
-        <button type="button" className="text-sm font-medium text-stone-500 hover:text-stone-800" onClick={() => setShowTrash((v) => !v)}>
+      <section className="mt-6 flex flex-col items-start gap-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          icon="trash"
+          iconEnd={showTrash ? "chevron-up" : "chevron-down"}
+          aria-expanded={showTrash}
+          onClick={() => setShowTrash((v) => !v)}
+        >
           {showTrash ? "Hide" : "Show"} trash
-        </button>
+        </Button>
         {showTrash && <Trash onRestored={refresh} onError={onPlanError} />}
       </section>
 
       <UpgradeDialog gate={gate} onClose={() => setGate(null)} />
       {notice && (
-        <div role="status" className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-md bg-stone-900 px-4 py-2 text-sm text-white shadow-lg">
-          {notice}
+        <div className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
+          <div className="pointer-events-auto">
+            <Toast>{notice}</Toast>
+          </div>
         </div>
       )}
     </main>
@@ -205,17 +258,25 @@ export function Dashboard({ me }: { me: MeDto }) {
 function VerifyBanner({ email }: { email: string }) {
   const [sent, setSent] = useState(false);
   return (
-    <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl bg-sky-50 px-4 py-3 text-sm text-sky-900 ring-1 ring-sky-200">
-      <span className="flex-1">Please confirm your email address, {email}, so you can recover your account.</span>
-      <button
-        type="button"
-        disabled={sent}
-        className="font-semibold hover:underline disabled:opacity-60"
-        onClick={() => void authClient.sendVerificationEmail({ email, callbackURL: "/app" }).then(() => setSent(true))}
-      >
-        {sent ? "Email sent" : "Resend email"}
-      </button>
-    </div>
+    <Alert
+      tone="info"
+      icon="mail"
+      actions={
+        <Button
+          size="sm"
+          variant="secondary"
+          icon={sent ? "check" : undefined}
+          disabled={sent}
+          onClick={() =>
+            void authClient.sendVerificationEmail({ email, callbackURL: "/app" }).then(() => setSent(true))
+          }
+        >
+          {sent ? "Email sent" : "Resend email"}
+        </Button>
+      }
+    >
+      Please confirm your email address, <span dir="ltr">{email}</span>, so you can recover your account.
+    </Alert>
   );
 }
 
@@ -236,7 +297,6 @@ function ResumeCard({
   const t = useT();
   const full = useResume(resume.id);
   const catalog = useCatalog();
-  const menu = useRef<HTMLDetailsElement>(null);
   const [renaming, setRenaming] = useState(false);
   const [title, setTitle] = useState(resume.title);
   const template = isTemplateId(resume.templateId) ? resume.templateId : "classic";
@@ -264,22 +324,41 @@ function ResumeCard({
     onError,
   });
 
-  const close = () => menu.current?.removeAttribute("open");
-  const item = "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-sm text-stone-700 hover:bg-stone-100";
+  const actions: MenuItem[] = [
+    {
+      label: "Rename",
+      icon: "edit",
+      onSelect: () => {
+        setTitle(resume.title);
+        setRenaming(true);
+      },
+    },
+    { label: "Duplicate", icon: "copy", onSelect: () => duplicate.mutate() },
+    "separator",
+    { label: "Delete", icon: "trash", danger: true, onSelect: () => remove.mutate() },
+  ];
 
   return (
-    <li className={`${card} group flex flex-col overflow-hidden transition hover:-translate-y-0.5 hover:shadow-lg`}>
-      <Link href={`/edit/${resume.id}`} className="relative block h-56 overflow-hidden border-b border-stone-100 bg-stone-100" aria-label={`Open ${resume.title}`}>
-        <div className="absolute left-1/2 top-4 w-[210mm] origin-top -translate-x-1/2 scale-[0.3] shadow-md">
-          {full.data && (
-            <div className="paper" data-size={paperSizeAttr(resume.pageSize)}>
-              <CVDocument cv={normalizeCV(full.data.data)} template={template} accent={resume.accent} />
-            </div>
-          )}
+    <li className="cvb-card flex flex-col transition-[border-color,box-shadow] hover:border-line-strong hover:shadow-sm">
+      {/* The sheet is a picture of the CV: its own links stay out of reach, and one link on top opens the editor. */}
+      <div className="relative h-56 overflow-hidden rounded-t-lg border-b border-line bg-surface-3">
+        <div className="pointer-events-none absolute inset-x-0 top-4 flex justify-center" aria-hidden="true" inert>
+          <div className="w-[210mm] shrink-0 origin-top scale-[0.3] shadow-md">
+            {full.data && (
+              <div className="paper" data-size={paperSizeAttr(resume.pageSize)}>
+                <CVDocument cv={normalizeCV(full.data.data)} template={template} accent={resume.accent} />
+              </div>
+            )}
+          </div>
         </div>
-      </Link>
+        <Link
+          href={`/edit/${resume.id}`}
+          className="absolute inset-0 rounded-t-lg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
+          aria-label={`Open ${resume.title}`}
+        />
+      </div>
       <div className="flex items-start gap-2 p-4">
-        <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           {renaming ? (
             <form
               onSubmit={(e) => {
@@ -288,50 +367,56 @@ function ResumeCard({
                 if (title.trim() && title.trim() !== resume.title) rename.mutate(title.trim());
               }}
             >
-              <input
+              <TextField
+                size="sm"
+                inputClassName="py-1"
                 autoFocus
                 aria-label="CV name"
                 value={title}
                 maxLength={120}
                 onChange={(e) => setTitle(e.target.value)}
                 onBlur={(e) => e.currentTarget.form?.requestSubmit()}
-                className="w-full rounded px-1 text-[15px] font-semibold outline-none ring-2 ring-brand"
               />
             </form>
           ) : (
-            <Link href={`/edit/${resume.id}`} className="block truncate text-[15px] font-semibold text-stone-900 hover:text-brand">
+            <Link
+              href={`/edit/${resume.id}`}
+              className="cvb-h3 block truncate text-ink hover:text-brand-ink hover:underline"
+            >
               {resume.title}
             </Link>
           )}
-          <p className="mt-0.5 truncate text-xs text-stone-500">
+          <p className="cvb-caption truncate">
             {meta.name} · {resume.pageSize === "LETTER" ? "Letter" : "A4"} · edited {timeAgo(resume.updatedAt)}
           </p>
         </div>
-        <details ref={menu} className="relative [&_summary::-webkit-details-marker]:hidden">
-          <summary aria-label="CV actions" className="grid size-8 cursor-pointer list-none place-items-center rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-700">
-            <MoreIcon className="size-5" />
-          </summary>
-          <div className="absolute end-0 z-20 mt-1 w-44 rounded-xl border border-stone-200 bg-white p-1 shadow-xl">
-            <button type="button" className={item} onClick={() => { close(); setTitle(resume.title); setRenaming(true); }}>
-              <PencilIcon className="size-4" /> Rename
-            </button>
-            <button type="button" className={item} onClick={() => { close(); duplicate.mutate(); }}>
-              <CopyIcon className="size-4" /> Duplicate
-            </button>
-            <button type="button" className={`${item} !text-red-600`} onClick={() => { close(); remove.mutate(); }}>
-              <TrashIcon className="size-4" /> Delete
-            </button>
-          </div>
-        </details>
+        <Dropdown
+          label="CV actions"
+          items={actions}
+          trigger={(p) => (
+            <IconButton
+              icon="more"
+              label="CV actions"
+              tooltip={false}
+              onClick={p.toggle}
+              aria-expanded={p["aria-expanded"]}
+              aria-haspopup="menu"
+            />
+          )}
+        />
       </div>
       {copies.length > 0 && (
-        <div className="border-t border-stone-100 px-4 py-3">
-          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-stone-400">{t("dash.tailored")}</div>
+        <div className="flex flex-col gap-1.5 border-t border-line px-4 py-3">
+          <div className="cvb-overline">{t("dash.tailored")}</div>
           <ul className="flex flex-col gap-1">
             {copies.map((c) => (
               <li key={c.id}>
-                <Link href={`/edit/${c.id}`} className="block truncate text-sm text-stone-700 hover:text-brand">
-                  ↳ {c.title}
+                <Link
+                  href={`/edit/${c.id}`}
+                  className="flex items-center gap-1.5 text-sm text-ink-2 hover:text-brand-ink hover:underline"
+                >
+                  <Icon name="file" size={16} className="shrink-0 text-ink-3" />
+                  <span className="truncate">{c.title}</span>
                 </Link>
               </li>
             ))}
@@ -345,68 +430,74 @@ function ResumeCard({
 function ImportRow({ item }: { item: ResumeImportDto }) {
   const working = item.status === "queued" || item.status === "processing";
   return (
-    <div className={`${card} flex flex-wrap items-center gap-3 px-4 py-3 text-sm`}>
-      <span className={`size-2 rounded-full ${working ? "animate-pulse bg-amber-400" : item.status === "done" ? "bg-emerald-500" : "bg-red-500"}`} />
+    <div className="cvb-card flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
+      {working ? (
+        <span className="cvb-spinner" aria-hidden="true" />
+      ) : item.status === "done" ? (
+        <Icon name="check-circle" size={18} className="text-success" />
+      ) : (
+        <Icon name="x-circle" size={18} className="text-danger" />
+      )}
       <span className="min-w-0 flex-1 truncate">
-        <strong className="font-semibold text-stone-800">{item.fileName}</strong>{" "}
-        <span className="text-stone-500">
-          {working ? "· reading your CV…" : item.status === "done" ? `· ready${item.warnings.length ? `, ${item.warnings.length} things to check` : ""}` : `· ${item.error ?? "couldn't be read"}`}
+        <strong className="font-semibold text-ink">{item.fileName}</strong>{" "}
+        <span className="text-ink-3">
+          {working
+            ? "· reading your CV…"
+            : item.status === "done"
+              ? `· ready${item.warnings.length ? `, ${item.warnings.length} things to check` : ""}`
+              : `· ${item.error ?? "couldn't be read"}`}
         </span>
       </span>
       {item.status === "done" && item.resumeId && (
-        <Link href={`/edit/${item.resumeId}?import=${item.id}`} className="font-semibold text-brand hover:underline">
-          Review and edit →
-        </Link>
+        <Button variant="link" size="sm" iconEnd="arrow-right" href={`/edit/${item.resumeId}?import=${item.id}`}>
+          Review and edit
+        </Button>
       )}
     </div>
   );
 }
 
-function EmptyState({ onCreate, onUpload, onDrop, highlightUpload }: { onCreate: () => void; onUpload: () => void; onDrop: (f: File | undefined) => void; highlightUpload: boolean }) {
+function EmptyCvs({
+  onCreate,
+  onDrop,
+  highlightUpload,
+}: {
+  onCreate: () => void;
+  onDrop: (f: File | undefined) => void;
+  highlightUpload: boolean;
+}) {
   const t = useT();
   return (
-    <div className="mt-8 grid gap-4 sm:grid-cols-2">
-      <button type="button" onClick={onCreate} className={`${card} flex flex-col items-start gap-2 p-6 text-start transition hover:shadow-md`}>
-        <span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand">
-          <PlusIcon className="size-5" />
-        </span>
-        <span className="text-base font-semibold text-stone-900">{t("dash.newCv")}</span>
-        <span className="text-sm text-stone-600">{t("dash.newCvDesc")}</span>
-      </button>
-      <DropZone onFile={onDrop} onClick={onUpload} highlight={highlightUpload} big />
+    <div className="grid gap-4 sm:grid-cols-2 sm:gap-6">
+      <div className="cvb-card flex flex-col justify-center">
+        <EmptyState
+          icon="file"
+          title={t("dash.newCv")}
+          actions={
+            <Button icon="plus" onClick={onCreate}>
+              New CV
+            </Button>
+          }
+        >
+          {t("dash.newCvDesc")}
+        </EmptyState>
+      </div>
+      <UploadDrop onFile={onDrop} className={highlightUpload ? "border-brand" : undefined} />
     </div>
   );
 }
 
-function DropZone({ onFile, onClick, highlight = true, big = false }: { onFile: (f: File | undefined) => void; onClick?: () => void; highlight?: boolean; big?: boolean }) {
-  const [over, setOver] = useState(false);
+function UploadDrop({ onFile, className }: { onFile: (f: File | undefined) => void; className?: string }) {
   const t = useT();
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onClick}
-      onKeyDown={(e) => e.key === "Enter" && onClick?.()}
-      onDragOver={(e) => {
-        e.preventDefault();
-        setOver(true);
-      }}
-      onDragLeave={() => setOver(false)}
-      onDrop={(e) => {
-        e.preventDefault();
-        setOver(false);
-        onFile(e.dataTransfer.files[0]);
-      }}
-      className={`flex cursor-pointer flex-col items-start gap-2 rounded-2xl border-2 border-dashed p-6 text-start transition ${
-        over ? "border-brand bg-brand/5" : highlight ? "border-brand/40 bg-white" : "border-stone-300 bg-white"
-      } ${big ? "" : "min-h-56 justify-center"}`}
-    >
-      <span className="grid size-10 place-items-center rounded-xl bg-stone-100 text-stone-700">
-        <UploadIcon className="size-5" />
-      </span>
-      <span className="text-base font-semibold text-stone-900">{t("dash.uploadCv")}</span>
-      <span className="text-sm text-stone-600">{t("dash.uploadCvDesc")}</span>
-    </div>
+    <FileDrop
+      className={className}
+      title={t("dash.uploadCv")}
+      hint={t("dash.uploadCvDesc")}
+      button={t("dash.upload")}
+      accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      onFiles={(files) => onFile(files[0])}
+    />
   );
 }
 
@@ -424,17 +515,17 @@ function Trash({ onRestored, onError }: { onRestored: () => void; onError: (e: E
   });
   const items = trash.data ?? [];
   return (
-    <div className={`${card} mt-3 divide-y divide-stone-100`}>
+    <div className="cvb-card w-full divide-y divide-line">
       {items.length === 0 ? (
-        <p className="px-4 py-6 text-center text-sm text-stone-500">{t("dash.trashEmpty")}</p>
+        <p className="px-4 py-6 text-center text-sm text-ink-3">{t("dash.trashEmpty")}</p>
       ) : (
         items.map((r) => (
-          <div key={r.id} className="flex items-center gap-3 px-4 py-3 text-sm">
-            <span className="min-w-0 flex-1 truncate font-medium text-stone-800">{r.title}</span>
-            <span className="text-xs text-stone-500">deleted {timeAgo(r.updatedAt)}</span>
-            <button type="button" className={btn.ghost} onClick={() => restore.mutate(r.id)}>
+          <div key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm">
+            <span className="min-w-0 flex-1 truncate font-medium text-ink">{r.title}</span>
+            <span className="cvb-caption">deleted {timeAgo(r.updatedAt)}</span>
+            <Button variant="ghost" size="sm" icon="undo" onClick={() => restore.mutate(r.id)}>
               Restore
-            </button>
+            </Button>
           </div>
         ))
       )}

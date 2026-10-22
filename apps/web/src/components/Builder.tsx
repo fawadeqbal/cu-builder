@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { atsReport, can, cvToText, emptyCV, normalizeCV, sampleCV, type CV } from "@cvb/domain";
 import type { TemplateId } from "@cvb/templates/catalog";
 import { CVDocument } from "@cvb/templates";
-import { BriefcaseIcon, CloudIcon, DownloadIcon, EditorIcon, HistoryIcon, LockIcon, MoreIcon, PreviewIcon, ShareIcon, SparkIcon, TemplatesIcon } from "@cvb/ui";
+import { Alert, Badge, Button, CloudIcon, Dropdown, HistoryIcon, Icon, IconButton, LogoMark, SegmentedControl, Toast } from "@cvb/ui";
 import { hasFeature, isUnlocked, usePlan } from "@/lib/access";
 import { AiAssistContext, useCredits, type AiAssist } from "@/lib/ai";
 import { track } from "@/lib/analytics";
@@ -22,7 +22,6 @@ import type { Gate } from "@/lib/plans";
 import { PLAN_LABEL, planForGate } from "@/lib/plans";
 import { STEPS, type StepId } from "@/lib/steps";
 import { AtsPanel } from "./ats/AtsPanel";
-import { ScoreRing } from "./ats/ScoreRing";
 import { HistoryDialog } from "./HistoryDialog";
 import { MatchDialog } from "./jobs/MatchDialog";
 import { Dialog } from "./ui/Dialog";
@@ -81,7 +80,6 @@ export default function Builder({ doc, cloud, banner }: Props) {
   /** A template the plan doesn't include, shown in the preview only until the user upgrades. */
   const [trial, setTrial] = useState<TemplateId | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const menuRef = useRef<HTMLDetailsElement>(null);
   const isDesktop = useIsDesktop();
 
   // Once the plan covers the template being tried (say, after an upgrade in another tab), it is simply the template.
@@ -109,7 +107,6 @@ export default function Builder({ doc, cloud, banner }: Props) {
 
   const setCV = (cv: CV) => update({ cv });
   const setAccent = (accent: string | null) => update({ accent });
-  const closeMenu = () => menuRef.current?.removeAttribute("open");
 
   function setTemplate(id: TemplateId) {
     track("template_selected", { template: id });
@@ -182,7 +179,6 @@ export default function Builder({ doc, cloud, banner }: Props) {
   const locked: ExportFormat[] = hasFeature(plan, "export.docx") ? [] : ["docx", "txt"];
 
   async function exportAs(format: ExportFormat) {
-    closeMenu();
     if (busy) return;
     const slug = fileSlug(state.cv);
     const name = state.cv.personal.name.trim();
@@ -275,21 +271,26 @@ export default function Builder({ doc, cloud, banner }: Props) {
     />
   );
 
+  // Bottom centre on phones (above the floating buttons), bottom inline-end on desktop.
   const toast = toastState && (
-    <div role="status" className="no-print fixed bottom-20 left-1/2 z-[70] flex -translate-x-1/2 items-center gap-3 rounded-md bg-stone-900 px-4 py-2 text-sm text-white shadow-lg lg:bottom-6">
-      {toastState.text}
-      {toastState.undo && (
-        <button
-          type="button"
-          className="font-semibold text-sky-300 hover:underline"
-          onClick={() => {
-            toastState.undo?.();
-            setToast(null);
-          }}
+    <div className="no-print pointer-events-none fixed inset-x-0 bottom-20 z-[var(--z-toast)] flex justify-center px-4 lg:bottom-6 lg:justify-end lg:px-6">
+      <div className="pointer-events-auto">
+        <Toast
+          action={
+            toastState.undo
+              ? {
+                  label: "Undo",
+                  onClick: () => {
+                    toastState.undo?.();
+                    setToast(null);
+                  },
+                }
+              : undefined
+          }
         >
-          Undo
-        </button>
-      )}
+          {toastState.text}
+        </Toast>
+      </div>
     </div>
   );
 
@@ -311,24 +312,27 @@ export default function Builder({ doc, cloud, banner }: Props) {
     );
   }
 
-  const menuItem = "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-sm text-stone-700 hover:bg-stone-100";
+  const menuItem = "cvb-menu-item w-full";
   const title = cloud?.title ?? (state.cv.personal.name.trim() ? `${state.cv.personal.name.trim()}'s CV` : "Untitled CV");
   const share = () => (cloud && hasFeature(plan, "share.link") ? setSharing(true) : setGate({ kind: "feature", feature: "share.link" }));
+  const atsTone = report.score >= 80 ? "success" : report.score >= 50 ? "brand" : "warning";
 
   return (
     <AiAssistContext.Provider value={assist}>
-      <div className="no-print flex h-dvh flex-col bg-stone-100">
-        <header className="relative z-40 grid h-14 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-stone-200 bg-white px-3 sm:px-4">
+      <div className="no-print flex h-dvh flex-col bg-canvas">
+        {/* The editor's own app bar: the blue band in light, with the CV's name, the view switch and its actions. */}
+        <header className="cvb-appbar relative grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 px-3 sm:px-4">
           <div className="flex min-w-0 items-center gap-2.5">
             <Link
               href={signedIn ? "/app" : "/"}
               title={signedIn ? t("nav.myCvs") : "CV Builder"}
-              className="grid size-8 shrink-0 place-items-center rounded-lg bg-brand text-[11px] font-bold tracking-wide text-white shadow-sm shadow-brand/30"
+              aria-label={signedIn ? t("nav.myCvs") : "CV Builder"}
+              className="grid size-9 shrink-0 place-items-center rounded-md hover:bg-appbar-hover focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none"
             >
-              CV
+              <LogoMark size={28} />
             </Link>
             <div className="hidden min-w-0 flex-col leading-tight sm:flex">
-              {cloud ? <TitleField title={cloud.title} onRename={cloud.onRename} /> : <span className="truncate text-sm font-semibold text-stone-900">{title}</span>}
+              {cloud ? <TitleField title={cloud.title} onRename={cloud.onRename} /> : <span className="truncate text-sm font-semibold text-appbar-ink">{title}</span>}
               <SaveIndicator status={doc.status} conflict={doc.conflict} />
             </div>
           </div>
@@ -336,180 +340,201 @@ export default function Builder({ doc, cloud, banner }: Props) {
           <ViewSwitcher mode={mode} onMode={setMode} allowSplit={isDesktop} />
 
           <div className="flex items-center justify-end gap-1">
-            <Link
-              href={actions.templatesHref}
-              className="hidden items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-stone-600 transition hover:bg-stone-100 hover:text-stone-900 2xl:flex"
-            >
-              <TemplatesIcon className="size-4" /> Templates
-            </Link>
+            <Button variant="ghost" size="sm" icon="template" href={actions.templatesHref} className="hidden 2xl:inline-flex">
+              Templates
+            </Button>
             <button
               type="button"
               onClick={() => setAtsOpen(true)}
               title="ATS score: how well tracking systems read your CV"
-              className="hidden items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-stone-600 transition hover:bg-stone-100 hover:text-stone-900 lg:flex"
+              className="cvb-btn cvb-btn-ghost cvb-btn-sm hidden lg:inline-flex"
             >
-              <ScoreRing score={report.score} size={26} label="ATS score" /> ATS
+              ATS
+              <Badge tone={atsTone} pill className="cvb-num">
+                <span className="cvb-sr">score </span>
+                {report.score}
+              </Badge>
             </button>
-            <button
-              type="button"
-              onClick={() => setMatching(true)}
-              className="hidden items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-stone-600 transition hover:bg-stone-100 hover:text-stone-900 xl:flex"
-            >
-              <BriefcaseIcon className="size-4" /> Match job
-            </button>
-            <button
-              type="button"
-              onClick={share}
-              className="hidden items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-stone-600 transition hover:bg-stone-100 hover:text-stone-900 md:flex"
-            >
-              <ShareIcon className="size-4" /> Share
-            </button>
+            <Button variant="ghost" size="sm" icon="briefcase" onClick={() => setMatching(true)} className="hidden whitespace-nowrap xl:inline-flex">
+              Match job
+            </Button>
+            <Button variant="ghost" size="sm" icon="share" onClick={share} className="hidden md:inline-flex">
+              Share
+            </Button>
             {signedIn && credits.data && (
-              <Link
+              <Button
+                variant="ghost"
+                size="sm"
+                icon="sparkle"
                 href="/pricing#credits"
                 title={`${credits.data.remaining} AI credits left · resets ${new Date(credits.data.resetsAt).toLocaleDateString()}`}
-                className="hidden items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700 ring-1 ring-inset ring-violet-200 2xl:flex"
+                className="cvb-num hidden 2xl:inline-flex"
               >
-                <SparkIcon className="size-3.5" /> {credits.data.remaining}
-              </Link>
+                {credits.data.remaining}
+              </Button>
             )}
             {!signedIn && (
-              <Link
-                href="/sign-up?next=/app"
-                className="hidden items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-stone-600 transition hover:bg-stone-100 hover:text-stone-900 lg:flex"
-              >
+              <Button variant="ghost" size="sm" href="/sign-up?next=/app" className="hidden whitespace-nowrap lg:inline-flex">
                 <CloudIcon className="size-4" /> Save to account
-              </Link>
+              </Button>
             )}
             {!onFinish && (
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={templateLocked ? "lock" : "download"}
+                loading={busy === "pdf"}
                 onClick={() => void exportAs("pdf")}
-                disabled={busy === "pdf"}
-                aria-busy={busy === "pdf"}
-                className="hidden items-center gap-1.5 whitespace-nowrap rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-dark disabled:cursor-wait disabled:opacity-80 sm:flex"
+                className="hidden whitespace-nowrap sm:inline-flex"
               >
-                {busy === "pdf" ? <Spinner /> : templateLocked ? <LockIcon className="size-4" /> : <DownloadIcon className="size-4" />}
                 <span className="hidden xl:inline">{busy === "pdf" ? t("wizard.preparingPdf") : t("wizard.downloadPdf")}</span>
                 <span className="xl:hidden">PDF</span>
-              </button>
+              </Button>
             )}
-            <details ref={menuRef} className="relative [&_summary::-webkit-details-marker]:hidden">
-              <summary
-                aria-label="More actions"
-                title="More actions"
-                className="grid size-9 cursor-pointer list-none place-items-center rounded-lg text-stone-500 transition hover:bg-stone-100 hover:text-stone-900"
-              >
-                <MoreIcon className="size-5" />
-              </summary>
-              <div className="absolute end-0 z-40 mt-2 max-h-[80dvh] w-64 overflow-y-auto rounded-xl border border-stone-200 bg-white p-1 shadow-xl">
-                <MenuLabel>Download</MenuLabel>
-                {(["docx", "txt"] as const).map((f) => (
-                  <button key={f} type="button" className={menuItem} onClick={() => void exportAs(f)}>
-                    {f === "docx" ? "Word document (.docx)" : "Plain text (.txt)"}
-                    {locked.includes(f) && <LockIcon className="ms-auto size-3.5 text-stone-400" />}
-                  </button>
-                ))}
-                <button type="button" className={menuItem} onClick={() => { closeMenu(); printPdf(); }}>
-                  Print or save with the browser
-                </button>
-                <div className="flex items-center justify-between px-3 py-2 text-sm text-stone-700">
-                  Page size
-                  <div role="radiogroup" aria-label="Page size" className="flex rounded-md bg-stone-100 p-0.5 text-xs">
-                    {(Object.keys(PAGE_SIZES) as PageSize[]).map((size) => (
-                      <button
-                        key={size}
-                        type="button"
-                        role="radio"
-                        aria-checked={state.pageSize === size}
-                        onClick={() => update({ pageSize: size })}
-                        className={`rounded px-2 py-0.5 font-medium ${state.pageSize === size ? "bg-white text-stone-900 shadow-sm" : "text-stone-500"}`}
-                      >
-                        {size === "A4" ? "A4" : "Letter"}
+            <Dropdown
+              label="More actions"
+              trigger={({ toggle, ...aria }) => <IconButton icon="more" label="More actions" tooltip={false} title="More actions" onClick={toggle} {...aria} />}
+            >
+              {(close) => {
+                const run = (fn: () => void) => () => {
+                  close();
+                  fn();
+                };
+                return (
+                  <div className="cvb-menu max-h-[80dvh] w-64 overflow-y-auto" role="menu" aria-label="More actions">
+                    <MenuLabel>Download</MenuLabel>
+                    {(["docx", "txt"] as const).map((f) => (
+                      <button key={f} type="button" role="menuitem" className={menuItem} onClick={run(() => void exportAs(f))}>
+                        <Icon name="download" size={18} />
+                        <span className="cvb-menu-text">{f === "docx" ? "Word document (.docx)" : "Plain text (.txt)"}</span>
+                        {locked.includes(f) && <Icon name="lock" size={16} label="Needs an upgrade" />}
                       </button>
                     ))}
+                    <button type="button" role="menuitem" className={menuItem} onClick={run(printPdf)}>
+                      <Icon name="file" size={18} />
+                      <span className="cvb-menu-text">Print or save with the browser</span>
+                    </button>
+                    {/* The bar restyles segmented controls for the blue band; this one sits on the menu's surface. */}
+                    <div className="flex items-center justify-between gap-2 px-3 py-1.5 text-sm text-ink [&_.cvb-segmented]:bg-surface-3 [&_.cvb-segmented_button]:text-ink-3 [&_[aria-pressed=true]]:!bg-surface [&_[aria-pressed=true]]:!text-ink [&_[aria-pressed=true]]:!shadow-sm">
+                      Page size
+                      <SegmentedControl
+                        label="Page size"
+                        size="sm"
+                        value={state.pageSize}
+                        onChange={(pageSize: PageSize) => update({ pageSize })}
+                        options={(Object.keys(PAGE_SIZES) as PageSize[]).map((size) => ({ value: size, label: size === "A4" ? "A4" : "Letter" }))}
+                      />
+                    </div>
+                    <div className="cvb-menu-sep" role="separator" />
+                    <MenuLabel>CV</MenuLabel>
+                    <button type="button" role="menuitem" className={`${menuItem} md:hidden`} onClick={run(share)}>
+                      <Icon name="share" size={18} />
+                      <span className="cvb-menu-text">Share link</span>
+                    </button>
+                    <button type="button" role="menuitem" className={`${menuItem} xl:hidden`} onClick={run(() => setMatching(true))}>
+                      <Icon name="briefcase" size={18} />
+                      <span className="cvb-menu-text">Match to a job</span>
+                    </button>
+                    <Link href={actions.templatesHref} role="menuitem" className={`${menuItem} 2xl:hidden`} onClick={close}>
+                      <Icon name="template" size={18} />
+                      <span className="cvb-menu-text">All templates</span>
+                    </Link>
+                    <button type="button" role="menuitem" className={`${menuItem} lg:hidden`} onClick={run(() => setAtsOpen(true))}>
+                      <Icon name="target" size={18} />
+                      <span className="cvb-menu-text">ATS score: {report.score}</span>
+                    </button>
+                    {cloud && (
+                      <button type="button" role="menuitem" className={menuItem} onClick={run(() => setHistory(true))}>
+                        <HistoryIcon className="size-[18px] text-ink-3" />
+                        <span className="cvb-menu-text">Version history</span>
+                      </button>
+                    )}
+                    <button type="button" role="menuitem" className={menuItem} onClick={run(() => fileRef.current?.click())}>
+                      <Icon name="upload" size={18} />
+                      <span className="cvb-menu-text">Import backup (.json)</span>
+                    </button>
+                    <button type="button" role="menuitem" className={menuItem} onClick={run(() => void exportAs("json"))}>
+                      <Icon name="download" size={18} />
+                      <span className="cvb-menu-text">Save backup (.json)</span>
+                    </button>
+                    <button type="button" role="menuitem" className={menuItem} onClick={run(loadExample)}>
+                      <Icon name="files" size={18} />
+                      <span className="cvb-menu-text">Load example CV</span>
+                    </button>
+                    {isDesktop && (
+                      <>
+                        <div className="cvb-menu-sep" role="separator" />
+                        <MenuLabel>Layout</MenuLabel>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className={menuItem}
+                          onClick={run(() => setLayout((l) => ({ ...l, mode: "split", previewFirst: !l.previewFirst })))}
+                        >
+                          <Icon name="split" size={18} />
+                          <span className="cvb-menu-text">Put preview on the {layout.previewFirst ? "right" : "left"}</span>
+                        </button>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className={menuItem}
+                          onClick={run(() => setLayout((l) => ({ ...l, mode: "split", editorWidth: DEFAULT_EDITOR_WIDTH, zoom: "width" })))}
+                        >
+                          <Icon name="undo" size={18} />
+                          <span className="cvb-menu-text">Reset layout</span>
+                        </button>
+                      </>
+                    )}
+                    <div className="cvb-menu-sep" role="separator" />
+                    <button type="button" role="menuitem" data-danger="" className={menuItem} onClick={run(startOver)}>
+                      <Icon name="trash" size={18} />
+                      <span className="cvb-menu-text">{cloud ? "Clear this CV" : "Start over"}</span>
+                    </button>
                   </div>
-                </div>
-                <div className="mx-2 my-1 border-t border-stone-100" />
-                <MenuLabel>CV</MenuLabel>
-                <button type="button" className={`${menuItem} md:hidden`} onClick={() => { closeMenu(); share(); }}>
-                  <ShareIcon className="size-4" /> Share link
-                </button>
-                <button type="button" className={`${menuItem} xl:hidden`} onClick={() => { closeMenu(); setMatching(true); }}>
-                  <BriefcaseIcon className="size-4" /> Match to a job
-                </button>
-                <Link href={actions.templatesHref} className={`${menuItem} 2xl:hidden`} onClick={closeMenu}>
-                  <TemplatesIcon className="size-4" /> All templates
-                </Link>
-                <button type="button" className={`${menuItem} lg:hidden`} onClick={() => { closeMenu(); setAtsOpen(true); }}>
-                  ATS score: {report.score}
-                </button>
-                {cloud && (
-                  <button type="button" className={menuItem} onClick={() => { closeMenu(); setHistory(true); }}>
-                    <HistoryIcon className="size-4" /> Version history
-                  </button>
-                )}
-                <button type="button" className={menuItem} onClick={() => { closeMenu(); fileRef.current?.click(); }}>
-                  Import backup (.json)
-                </button>
-                <button type="button" className={menuItem} onClick={() => void exportAs("json")}>
-                  Save backup (.json)
-                </button>
-                <button type="button" className={menuItem} onClick={() => { closeMenu(); loadExample(); }}>
-                  Load example CV
-                </button>
-                {isDesktop && (
-                  <>
-                    <div className="mx-2 my-1 border-t border-stone-100" />
-                    <MenuLabel>Layout</MenuLabel>
-                    <button
-                      type="button"
-                      className={menuItem}
-                      onClick={() => { closeMenu(); setLayout((l) => ({ ...l, mode: "split", previewFirst: !l.previewFirst })); }}
-                    >
-                      Put preview on the {layout.previewFirst ? "right" : "left"}
-                    </button>
-                    <button
-                      type="button"
-                      className={menuItem}
-                      onClick={() => { closeMenu(); setLayout((l) => ({ ...l, mode: "split", editorWidth: DEFAULT_EDITOR_WIDTH, zoom: "width" })); }}
-                    >
-                      Reset layout
-                    </button>
-                  </>
-                )}
-                <div className="mx-2 my-1 border-t border-stone-100" />
-                <button type="button" className={`${menuItem} !text-red-600`} onClick={() => { closeMenu(); startOver(); }}>
-                  {cloud ? "Clear this CV" : "Start over"}
-                </button>
-              </div>
-            </details>
+                );
+              }}
+            </Dropdown>
           </div>
         </header>
 
         {doc.conflict && (
-          <div role="alert" className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">
-            <span className="flex-1">This CV was changed on another device while you were editing here.</span>
-            <button type="button" className="font-semibold underline-offset-2 hover:underline" onClick={() => doc.resolveConflict("theirs")}>
-              Load the newer version
-            </button>
-            <button type="button" className="font-semibold underline-offset-2 hover:underline" onClick={() => doc.resolveConflict("mine")}>
-              Keep mine
-            </button>
-          </div>
+          <Alert
+            tone="warning"
+            banner
+            className="border-b border-line px-4 sm:px-6"
+            actions={
+              <>
+                <Button variant="secondary" size="sm" onClick={() => doc.resolveConflict("theirs")}>
+                  Load the newer version
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => doc.resolveConflict("mine")}>
+                  Keep mine
+                </Button>
+              </>
+            }
+          >
+            This CV was changed on another device while you were editing here.
+          </Alert>
         )}
         {trying && (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-violet-200 bg-violet-50 px-4 py-2 text-sm text-violet-900">
-            <span className="flex-1">
-              You&apos;re previewing <strong>{templateMeta.name}</strong>, a {PLAN_LABEL[planForGate({ kind: "tier", tier: templateMeta.tier, name: "" })]} template.
-            </span>
-            <button type="button" className="font-semibold underline-offset-2 hover:underline" onClick={() => setGate({ kind: "tier", tier: templateMeta.tier, name: templateMeta.name })}>
-              Unlock it
-            </button>
-            <button type="button" className="font-semibold underline-offset-2 hover:underline" onClick={() => setTrial(null)}>
-              Back to {catalog.meta(state.template).name}
-            </button>
-          </div>
+          <Alert
+            tone="highlight"
+            banner
+            icon="lock"
+            className="border-b border-line px-4 sm:px-6"
+            actions={
+              <>
+                <Button variant="highlight" size="sm" icon="sparkle" onClick={() => setGate({ kind: "tier", tier: templateMeta.tier, name: templateMeta.name })}>
+                  Unlock it
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setTrial(null)}>
+                  Back to {catalog.meta(state.template).name}
+                </Button>
+              </>
+            }
+          >
+            You&apos;re previewing <strong>{templateMeta.name}</strong>, a {PLAN_LABEL[planForGate({ kind: "tier", tier: templateMeta.tier, name: "" })]} template.
+          </Alert>
         )}
         {banner}
 
@@ -557,25 +582,26 @@ export default function Builder({ doc, cloud, banner }: Props) {
 
         {isDesktop && mode === "editor" && <MiniPreview cv={state.cv} template={template} accent={state.accent} scale={state.fontScale} onOpen={() => setMode("split")} />}
 
-        {!isDesktop && (
-          <button
-            type="button"
-            onClick={mode === "preview" ? () => void exportAs("pdf") : () => setMode("preview")}
-            className={`fixed end-4 z-30 flex items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition ${
-              mode === "preview" ? "bottom-5 bg-brand" : "bottom-[76px] bg-stone-900"
-            }`}
-          >
-            {mode === "preview" ? (busy === "pdf" ? t("wizard.preparingPdf") : t("wizard.downloadPdf")) : (<><PreviewIcon className="size-4" /> {t("builder.preview")}</>)}
-          </button>
-        )}
+        {!isDesktop &&
+          (mode === "preview" ? (
+            <Button
+              variant="primary"
+              icon="download"
+              loading={busy === "pdf"}
+              onClick={() => void exportAs("pdf")}
+              className="fixed bottom-5 end-4 z-30 h-11 rounded-full shadow-lg"
+            >
+              {busy === "pdf" ? t("wizard.preparingPdf") : t("wizard.downloadPdf")}
+            </Button>
+          ) : (
+            <Button variant="secondary" icon="eye" onClick={() => setMode("preview")} className="fixed bottom-[76px] end-4 z-30 h-11 rounded-full shadow-lg">
+              {t("builder.preview")}
+            </Button>
+          ))}
         {!isDesktop && mode === "preview" && (
-          <button
-            type="button"
-            onClick={() => setMode("editor")}
-            className="fixed bottom-5 start-4 z-30 flex items-center gap-1.5 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 shadow-lg ring-1 ring-stone-900/10"
-          >
-            <EditorIcon className="size-4" /> Edit
-          </button>
+          <Button variant="secondary" icon="list" onClick={() => setMode("editor")} className="fixed bottom-5 start-4 z-30 h-11 rounded-full shadow-lg">
+            Edit
+          </Button>
         )}
       </div>
 
@@ -606,6 +632,7 @@ export default function Builder({ doc, cloud, banner }: Props) {
       />
       <Dialog open={atsOpen} onClose={() => setAtsOpen(false)} title="ATS score and report" size="lg">
         <AtsPanel
+          inDialog
           report={report}
           full={fullReport}
           onFix={(step) => {
@@ -640,24 +667,23 @@ export default function Builder({ doc, cloud, banner }: Props) {
 }
 
 function MenuLabel({ children }: { children: ReactNode }) {
-  return <div className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-stone-400">{children}</div>;
+  return <div className="cvb-overline cvb-menu-label">{children}</div>;
 }
 
-const STATUS: Record<SaveStatus, { text: MessageKey; dot: string }> = {
-  local: { text: "builder.saveLocal", dot: "bg-emerald-500" },
-  saving: { text: "builder.saving", dot: "bg-amber-400 animate-pulse" },
-  saved: { text: "builder.saved", dot: "bg-emerald-500" },
-  offline: { text: "builder.offline", dot: "bg-stone-400" },
-  error: { text: "builder.saveError", dot: "bg-red-500" },
+const STATUS: Record<SaveStatus, { text: MessageKey; icon: string; spin?: boolean }> = {
+  local: { text: "builder.saveLocal", icon: "check" },
+  saving: { text: "builder.saving", icon: "clock", spin: true },
+  saved: { text: "builder.saved", icon: "check" },
+  offline: { text: "builder.offline", icon: "x-circle" },
+  error: { text: "builder.saveError", icon: "alert-triangle" },
 };
 
 function SaveIndicator({ status, conflict }: { status: SaveStatus; conflict: boolean }) {
   const t = useT();
-  const k = conflict ? { text: "builder.conflict" as MessageKey, dot: "bg-amber-500" } : STATUS[status];
-  const s = { text: t(k.text), dot: k.dot };
+  const k = conflict ? { text: "builder.conflict" as MessageKey, icon: "alert-triangle", spin: false } : STATUS[status];
   return (
-    <span className="flex items-center gap-1.5 text-xs text-stone-500" aria-live="polite">
-      <span className={`size-1.5 rounded-full ${s.dot}`} /> {s.text}
+    <span className="flex items-center gap-1 text-xs text-appbar-ink-2" role="status" aria-live="polite">
+      <Icon name={k.icon} size={14} className={k.spin ? "motion-safe:animate-pulse" : undefined} /> {t(k.text)}
     </span>
   );
 }
@@ -675,7 +701,7 @@ function TitleField({ title, onRename }: { title: string; onRename: (t: string) 
           setValue(title);
           setEditing(true);
         }}
-        className="-mx-1 truncate rounded px-1 text-start text-sm font-semibold text-stone-900 hover:bg-stone-100"
+        className="-mx-1 truncate rounded-xs px-1 text-start text-sm font-semibold text-appbar-ink hover:bg-appbar-hover focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none"
       >
         {title}
       </button>
@@ -697,11 +723,7 @@ function TitleField({ title, onRename }: { title: string; onRename: (t: string) 
         if (e.key === "Enter") commit();
         if (e.key === "Escape") setEditing(false);
       }}
-      className="-mx-1 w-56 rounded px-1 text-sm font-semibold text-stone-900 outline-none ring-2 ring-brand"
+      className="-mx-1 w-56 rounded-xs bg-appbar-hover px-1 text-sm font-semibold text-appbar-ink outline-none ring-2 ring-appbar-ink"
     />
   );
-}
-
-function Spinner() {
-  return <span aria-hidden="true" className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />;
 }

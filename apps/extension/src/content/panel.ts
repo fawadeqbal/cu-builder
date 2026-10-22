@@ -3,25 +3,35 @@ import { planFill, setValue, type PlannedFill } from "./fill";
 
 const HOST_ID = "cvb-autofill-review";
 
+// Design-system tokens, inlined at build time with :root turned into :host (see build.mjs), so the
+// panel follows the page's light/dark preference without touching the page's own styles.
+declare const __TOKENS_CSS__: string | undefined;
+const TOKENS = typeof __TOKENS_CSS__ === "string" ? __TOKENS_CSS__ : "";
+
 const STYLE = `
+${TOKENS}
 :host { all: initial; }
-.panel { position: fixed; z-index: 2147483647; right: 16px; bottom: 16px; width: 340px; max-height: 70vh; display: flex; flex-direction: column;
-  background: #fff; color: #1c1917; border: 1px solid #e7e5e4; border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,.18);
-  font: 14px/1.4 Inter, "Segoe UI", system-ui, sans-serif; }
-header { padding: 12px 14px; border-bottom: 1px solid #f5f5f4; display: flex; gap: 8px; align-items: center; }
+.panel { position: fixed; z-index: 2147483647; inset-inline-end: 16px; inset-block-end: 16px; width: 340px; max-height: 70vh; display: flex; flex-direction: column;
+  background: var(--surface, #fafafa); color: var(--ink, #1a1a1a); border: 1px solid var(--line, #d6d6d6); border-radius: 16px; box-shadow: var(--shadow-lg, 0 12px 40px rgba(0,0,0,.18));
+  font: 14px/22px system-ui, "Segoe UI", sans-serif; }
+header { padding: 12px 14px; display: flex; gap: 8px; align-items: center; background: var(--appbar-bg, #004494); color: var(--appbar-ink, #fff); border-radius: 15px 15px 0 0; }
 header b { flex: 1; font-size: 14px; }
-.badge { background: #1e4b8f; color: #fff; font-weight: 700; font-size: 10px; padding: 4px 6px; border-radius: 5px; }
+.mark .page { fill: var(--appbar-ink, #fff); } .mark .fold { fill: var(--gold, #ffd617); } .mark .line { stroke: var(--appbar-bg, #004494); }
 ul { list-style: none; margin: 0; padding: 6px 8px; overflow: auto; }
-li label { display: flex; gap: 8px; padding: 6px; border-radius: 8px; cursor: pointer; }
-li label:hover { background: #fafaf9; }
-.k { font-size: 12px; color: #78716c; }
+li label { display: flex; gap: 10px; padding: 8px; border-radius: 8px; cursor: pointer; }
+li label:hover { background: var(--surface-2, #f2f2f2); }
+input[type="checkbox"] { width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--brand, #004494); }
+.k { font-size: 12px; line-height: 16px; color: var(--ink-3, #5c5c5c); }
 .v { font-weight: 600; word-break: break-all; }
-.was { font-size: 12px; color: #b45309; }
-footer { padding: 10px 14px; border-top: 1px solid #f5f5f4; display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
-footer small { flex: 1; color: #78716c; font-size: 12px; }
-button { font: inherit; font-weight: 600; border-radius: 8px; padding: 7px 12px; cursor: pointer; border: 1px solid #e7e5e4; background: #fff; color: #1c1917; }
-button.primary { background: #1e4b8f; border-color: #1e4b8f; color: #fff; }
-p { margin: 12px 14px; color: #57534e; }
+.was { font-size: 12px; line-height: 16px; color: var(--warning, #99480a); }
+footer { padding: 10px 14px; border-top: 1px solid var(--line, #d6d6d6); background: var(--surface-2, #f2f2f2); border-radius: 0 0 15px 15px; display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
+footer small { flex: 1; color: var(--ink-3, #5c5c5c); font-size: 12px; line-height: 16px; }
+button { font: 600 13px/18px system-ui, "Segoe UI", sans-serif; border-radius: 8px; min-height: 36px; padding: 0 14px; cursor: pointer; border: 1px solid var(--line-control, #707070); background: var(--surface, #fafafa); color: var(--ink, #1a1a1a); }
+button:hover { background: var(--surface-2, #f2f2f2); }
+button:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--surface, #fff), 0 0 0 4px var(--focus, #0b5bbf); }
+button.primary { background: var(--brand, #004494); border-color: var(--brand, #004494); color: var(--on-brand, #fff); }
+button.primary:hover { background: var(--brand-hover, #003776); }
+p { margin: 12px 14px; color: var(--ink-2, #404040); }
 `;
 
 /**
@@ -44,8 +54,9 @@ export function reviewFill(values: Partial<Record<FieldKind, string>>, doc: Docu
 
   const header = doc.createElement("header");
   const badge = doc.createElement("span");
-  badge.className = "badge";
-  badge.textContent = "CV";
+  badge.innerHTML =
+    '<svg class="mark" width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><path class="page" d="M8 3h12.5L27 9.5V26a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3z"/><path class="fold" d="M20.5 3L27 9.5h-4.5a2 2 0 0 1-2-2z"/><path class="line" d="M10 16h9M10 21h6" fill="none" stroke-width="2.2" stroke-linecap="round"/></svg>';
+  badge.style.display = "inline-flex";
   const title = doc.createElement("b");
   title.textContent = plan.length ? `Fill ${plan.length} field${plan.length === 1 ? "" : "s"}?` : "Nothing to fill";
   header.append(badge, title);

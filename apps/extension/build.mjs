@@ -1,6 +1,6 @@
 // Bundles the extension into dist/ (load it unpacked from there) and writes the icons.
 import { build } from "esbuild";
-import { copyFileSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { deflateSync } from "node:zlib";
@@ -9,6 +9,16 @@ const root = dirname(fileURLToPath(import.meta.url));
 const out = join(root, "dist");
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
+
+// The design system (packages/ui): tokens for the extension pages, and the same tokens scoped to
+// :host for the autofill panel's shadow root on job sites (light by default, dark by system).
+const ui = join(root, "../../packages/ui");
+const tokensCss = readFileSync(join(ui, "src/tokens.css"), "utf8");
+const hostTokens = tokensCss
+  .replace(/:root,\n\[data-theme="light"\]/, ":host")
+  .replace(/\[data-theme="dark"\] \{[^}]*\}/, "")
+  .replace(/:root:not\(\[data-theme="light"\]\)/g, ":host")
+  .replace(/:root \{/g, ":host {");
 
 await build({
   entryPoints: { popup: "src/popup.ts", options: "src/options.ts", background: "src/background.ts", content: "src/content/index.ts" },
@@ -20,11 +30,15 @@ await build({
   platform: "browser",
   legalComments: "none",
   logLevel: "warning",
+  define: { __TOKENS_CSS__: JSON.stringify(hostTokens) },
 });
 
 for (const f of readdirSync(join(root, "static"))) copyFileSync(join(root, "static", f), join(out, f));
+writeFileSync(join(out, "tokens.css"), tokensCss);
+mkdirSync(join(out, "fonts"));
+for (const f of readdirSync(join(ui, "fonts"))) copyFileSync(join(ui, "fonts", f), join(out, "fonts", f));
 
-// Icons: a brand-blue rounded square with a white "page" mark, drawn pixel by pixel into a PNG.
+// Icons: the Folio app icon (white page with a gold folded corner on EU blue), drawn pixel by pixel into a PNG.
 const crcTable = Array.from({ length: 256 }, (_, n) => {
   let c = n;
   for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
@@ -52,12 +66,22 @@ function icon(size) {
       const cx = Math.min(Math.max(x + 0.5, r), size - r);
       const cy = Math.min(Math.max(y + 0.5, r), size - r);
       const inside = Math.hypot(x + 0.5 - cx, y + 0.5 - cy) <= r;
-      const page = x >= size * 0.3 && x < size * 0.7 && y >= size * 0.22 && y < size * 0.78;
-      const line = page && (Math.floor((y - size * 0.34) / (size * 0.11)) % 2 === 0) && y >= size * 0.34 && y < size * 0.68 && x >= size * 0.37 && x < size * 0.63;
+      const px = (x + 0.5) / size;
+      const py = (y + 0.5) / size;
+      const page = px >= 0.28 && px < 0.72 && py >= 0.2 && py < 0.8;
+      // The folded corner: the page's top inline-end corner, cut on the diagonal and filled gold.
+      const foldSize = 0.13;
+      const inFoldBox = px >= 0.72 - foldSize && py < 0.2 + foldSize;
+      const fold = page && inFoldBox && (px - (0.72 - foldSize)) + (0.2 + foldSize - py) <= foldSize;
+      const cut = page && inFoldBox && !fold;
+      const line = page && !inFoldBox && px >= 0.36 && ((py >= 0.46 && py < 0.53 && px < 0.62) || (py >= 0.6 && py < 0.67 && px < 0.54));
+      const BLUE = [0, 68, 148, 255];
+      const GOLD = [255, 214, 23, 255];
       if (!inside) row.push(0, 0, 0, 0);
-      else if (line) row.push(30, 75, 143, 255);
+      else if (fold) row.push(...GOLD);
+      else if (cut || line) row.push(...BLUE);
       else if (page) row.push(255, 255, 255, 255);
-      else row.push(30, 75, 143, 255);
+      else row.push(...BLUE);
     }
     rows.push(Buffer.from(row));
   }

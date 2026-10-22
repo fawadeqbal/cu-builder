@@ -47,9 +47,15 @@ export function SplitView({ mode, editorWidth, previewFirst, onResize, onMode, e
   const clamp = (w: number) => Math.min(maxEditor, Math.max(MIN_EDITOR, w));
   const width = drag ? drag.width : clamp(editorWidth);
 
+  /** The editor's side on screen: the row mirrors in right-to-left, and "preview first" swaps it again. */
+  function editorOnLeft() {
+    const rtl = rootRef.current ? getComputedStyle(rootRef.current).direction === "rtl" : false;
+    return rtl ? previewFirst : !previewFirst;
+  }
+
   function widthAt(clientX: number): { width: number; hint: Hint } {
     const rect = rootRef.current!.getBoundingClientRect();
-    let raw = previewFirst ? rect.right - clientX : clientX - rect.left;
+    let raw = editorOnLeft() ? clientX - rect.left : rect.right - clientX;
     for (const target of [DEFAULT_EDITOR_WIDTH, rect.width / 2]) {
       if (Math.abs(raw - target) < SNAP) raw = target;
     }
@@ -79,7 +85,7 @@ export function SplitView({ mode, editorWidth, previewFirst, onResize, onMode, e
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
-    const dir = previewFirst ? -1 : 1;
+    const dir = editorOnLeft() ? 1 : -1;
     const step = e.shiftKey ? 80 : 24;
     if (e.key === "ArrowLeft") onResize(clamp(width - step * dir));
     else if (e.key === "ArrowRight") onResize(clamp(width + step * dir));
@@ -103,7 +109,7 @@ export function SplitView({ mode, editorWidth, previewFirst, onResize, onMode, e
       className={`relative flex min-h-0 flex-1 ${previewFirst ? "flex-row-reverse" : "flex-row"} ${drag ? "cursor-col-resize select-none" : ""}`}
     >
       <div
-        className={`relative min-h-0 shrink-0 overflow-hidden bg-stone-50 ${animate}`}
+        className={`relative min-h-0 shrink-0 overflow-hidden bg-canvas ${animate}`}
         style={editorStyle}
         inert={mode === "preview"}
         aria-hidden={mode === "preview" || undefined}
@@ -132,29 +138,31 @@ export function SplitView({ mode, editorWidth, previewFirst, onResize, onMode, e
           className="group relative z-20 -mx-1.5 w-3 shrink-0 cursor-col-resize touch-none outline-none"
         >
           <span
-            className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors ${
-              drag ? "bg-brand" : "bg-stone-200 group-hover:bg-brand/50 group-focus-visible:bg-brand"
+            className={`absolute inset-x-0 inset-y-0 mx-auto w-px transition-colors ${
+              drag ? "bg-brand" : "bg-line group-hover:bg-brand group-focus-visible:bg-brand"
             }`}
           />
           <span
-            className={`absolute left-1/2 top-1/2 flex h-9 w-2 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-[3px] rounded-full bg-white shadow-sm ring-1 transition ${
-              drag ? "ring-brand" : "ring-stone-300 group-hover:ring-brand/60 group-focus-visible:ring-brand"
+            className={`absolute inset-x-0 inset-y-0 m-auto flex h-9 w-2 flex-col items-center justify-center gap-[3px] rounded-full bg-surface shadow-sm ring-1 transition ${
+              drag ? "ring-brand" : "ring-line-control group-hover:ring-brand group-focus-visible:ring-brand"
             }`}
           >
-            <i className="block size-[2px] rounded-full bg-stone-400" />
-            <i className="block size-[2px] rounded-full bg-stone-400" />
-            <i className="block size-[2px] rounded-full bg-stone-400" />
+            <i className="block size-[2px] rounded-full bg-ink-3" />
+            <i className="block size-[2px] rounded-full bg-ink-3" />
+            <i className="block size-[2px] rounded-full bg-ink-3" />
           </span>
           {drag && !drag.hint && (
-            <span className="absolute left-1/2 top-1/2 mt-7 -translate-x-1/2 whitespace-nowrap rounded-md bg-stone-900 px-2 py-1 text-[11px] font-medium tabular-nums text-white shadow-lg">
-              {ratio}% · {100 - ratio}%
+            <span className="absolute inset-x-0 top-1/2 mt-7 flex justify-center">
+              <span className="whitespace-nowrap rounded-sm bg-ink px-2 py-1 font-mono text-xs text-surface shadow-md">
+                {ratio}% · {100 - ratio}%
+              </span>
             </span>
           )}
         </div>
       )}
 
       <div
-        className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-stone-100"
+        className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-canvas"
         inert={mode === "editor"}
         aria-hidden={mode === "editor" || undefined}
       >
@@ -167,8 +175,8 @@ export function SplitView({ mode, editorWidth, previewFirst, onResize, onMode, e
 
 function CollapseHint({ label }: { label: string }) {
   return (
-    <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-brand/10 backdrop-blur-[2px]">
-      <span className="rounded-full bg-stone-900 px-3 py-1.5 text-xs font-semibold text-white shadow-lg">{label}</span>
+    <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-brand-soft/80 backdrop-blur-[2px]">
+      <span className="rounded-full bg-ink px-3 py-1.5 text-xs font-semibold text-surface shadow-md">{label}</span>
     </div>
   );
 }

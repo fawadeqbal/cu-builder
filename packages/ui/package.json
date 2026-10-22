@@ -3,17 +3,25 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Shared React UI: icons and small presentational components (styled with Tailwind classes).",
+  "description": "The CV Builder design system (Folio): tokens, styles and React components shared by the apps.",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./tokens.css": "./dist/tokens.css",
+    "./styles.css": "./dist/styles.css",
+    "./tokens.json": "./tokens.json",
+    "./fonts/*": "./fonts/*"
   },
   "files": [
-    "dist"
+    "dist",
+    "tokens.json",
+    "fonts"
   ],
-  "sideEffects": false,
+  "sideEffects": [
+    "*.css"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
@@ -30,12 +38,13 @@
     "typescript": "5.9.3",
     "vitest": "4.1.11",
     "@types/react": "^19",
-    "react": "19.3.0"
+    "react": "19.3.0",
+    "@types/react-dom": "^19",
+    "react-dom": "19.3.0"
   },
-  "dependencies": {
-    "@cvb/domain": "workspace:*"
-  },
+  "dependencies": {},
   "peerDependencies": {
-    "react": "^19"
+    "react": "^19",
+    "react-dom": "^19"
   }
 }

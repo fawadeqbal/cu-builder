@@ -40,7 +40,9 @@ export function CoverLetterDocument({
   const contact = [sender.email, sender.phone, sender.location].filter((v) => v.trim());
   const paragraphs = letter.paragraphs.filter((p) => p.trim());
   return (
-    <div className={`cv-doc letter letter-${variant}`} style={style}>
+    // The letter follows its own text direction, not the interface language (an English letter stays
+    // left-to-right inside the Urdu or Arabic interface).
+    <div className={`cv-doc letter letter-${variant}`} style={style} dir="auto">
       <header className="letter-head">
         <div className="letter-name">{sender.name || "Your name"}</div>
         {sender.headline && <div className="letter-title">{sender.headline}</div>}

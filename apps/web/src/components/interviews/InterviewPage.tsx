@@ -3,9 +3,9 @@
 import type { InterviewSessionDto, StarStoryBodyDto, StarStoryDto } from "@cvb/contracts";
 import { SENIORITIES, clean, normalizeCV, sessionSummary } from "@cvb/domain";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { PlusIcon, TrashIcon } from "@cvb/ui";
+import { Alert, Badge, Button, Card, EmptyState, Icon, IconButton, PageHeader, ProgressBar, ScoreRing, Select, Skeleton, Spinner, Tabs, TextArea, TextField } from "@cvb/ui";
 import { gateForError, useAiCall } from "@/lib/ai";
 import { api } from "@/lib/api";
 import type { Gate } from "@/lib/plans";
@@ -15,12 +15,11 @@ import { AppHeader } from "../AppHeader";
 import { RequireAuth } from "../RequireAuth";
 import { UpgradeDialog } from "../UpgradeDialog";
 import { Dialog } from "../ui/Dialog";
-import { btn, card, field, label } from "../ui/styles";
 
 const TABS = [
-  { id: "practice", label: "Mock interview" },
-  { id: "bank", label: "Question bank" },
-  { id: "stories", label: "STAR stories" },
+  { id: "practice", label: "Mock interview", icon: "mic" },
+  { id: "bank", label: "Question bank", icon: "list" },
+  { id: "stories", label: "STAR stories", icon: "star" },
 ] as const;
 
 const FAMILY_LABEL: Record<string, string> = {
@@ -38,29 +37,17 @@ const FAMILY_LABEL: Record<string, string> = {
 /** Interview prep: AI mock interviews with feedback, a curated question bank and STAR stories. */
 export function InterviewPage() {
   const params = useSearchParams();
-  const router = useRouter();
   const [gate, setGate] = useState<Gate | null>(null);
   const tab = TABS.find((t) => t.id === params.get("tab"))?.id ?? "practice";
   return (
     <RequireAuth>
       {() => (
-        <div className="min-h-dvh bg-stone-50">
+        <div className="min-h-dvh bg-canvas">
           <AppHeader />
-          <main className="mx-auto max-w-6xl px-4 pb-20 pt-8 sm:px-6">
-            <h1 className="text-2xl font-semibold tracking-tight text-stone-900">Interview prep</h1>
-            <nav className="mt-4 flex gap-1 overflow-x-auto border-b border-stone-200 text-sm font-medium">
-              {TABS.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => router.replace(`/interview?tab=${t.id}`)}
-                  className={`-mb-px whitespace-nowrap border-b-2 px-3 py-2 ${t.id === tab ? "border-brand text-stone-900" : "border-transparent text-stone-500 hover:text-stone-800"}`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </nav>
-            <div className="mt-6">
+          <main className="mx-auto flex max-w-(--layout-md) flex-col gap-6 px-4 pb-20 pt-10 sm:px-6">
+            <PageHeader title="Interview prep" />
+            <Tabs label="Interview prep" value={tab} className="-mt-2" items={TABS.map((t) => ({ id: t.id, label: t.label, icon: t.icon, href: `/interview?tab=${t.id}` }))} />
+            <div>
               {tab === "practice" && <Practice onGate={setGate} initialRole={params.get("role") ?? ""} initialJobId={params.get("jobId") ?? ""} />}
               {tab === "bank" && <Bank />}
               {tab === "stories" && <Stories onGate={setGate} />}
@@ -83,49 +70,29 @@ function Bank() {
   const competencies = [...new Set((bank.data?.questions ?? []).map((q) => q.competency))].sort();
   return (
     <div className="flex flex-col gap-4">
-      <div className={`${card} flex flex-wrap gap-3 p-3`}>
-        <label className="min-w-40 flex-1 text-xs font-medium text-stone-600">
-          Role
-          <select className={`${field} mt-1`} value={family} onChange={(e) => (setFamily(e.target.value), setCompetency(""))}>
-            {(bank.data?.families ?? Object.keys(FAMILY_LABEL)).map((f) => (
-              <option key={f} value={f}>
-                {FAMILY_LABEL[f] ?? f}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="min-w-32 flex-1 text-xs font-medium text-stone-600">
-          Level
-          <select className={`${field} mt-1`} value={seniority} onChange={(e) => setSeniority(e.target.value)}>
-            {SENIORITIES.map((s) => (
-              <option key={s} value={s}>
-                {s[0]!.toUpperCase() + s.slice(1)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="min-w-40 flex-1 text-xs font-medium text-stone-600">
-          Skill
-          <select className={`${field} mt-1`} value={competency} onChange={(e) => setCompetency(e.target.value)}>
-            <option value="">All</option>
-            {competencies.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </label>
+      <div className="cvb-card flex flex-wrap gap-3 p-4">
+        <Select label="Role" className="min-w-40 flex-1" value={family} onChange={(e) => (setFamily(e.target.value), setCompetency(""))} options={(bank.data?.families ?? Object.keys(FAMILY_LABEL)).map((f) => ({ value: f, label: FAMILY_LABEL[f] ?? f }))} />
+        <Select label="Level" className="min-w-32 flex-1" value={seniority} onChange={(e) => setSeniority(e.target.value)} options={SENIORITIES.map((s) => ({ value: s, label: s[0]!.toUpperCase() + s.slice(1) }))} />
+        <Select label="Skill" className="min-w-40 flex-1" value={competency} onChange={(e) => setCompetency(e.target.value)} options={[{ value: "", label: "All" }, ...competencies.map((c) => ({ value: c, label: c }))]} />
       </div>
+      {bank.isLoading && (
+        <div className="flex flex-col gap-2" aria-busy="true">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} height={52} shape="block" />
+          ))}
+        </div>
+      )}
       <ul className="flex flex-col gap-2" aria-label="Questions">
         {questions.map((q) => (
-          <li key={q.id} className={`${card} overflow-hidden`}>
-            <button type="button" aria-expanded={open === q.id} className="flex w-full items-start gap-3 px-4 py-3 text-start" onClick={() => setOpen(open === q.id ? null : q.id)}>
-              <span className="flex-1 text-sm font-medium text-stone-900">{q.question}</span>
-              <span className="shrink-0 rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-600">{q.competency}</span>
+          <li key={q.id} className="cvb-card overflow-hidden">
+            <button type="button" aria-expanded={open === q.id} className="flex w-full items-start gap-3 px-5 py-4 text-start hover:bg-surface-2" onClick={() => setOpen(open === q.id ? null : q.id)}>
+              <span className="min-w-0 flex-1 text-sm font-medium text-ink">{q.question}</span>
+              <Badge className="shrink-0">{q.competency}</Badge>
+              <Icon name={open === q.id ? "chevron-up" : "chevron-down"} size={16} className="mt-0.5 shrink-0 text-ink-3" />
             </button>
             {open === q.id && (
-              <div className="border-t border-stone-100 bg-stone-50 px-4 py-3 text-sm text-stone-700">
-                <span className="font-semibold text-stone-900">A strong answer: </span>
+              <div className="border-t border-line bg-surface-2 px-5 py-4 text-sm leading-relaxed text-ink-2">
+                <span className="font-semibold text-ink">A strong answer: </span>
                 {q.answer}
               </div>
             )}
@@ -142,12 +109,12 @@ function Practice({ onGate, initialRole, initialJobId }: { onGate: (g: Gate) => 
   const [starting, setStarting] = useState(Boolean(initialRole));
   const session = sessions.data?.find((s) => s.id === active);
   return (
-    <div className="grid gap-6 lg:grid-cols-[18rem_1fr]">
-      <aside className="flex flex-col gap-2">
-        <button type="button" className={`${btn.primary} w-full`} onClick={() => (setActive(null), setStarting(true))}>
-          <PlusIcon className="size-4" /> New mock interview
-        </button>
-        <ul className="flex flex-col gap-1.5">
+    <div className="grid gap-6 md:grid-cols-[16rem_1fr]">
+      <aside className="flex min-w-0 flex-col gap-3">
+        <Button icon="plus" block onClick={() => (setActive(null), setStarting(true))}>
+          New mock interview
+        </Button>
+        <ul className="flex flex-col gap-2" aria-label="Your mock interviews">
           {sessions.data?.map((s) => {
             const sum = sessionSummary(s.answers);
             return (
@@ -155,13 +122,14 @@ function Practice({ onGate, initialRole, initialJobId }: { onGate: (g: Gate) => 
                 <button
                   type="button"
                   onClick={() => (setActive(s.id), setStarting(false))}
-                  className={`w-full rounded-xl border px-3 py-2.5 text-start text-sm transition ${active === s.id ? "border-brand/40 bg-brand/[0.04]" : "border-stone-200 bg-white hover:border-stone-300"}`}
+                  aria-current={active === s.id || undefined}
+                  className={`w-full rounded-lg border px-4 py-3 text-start text-sm transition-colors ${active === s.id ? "border-brand bg-brand-soft" : "border-line bg-surface hover:border-line-strong"}`}
                 >
-                  <div className="truncate font-semibold text-stone-900">{s.role}</div>
-                  <div className="text-xs text-stone-500">
+                  <span className="block truncate font-semibold text-ink">{s.role}</span>
+                  <span className="cvb-caption cvb-num block">
                     {new Date(s.createdAt).toLocaleDateString()} · {sum.answered}/{s.questions.length} answered
                     {sum.answered > 0 && ` · ${sum.overall.toFixed(1)}/5`}
-                  </div>
+                  </span>
                 </button>
               </li>
             );
@@ -206,61 +174,29 @@ function StartForm({ initialRole, initialJobId, onGate, onStarted }: { initialRo
   }
 
   return (
-    <form onSubmit={start} className={`${card} flex flex-col gap-4 p-5 sm:p-6`}>
-      <div>
-        <h2 className="text-lg font-semibold text-stone-900">Practise out loud</h2>
-        <p className="text-sm text-stone-600">Answer each question by typing or speaking. You get a score and an improved answer after each one.</p>
+    <form onSubmit={start} className="cvb-card flex min-w-0 flex-col gap-5 p-5 sm:p-6">
+      <div className="flex flex-col gap-1">
+        <h2 className="cvb-h2">Practise out loud</h2>
+        <p className="text-sm text-ink-3">Answer each question by typing or speaking. You get a score and an improved answer after each one.</p>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="sm:col-span-2">
-          <label className={label} htmlFor="m-role">
-            Role
-          </label>
-          <input id="m-role" required className={field} value={role} maxLength={120} placeholder="e.g. Frontend developer" onChange={(e) => setRole(e.target.value)} />
-        </div>
-        <div>
-          <label className={label} htmlFor="m-level">
-            Level
-          </label>
-          <select id="m-level" className={field} value={seniority} onChange={(e) => setSeniority(e.target.value)}>
-            {SENIORITIES.map((s) => (
-              <option key={s} value={s}>
-                {s[0]!.toUpperCase() + s.slice(1)}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className={label} htmlFor="m-count">
-            Questions
-          </label>
-          <select id="m-count" className={field} value={count} onChange={(e) => setCount(Number(e.target.value))}>
-            {[3, 6, 10, 15].map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="sm:col-span-2">
-          <label className={label} htmlFor="m-job">
-            For a saved job (optional)
-          </label>
-          <select id="m-job" className={field} value={jobId} onChange={(e) => setJobId(e.target.value)}>
-            <option value="">No specific job</option>
-            {jobs.data?.map((j) => (
-              <option key={j.id} value={j.id}>
-                {j.title}
-                {j.company ? ` — ${j.company}` : ""}
-              </option>
-            ))}
-          </select>
-        </div>
+      <TextField id="m-role" label="Role" required value={role} maxLength={120} placeholder="e.g. Frontend developer" onChange={(e) => setRole(e.target.value)} />
+      <div className="cvb-field-row">
+        <Select id="m-level" label="Level" value={seniority} onChange={(e) => setSeniority(e.target.value)} options={SENIORITIES.map((s) => ({ value: s, label: s[0]!.toUpperCase() + s.slice(1) }))} />
+        <Select id="m-count" label="Questions" value={count} onChange={(e) => setCount(Number(e.target.value))} options={[3, 6, 10, 15].map((n) => ({ value: String(n), label: String(n) }))} />
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <button type="submit" className={`${btn.primary} self-start`} disabled={busy || !role.trim()}>
-        {busy ? "Preparing questions…" : "✦ Start interview"}
-      </button>
+      <Select id="m-job" label="For a saved job" optional value={jobId} onChange={(e) => setJobId(e.target.value)}>
+        <option value="">No specific job</option>
+        {jobs.data?.map((j) => (
+          <option key={j.id} value={j.id}>
+            {j.title}
+            {j.company ? ` — ${j.company}` : ""}
+          </option>
+        ))}
+      </Select>
+      {error && <Alert tone="danger">{error}</Alert>}
+      <Button type="submit" variant="primary" icon="sparkle" className="self-start" disabled={!role.trim()} loading={busy}>
+        {busy ? "Preparing questions…" : "Start interview"}
+      </Button>
     </form>
   );
 }
@@ -307,15 +243,7 @@ function useDictation(onText: (text: string) => void) {
 }
 
 function Score({ name, value }: { name: string; value: number }) {
-  return (
-    <div className="rounded-lg bg-white px-3 py-2 ring-1 ring-stone-200">
-      <div className="text-[11px] font-medium text-stone-500">{name}</div>
-      <div className="text-lg font-semibold tabular-nums text-stone-900">
-        {value.toFixed(value % 1 ? 1 : 0)}
-        <span className="text-xs font-normal text-stone-400">/5</span>
-      </div>
-    </div>
-  );
+  return <ProgressBar label={name} value={value} max={5} valueLabel={`${value.toFixed(value % 1 ? 1 : 0)}/5`} tone={value >= 4 ? "success" : value >= 2.5 ? "brand" : "warning"} />;
 }
 
 function SessionView({ session, onGate }: { session: InterviewSessionDto; onGate: (g: Gate) => void }) {
@@ -365,26 +293,34 @@ function SessionView({ session, onGate }: { session: InterviewSessionDto; onGate
   };
 
   return (
-    <section className={`${card} flex flex-col gap-5 p-5 sm:p-6`}>
+    <section className="cvb-card flex min-w-0 flex-col gap-5 p-5 sm:p-6">
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <h2 className="text-lg font-semibold text-stone-900">{session.role}</h2>
-          <p className="text-sm text-stone-500">
+          <h2 className="cvb-h2">{session.role}</h2>
+          <p className="text-sm text-ink-3">
             {session.seniority && `${session.seniority[0]!.toUpperCase()}${session.seniority.slice(1)} level · `}
-            {summary.answered} of {session.questions.length} answered
+            <span className="cvb-num">
+              {summary.answered} of {session.questions.length}
+            </span>{" "}
+            answered
           </p>
         </div>
-        <button type="button" className={btn.ghost} aria-label="Delete interview" onClick={() => window.confirm("Delete this interview?") && remove.mutate()}>
-          <TrashIcon className="size-4" />
-        </button>
+        <IconButton icon="trash" label="Delete interview" onClick={() => window.confirm("Delete this interview?") && remove.mutate()} />
       </div>
 
       {summary.answered > 0 && (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <Score name="Overall" value={summary.overall} />
-          <Score name="Structure" value={summary.structure} />
-          <Score name="Relevance" value={summary.relevance} />
-          <Score name="Clarity" value={summary.clarity} />
+        <div className="flex flex-wrap items-center gap-5 rounded-lg border border-line bg-surface-2 p-4">
+          <div className="flex items-center gap-3">
+            <ScoreRing value={(summary.overall / 5) * 100} label={`Overall ${summary.overall.toFixed(1)} out of 5`}>
+              <span className="cvb-num">{summary.overall.toFixed(1)}</span>
+            </ScoreRing>
+            <span className="cvb-overline">Overall</span>
+          </div>
+          <div className="grid min-w-48 flex-1 gap-2">
+            <Score name="Structure" value={summary.structure} />
+            <Score name="Relevance" value={summary.relevance} />
+            <Score name="Clarity" value={summary.clarity} />
+          </div>
         </div>
       )}
 
@@ -397,64 +333,70 @@ function SessionView({ session, onGate }: { session: InterviewSessionDto; onGate
                 type="button"
                 aria-current={i === index ? "step" : undefined}
                 onClick={() => go(i)}
-                className={`size-8 rounded-full text-xs font-semibold ring-1 ${i === index ? "bg-stone-900 text-white ring-stone-900" : done ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-white text-stone-600 ring-stone-200"}`}
+                className={`cvb-num grid size-8 place-items-center rounded-full border text-xs font-semibold transition-colors focus-visible:shadow-(--focus-ring) focus-visible:outline-none ${i === index ? "border-brand bg-brand text-on-brand" : done ? "border-success bg-success-soft text-success" : "border-line-control bg-surface text-ink-2 hover:border-ink-3"}`}
               >
                 {i + 1}
+                {done && <span className="sr-only"> (answered)</span>}
               </button>
             </li>
           );
         })}
       </ol>
 
-      <div className="rounded-xl bg-stone-50 p-4 ring-1 ring-stone-200">
-        <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-stone-500">
-          {q.competency}
-          <button type="button" className="ms-auto normal-case text-brand hover:underline" onClick={speak}>
+      <div className="flex flex-col gap-1.5 rounded-lg border border-line bg-surface-2 p-4">
+        <div className="flex items-center gap-2">
+          <span className="cvb-overline">{q.competency}</span>
+          <Button variant="link" size="sm" className="ms-auto" onClick={speak}>
             Read aloud
-          </button>
+          </Button>
         </div>
-        <p className="text-base font-medium text-stone-900" data-testid="question">
+        <p className="cvb-h3 text-ink" data-testid="question">
           {q.question}
         </p>
-        {q.tip && <p className="mt-1 text-sm text-stone-500">Tip: {q.tip}</p>}
+        {q.tip && (
+          <p className="flex gap-1.5 text-sm text-ink-3">
+            <Icon name="lightbulb" size={16} className="mt-0.5 shrink-0" /> Tip: {q.tip}
+          </p>
+        )}
       </div>
 
-      <div>
-        <label className={label} htmlFor="answer">
-          Your answer
-        </label>
-        <textarea id="answer" rows={7} className={field} value={draft} maxLength={6000} onChange={(e) => setDraft(e.target.value)} placeholder="Situation, task, what you did, and the result…" />
-        <div className="mt-2 flex flex-wrap items-center gap-2">
+      <div className="flex flex-col gap-3">
+        <TextArea id="answer" label="Your answer" rows={7} value={draft} maxLength={6000} onChange={(e) => setDraft(e.target.value)} placeholder="Situation, task, what you did, and the result…" />
+        <div className="flex flex-wrap items-center gap-2">
           {dictation.supported && (
-            <button type="button" className={dictation.listening ? btn.danger : btn.secondary} onClick={dictation.toggle} aria-pressed={dictation.listening}>
-              {dictation.listening ? "■ Stop recording" : "● Speak your answer"}
-            </button>
+            <Button variant={dictation.listening ? "danger" : "secondary"} icon={dictation.listening ? "x-circle" : "mic"} onClick={dictation.toggle} aria-pressed={dictation.listening}>
+              {dictation.listening ? "Stop recording" : "Speak your answer"}
+            </Button>
           )}
-          <button type="button" className={btn.primary} disabled={busy || !draft.trim()} onClick={() => void submit()}>
-            {busy ? "Scoring…" : answered ? "✦ Score again" : "✦ Get feedback"}
-          </button>
+          <Button variant="primary" icon="sparkle" disabled={!draft.trim()} loading={busy} onClick={() => void submit()}>
+            {busy ? "Scoring…" : answered ? "Score again" : "Get feedback"}
+          </Button>
           {index < session.questions.length - 1 && (
-            <button type="button" className={`${btn.ghost} ms-auto`} onClick={() => go(index + 1)}>
-              Next question →
-            </button>
+            <Button variant="ghost" iconEnd="arrow-right" className="ms-auto" onClick={() => go(index + 1)}>
+              Next question
+            </Button>
           )}
         </div>
-        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+        {error && <Alert tone="danger">{error}</Alert>}
       </div>
 
       {answered && (
-        <div className="flex flex-col gap-3 rounded-xl bg-brand/[0.03] p-4 ring-1 ring-brand/15" data-testid="feedback">
-          <div className="grid grid-cols-3 gap-2">
+        <section className="cvb-ai" data-testid="feedback" aria-label="Feedback">
+          <div className="cvb-ai-head">
+            <Icon name="sparkle" size={18} />
+            <span>Feedback</span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
             <Score name="Structure" value={answered.scores.structure} />
             <Score name="Relevance" value={answered.scores.relevance} />
             <Score name="Clarity" value={answered.scores.clarity} />
           </div>
-          <p className="text-sm text-stone-700">{answered.feedback}</p>
-          <div>
-            <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-stone-500">A stronger version</h3>
-            <p className="whitespace-pre-line text-sm leading-relaxed text-stone-800">{answered.improved}</p>
+          <p className="m-0 text-sm text-ink-2">{answered.feedback}</p>
+          <div className="cvb-ai-option flex-col gap-1.5">
+            <h3 className="cvb-overline">A stronger version</h3>
+            <p className="whitespace-pre-line text-sm leading-relaxed text-ink">{answered.improved}</p>
           </div>
-        </div>
+        </section>
       )}
     </section>
   );
@@ -469,21 +411,25 @@ function Stories({ onGate }: { onGate: (g: Gate) => void }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
-        <p className="min-w-0 flex-1 text-sm text-stone-600">Turn your best CV achievements into ready-to-tell stories: Situation, Task, Action, Result.</p>
-        <button type="button" className={btn.secondary} onClick={() => setEditing({ id: null, body: EMPTY_STORY })}>
-          <PlusIcon className="size-4" /> Blank story
-        </button>
-        <button type="button" className={btn.primary} onClick={() => setFromBullet(true)}>
-          ✦ From a CV line
-        </button>
+        <p className="min-w-60 flex-1 text-sm text-ink-3">Turn your best CV achievements into ready-to-tell stories: Situation, Task, Action, Result.</p>
+        <Button icon="plus" onClick={() => setEditing({ id: null, body: EMPTY_STORY })}>
+          Blank story
+        </Button>
+        <Button variant="primary" icon="sparkle" onClick={() => setFromBullet(true)}>
+          From a CV line
+        </Button>
       </div>
-      {stories.data?.length === 0 && <p className="rounded-xl border border-dashed border-stone-300 bg-white px-4 py-10 text-center text-sm text-stone-500">No stories yet.</p>}
-      <ul className="grid gap-3 md:grid-cols-2">
+      {stories.data?.length === 0 && (
+        <Card>
+          <EmptyState icon="star" title="No stories yet" />
+        </Card>
+      )}
+      <ul className="grid gap-4 md:grid-cols-2">
         {stories.data?.map((s) => (
           <li key={s.id}>
-            <button type="button" className={`${card} block h-full w-full p-4 text-start hover:border-stone-300`} onClick={() => setEditing({ id: s.id, body: toBody(s) })}>
-              <h3 className="font-semibold text-stone-900">{s.title}</h3>
-              <p className="mt-1 line-clamp-3 text-sm text-stone-600">{[s.situation, s.action, s.result].filter(Boolean).join(" ")}</p>
+            <button type="button" className="cvb-card cvb-card-interactive flex h-full w-full flex-col gap-1 p-5 text-start" onClick={() => setEditing({ id: s.id, body: toBody(s) })}>
+              <h3 className="cvb-h3">{s.title}</h3>
+              <p className="line-clamp-3 text-sm text-ink-2">{[s.situation, s.action, s.result].filter(Boolean).join(" ")}</p>
             </button>
           </li>
         ))}
@@ -525,12 +471,7 @@ function StoryEditor({ initial, onClose, onGate }: { initial: { id: string | nul
   });
   const remove = useMutation({ mutationFn: () => api.delete(`/interviews/stories/${initial.id}`), onSuccess: done });
   const part = (key: "situation" | "task" | "action" | "result", title: string, hint: string) => (
-    <div>
-      <label className={label} htmlFor={`s-${key}`}>
-        {title}
-      </label>
-      <textarea id={`s-${key}`} rows={3} className={field} placeholder={hint} value={s[key]} onChange={(e) => setS({ ...s, [key]: e.target.value })} />
-    </div>
+    <TextArea id={`s-${key}`} label={title} rows={3} placeholder={hint} value={s[key]} onChange={(e) => setS({ ...s, [key]: e.target.value })} />
   );
   return (
     <Dialog
@@ -539,37 +480,28 @@ function StoryEditor({ initial, onClose, onGate }: { initial: { id: string | nul
       title={initial.id ? "Edit story" : "New STAR story"}
       size="lg"
       footer={
-        <div className="flex items-center justify-between gap-2">
-          {initial.id ? (
-            <button type="button" className="inline-flex items-center gap-1.5 text-sm font-medium text-red-600 hover:underline" onClick={() => window.confirm("Delete this story?") && remove.mutate()}>
-              <TrashIcon className="size-4" /> Delete
-            </button>
-          ) : (
-            <span />
+        <>
+          {initial.id && (
+            <Button variant="ghost" icon="trash" className="me-auto text-danger" onClick={() => window.confirm("Delete this story?") && remove.mutate()}>
+              Delete
+            </Button>
           )}
-          <div className="flex gap-2">
-            <button type="button" className={btn.ghost} onClick={onClose}>
-              Cancel
-            </button>
-            <button type="button" className={btn.primary} disabled={!s.title.trim() || save.isPending} onClick={() => save.mutate()}>
-              Save story
-            </button>
-          </div>
-        </div>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button variant="primary" disabled={!s.title.trim()} loading={save.isPending} onClick={() => save.mutate()}>
+            Save story
+          </Button>
+        </>
       }
     >
-      <div className="flex flex-col gap-3">
-        <div>
-          <label className={label} htmlFor="s-title">
-            Title
-          </label>
-          <input id="s-title" className={field} value={s.title} maxLength={160} placeholder="e.g. Halved page load time" onChange={(e) => setS({ ...s, title: e.target.value })} />
-        </div>
+      <div className="flex flex-col gap-4">
+        <TextField id="s-title" label="Title" value={s.title} maxLength={160} placeholder="e.g. Halved page load time" onChange={(e) => setS({ ...s, title: e.target.value })} />
         {part("situation", "Situation", "Where and when; what was the challenge?")}
         {part("task", "Task", "What were you responsible for?")}
         {part("action", "Action", "What did you do, step by step?")}
         {part("result", "Result", "What changed? Use numbers where you can.")}
-        {save.error && !gateForError(save.error) && <p className="text-sm text-red-600">{save.error.message}</p>}
+        {save.error && !gateForError(save.error) && <Alert tone="danger">{save.error.message}</Alert>}
       </div>
     </Dialog>
   );
@@ -609,24 +541,21 @@ function BulletPicker({ onClose, onGate, onDraft }: { onClose: () => void; onGat
   return (
     <Dialog open onClose={onClose} title="Pick an achievement from your CV" size="lg">
       <div className="flex flex-col gap-3">
-        <select aria-label="CV" className={field} value={chosen} onChange={(e) => setResumeId(e.target.value)}>
-          {resumes.data?.items.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.title}
-            </option>
-          ))}
-        </select>
+        <Select aria-label="CV" value={chosen} onChange={(e) => setResumeId(e.target.value)} options={resumes.data?.items.map((r) => ({ value: r.id, label: r.title })) ?? []} />
         {lines === null ? (
-          <p className="py-4 text-center text-sm text-stone-500">Loading…</p>
+          <div className="flex justify-center py-4">
+            <Spinner />
+          </div>
         ) : lines.length === 0 ? (
-          <p className="py-4 text-center text-sm text-stone-500">This CV has no experience lines yet.</p>
+          <p className="py-4 text-center text-sm text-ink-3">This CV has no experience lines yet.</p>
         ) : (
           <ul className="flex max-h-[50dvh] flex-col gap-1.5 overflow-y-auto">
             {lines.map((l) => (
               <li key={`${l.company}-${l.bullet}`}>
-                <button type="button" disabled={busy !== null} onClick={() => void draft(l)} className="w-full rounded-lg px-3 py-2 text-start text-sm ring-1 ring-stone-200 hover:bg-stone-50 disabled:opacity-60">
-                  <span className="text-stone-900">{l.bullet}</span>
-                  <span className="block text-xs text-stone-500">
+                <button type="button" disabled={busy !== null} onClick={() => void draft(l)} className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-start text-sm transition-colors hover:border-brand hover:bg-brand-soft disabled:opacity-60">
+                  <span className="text-ink">{l.bullet}</span>
+                  <span className="cvb-caption mt-0.5 flex items-center gap-1.5">
+                    {busy === l.bullet && <Spinner />}
                     {busy === l.bullet ? "Writing the story…" : [l.role, l.company].filter(Boolean).join(" · ")}
                   </span>
                 </button>
@@ -634,7 +563,7 @@ function BulletPicker({ onClose, onGate, onDraft }: { onClose: () => void; onGat
             ))}
           </ul>
         )}
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <Alert tone="danger">{error}</Alert>}
       </div>
     </Dialog>
   );

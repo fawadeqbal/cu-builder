@@ -4,7 +4,7 @@ import type { CoverLetterDto, JobDto, JobMatchDto, ResumeDto, TailorProposalDto 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
-import { PlusIcon, TrashIcon } from "@cvb/ui";
+import { Alert, Button, Card, EmptyState, IconButton, PageHeader, Select, Skeleton, Tabs } from "@cvb/ui";
 import { gateForError, useAiCall } from "@/lib/ai";
 import { api } from "@/lib/api";
 import type { Gate } from "@/lib/plans";
@@ -13,7 +13,6 @@ import { AppHeader } from "../AppHeader";
 import { RequireAuth } from "../RequireAuth";
 import { UpgradeDialog } from "../UpgradeDialog";
 import { Dialog } from "../ui/Dialog";
-import { btn, card, field } from "../ui/styles";
 import { FeedTab } from "./FeedTab";
 import { JobForm } from "./JobForm";
 import { MatchResult } from "./MatchResult";
@@ -29,32 +28,18 @@ const TABS: JobsTab[] = [
 /** Jobs: find postings, saved postings, match against a CV, tailor, and start a cover letter. */
 export function JobsPage() {
   const params = useSearchParams();
-  const router = useRouter();
   const [gate, setGate] = useState<Gate | null>(null);
   const tabs = TABS;
   const tab = tabs.find((t) => t.id === params.get("tab")) ?? tabs[0]!;
   return (
     <RequireAuth>
       {() => (
-        <div className="min-h-dvh bg-stone-50">
+        <div className="min-h-dvh bg-canvas">
           <AppHeader />
-          <main className="mx-auto max-w-6xl px-4 pb-20 pt-8 sm:px-6">
-            <h1 className="text-2xl font-semibold tracking-tight text-stone-900">Jobs</h1>
-            {tabs.length > 1 && (
-              <nav className="mt-4 flex gap-1 overflow-x-auto border-b border-stone-200 text-sm font-medium">
-                {tabs.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => router.replace(`/jobs?tab=${t.id}`)}
-                    className={`-mb-px whitespace-nowrap border-b-2 px-3 py-2 ${t.id === tab.id ? "border-brand text-stone-900" : "border-transparent text-stone-500 hover:text-stone-800"}`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </nav>
-            )}
-            <div className="mt-6">{tab.render({ onGate: setGate })}</div>
+          <main className="mx-auto flex max-w-(--layout-lg) flex-col gap-6 px-4 pb-20 pt-10 sm:px-6">
+            <PageHeader title="Jobs" />
+            {tabs.length > 1 && <Tabs label="Jobs" value={tab.id} items={tabs.map((t) => ({ id: t.id, label: t.label, href: `/jobs?tab=${t.id}` }))} className="-mt-2 overflow-x-auto" />}
+            <div>{tab.render({ onGate: setGate })}</div>
           </main>
           <UpgradeDialog gate={gate} onClose={() => setGate(null)} />
         </div>
@@ -74,30 +59,40 @@ function SavedJobs({ onGate }: { onGate: (g: Gate) => void }) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[20rem_1fr]">
-      <aside className="flex flex-col gap-2">
-        <button type="button" className={`${btn.primary} w-full`} onClick={() => setAdding(true)}>
-          <PlusIcon className="size-4" /> Add a job
-        </button>
+      <aside className="flex min-w-0 flex-col gap-3">
+        <Button icon="plus" block onClick={() => setAdding(true)}>
+          Add a job
+        </Button>
         {jobs.isLoading ? (
-          <p className="py-6 text-center text-sm text-stone-500">Loading…</p>
-        ) : list.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-stone-300 bg-white px-4 py-8 text-center text-sm text-stone-500">
-            Save the jobs you&apos;re applying for to match your CV, tailor it and write a cover letter.
-          </p>
-        ) : (
-          <ul className="flex flex-col gap-1.5">
-            {list.map((j) => (
-              <li key={j.id}>
-                <button
-                  type="button"
-                  onClick={() => setSelected(j.id)}
-                  className={`w-full rounded-xl border px-3 py-2.5 text-start text-sm transition ${job?.id === j.id ? "border-brand/40 bg-brand/[0.04]" : "border-stone-200 bg-white hover:border-stone-300"}`}
-                >
-                  <div className="truncate font-semibold text-stone-900">{j.title}</div>
-                  <div className="truncate text-xs text-stone-500">{[j.company, j.location].filter(Boolean).join(" · ") || "No company"}</div>
-                </button>
-              </li>
+          <div className="flex flex-col gap-2" aria-busy="true">
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} height={60} shape="block" />
             ))}
+          </div>
+        ) : list.length === 0 ? (
+          <Card>
+            <EmptyState icon="briefcase" title="No saved jobs yet">
+              Save the jobs you&apos;re applying for to match your CV, tailor it and write a cover letter.
+            </EmptyState>
+          </Card>
+        ) : (
+          <ul className="flex flex-col gap-2" aria-label="Saved jobs">
+            {list.map((j) => {
+              const current = job?.id === j.id;
+              return (
+                <li key={j.id}>
+                  <button
+                    type="button"
+                    onClick={() => setSelected(j.id)}
+                    aria-current={current || undefined}
+                    className={`w-full rounded-lg border px-4 py-3 text-start transition-colors ${current ? "border-brand bg-brand-soft" : "border-line bg-surface hover:border-line-strong"}`}
+                  >
+                    <span className="block truncate text-sm font-semibold text-ink">{j.title}</span>
+                    <span className="cvb-caption block truncate">{[j.company, j.location].filter(Boolean).join(" · ") || "No company"}</span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
       </aside>
@@ -168,57 +163,54 @@ function JobDetail({ job, onGate }: { job: JobDto; onGate: (g: Gate) => void }) 
 
   const description = job.description.trim();
   return (
-    <section className={`${card} flex flex-col gap-5 p-5 sm:p-6`}>
-      <div className="flex items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-lg font-semibold text-stone-900">{job.title}</h2>
-          <p className="text-sm text-stone-600">{[job.company, job.location].filter(Boolean).join(" · ")}</p>
+    <section className="cvb-card flex min-w-0 flex-col gap-5 p-5 sm:p-6">
+      <div className="flex flex-wrap items-start gap-3">
+        <div className="flex min-w-0 flex-1 basis-60 flex-col gap-1">
+          <h2 className="cvb-h2 text-ink">{job.title}</h2>
+          {(job.company || job.location) && <p className="text-sm text-ink-2">{[job.company, job.location].filter(Boolean).join(" · ")}</p>}
           {job.url && (
-            <a href={job.url} target="_blank" rel="noreferrer noopener" className="text-sm font-medium text-brand hover:underline">
-              Open the posting ↗
-            </a>
+            <Button variant="link" href={job.url} target="_blank" rel="noreferrer noopener" iconEnd="external-link" className="self-start">
+              Open the posting
+            </Button>
           )}
         </div>
-        <button type="button" className={btn.secondary} disabled={track.isPending} onClick={() => track.mutate()}>
-          Track application
-        </button>
-        <button type="button" className={btn.ghost} aria-label="Delete job" onClick={() => window.confirm("Delete this job?") && remove.mutate()}>
-          <TrashIcon className="size-4" />
-        </button>
+        <div className="flex items-center gap-1">
+          <Button icon="kanban" loading={track.isPending} onClick={() => track.mutate()}>
+            Track application
+          </Button>
+          <IconButton icon="trash" label="Delete job" onClick={() => window.confirm("Delete this job?") && remove.mutate()} />
+        </div>
       </div>
 
-      <div className="flex flex-wrap items-end gap-2 rounded-xl bg-stone-50 p-3 ring-1 ring-stone-200">
-        <label className="min-w-48 flex-1 text-xs font-medium text-stone-600">
-          CV to use
-          <select className={`${field} mt-1`} value={chosen} onChange={(e) => (setResumeId(e.target.value), setMatch(null))}>
-            {resumes.data?.items.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.title}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button type="button" className={btn.secondary} disabled={!chosen || busy !== null} onClick={() => void act("match")}>
+      <div className="flex flex-wrap items-end gap-2 rounded-lg border border-line bg-surface-2 p-3">
+        <Select
+          label="CV to use"
+          className="min-w-48 flex-1"
+          value={chosen}
+          onChange={(e) => (setResumeId(e.target.value), setMatch(null))}
+          options={resumes.data?.items.map((r) => ({ value: r.id, label: r.title })) ?? []}
+        />
+        <Button icon="target" disabled={!chosen || busy !== null} loading={busy === "match"} onClick={() => void act("match")}>
           {busy === "match" ? "Checking…" : "Check match"}
-        </button>
-        <button type="button" className={btn.secondary} disabled={!chosen || busy !== null} onClick={() => void act("letter")}>
+        </Button>
+        <Button icon="mail" disabled={!chosen || busy !== null} loading={busy === "letter"} onClick={() => void act("letter")}>
           {busy === "letter" ? "Opening…" : "Cover letter"}
-        </button>
-        <button type="button" className={btn.primary} disabled={!chosen || busy !== null} onClick={() => void act("tailor")}>
-          {busy === "tailor" ? "Tailoring…" : "✦ Tailor CV"}
-        </button>
+        </Button>
+        <Button variant="primary" icon="sparkle" disabled={!chosen || busy !== null} loading={busy === "tailor"} onClick={() => void act("tailor")}>
+          {busy === "tailor" ? "Tailoring…" : "Tailor CV"}
+        </Button>
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <Alert tone="danger">{error}</Alert>}
       {match && <MatchResult match={match} onUnlock={() => onGate({ kind: "feature", feature: "jobMatch" })} />}
 
       {description && (
-        <div>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500">Job description</h3>
-          <div className={`whitespace-pre-line text-sm leading-relaxed text-stone-700 ${showAll ? "" : "max-h-72 overflow-hidden"}`}>{description}</div>
+        <div className="flex flex-col gap-2">
+          <h3 className="cvb-overline">Job description</h3>
+          <div className={`whitespace-pre-line break-words text-sm leading-relaxed text-ink-2 ${showAll ? "" : "max-h-72 overflow-hidden"}`}>{description}</div>
           {description.length > 900 && (
-            <button type="button" className="mt-2 text-sm font-medium text-brand hover:underline" onClick={() => setShowAll((v) => !v)}>
+            <Button variant="link" className="self-start" onClick={() => setShowAll((v) => !v)}>
               {showAll ? "Show less" : "Show all"}
-            </button>
+            </Button>
           )}
         </div>
       )}

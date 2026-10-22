@@ -1,132 +1,258 @@
 "use client";
 
-import type { ExpertDto } from "@cvb/contracts";
+import type { ExpertDto, ServiceInfoDto } from "@cvb/contracts";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
+import {
+  Avatar as DsAvatar,
+  Badge,
+  Button,
+  Card,
+  Chip,
+  EmptyState,
+  Icon,
+  PageHeader,
+  Skeleton,
+  Stars as DsStars,
+  TextField,
+} from "@cvb/ui";
+import { useMe } from "@/lib/queries";
 import { SERVICE_LABEL, money, turnaround, useCatalog, useExperts } from "@/lib/services";
 import { AppHeader } from "../AppHeader";
-import { card, field } from "../ui/styles";
+import { BookDialog } from "./BookDialog";
 
+/** An expert's rating with its count, or a "New" badge for experts without reviews yet. */
 export function Stars({ avg, count }: { avg: number; count: number }) {
-  if (!count) return <span className="text-xs text-stone-500">New</span>;
+  if (!count) return <Badge tone="highlight">New</Badge>;
   return (
-    <span className="inline-flex items-center gap-1 text-xs text-stone-600" aria-label={`Rated ${avg.toFixed(1)} out of 5 by ${count} customers`}>
-      <span className="text-amber-500" aria-hidden>
-        ★
+    <span className="cvb-expert-rating" aria-label={`Rated ${avg.toFixed(1)} out of 5 by ${count} customers`}>
+      <DsStars value={avg} size={14} label={`Rated ${avg.toFixed(1)} out of 5`} />
+      <span className="cvb-num font-semibold text-ink" aria-hidden>
+        {avg.toFixed(1)}
       </span>
-      <span className="font-semibold text-stone-800">{avg.toFixed(1)}</span> ({count})
+      <span className="cvb-num" aria-hidden>
+        ({count})
+      </span>
     </span>
   );
 }
 
-export function Avatar({ name, photoUrl, size = "size-12" }: { name: string; photoUrl: string | null; size?: string }) {
-  return photoUrl ? (
-    // eslint-disable-next-line @next/next/no-img-element -- external profile photos of any host
-    <img src={photoUrl} alt="" className={`${size} shrink-0 rounded-full object-cover ring-1 ring-stone-200`} />
-  ) : (
-    <span className={`${size} grid shrink-0 place-items-center rounded-full bg-brand/10 text-base font-semibold uppercase text-brand`} aria-hidden>
-      {name.slice(0, 1)}
-    </span>
-  );
+/** The expert's photo, or their initials. */
+export function Avatar({
+  name,
+  photoUrl,
+  size = "lg",
+}: {
+  name: string;
+  photoUrl: string | null;
+  size?: "sm" | "md" | "lg";
+}) {
+  return <DsAvatar name={name} src={photoUrl} size={size} className="shrink-0" />;
+}
+
+/** The lowest price an expert offers, for "From $39" on the card. */
+const priceOf = (s: ServiceInfoDto) => (s.kind === "coaching" ? 5900 : s.priceCents);
+function fromPrice(e: ExpertDto, catalog: ServiceInfoDto[] | undefined) {
+  const prices = (catalog ?? []).filter((s) => s.kind !== "review_rush" && e.services.includes(s.service)).map(priceOf);
+  return prices.length ? Math.min(...prices) : null;
 }
 
 /** The marketplace front: services with prices, and the directory of approved experts. */
 export function ExpertsPage() {
   const catalog = useCatalog();
+  const me = useMe();
+  const path = usePathname();
   const [service, setService] = useState("");
   const [language, setLanguage] = useState("");
+  const [booking, setBooking] = useState<ExpertDto | null>(null);
   const experts = useExperts(service, language.trim());
+  const filtered = Boolean(service || language.trim());
 
   return (
-    <div className="min-h-dvh bg-stone-50">
+    <div className="min-h-dvh bg-canvas">
       <AppHeader />
-      <main className="mx-auto max-w-6xl px-4 pb-20 pt-8 sm:px-6">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="min-w-0 flex-1">
-            <h1 className="text-2xl font-semibold tracking-tight text-stone-900">Work with an expert</h1>
-            <p className="mt-1 max-w-2xl text-sm text-stone-600">Vetted recruiters and career coaches review your CV line by line, write it for you, or coach you one to one.</p>
-          </div>
-          <Link href="/expert" className="text-sm font-medium text-brand hover:underline">
-            Are you a career expert? Join us →
-          </Link>
-        </div>
+      <main className="mx-auto flex w-full max-w-(--layout-lg) flex-col gap-8 px-4 pb-20 pt-10 sm:px-6">
+        <PageHeader
+          title="Work with an expert"
+          description="Vetted recruiters and career coaches review your CV line by line, write it for you, or coach you one to one."
+          actions={
+            <Button variant="link" href="/expert" iconEnd="arrow-right">
+              Are you a career expert? Join us
+            </Button>
+          }
+        />
 
-        <ul className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5" aria-label="Services">
-          {catalog.data
-            ?.filter((s) => s.kind !== "review_rush")
-            .map((s) => (
-              <li key={s.kind} className={`${card} flex flex-col gap-1 p-4`}>
-                <h2 className="text-sm font-semibold text-stone-900">{s.name}</h2>
-                <p className="flex-1 text-xs leading-relaxed text-stone-600">{s.description}</p>
-                <p className="mt-2 text-sm font-semibold text-stone-900">
-                  {s.kind === "coaching" ? `from ${money(5900)}` : money(s.priceCents)}
-                  <span className="ms-1 text-xs font-normal text-stone-500">· {turnaround(s.turnaroundHours)}</span>
-                </p>
-              </li>
-            ))}
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Services">
+          {catalog.isLoading
+            ? Array.from({ length: 4 }, (_, i) => (
+                <li key={i}>
+                  <Skeleton height={148} shape="block" />
+                </li>
+              ))
+            : catalog.data
+                ?.filter((s) => s.kind !== "review_rush")
+                .map((s) => (
+                  <li key={s.kind} className="cvb-card flex flex-col gap-2 p-5">
+                    <h2 className="cvb-h3 text-ink">{s.name}</h2>
+                    <p className="flex-1 text-sm text-ink-2">{s.description}</p>
+                    <p className="flex flex-wrap items-baseline gap-x-2">
+                      <span className="cvb-price">
+                        {s.kind === "coaching" ? `from ${money(5900)}` : money(s.priceCents)}
+                      </span>
+                      <span className="cvb-caption">{turnaround(s.turnaroundHours)}</span>
+                    </p>
+                  </li>
+                ))}
         </ul>
 
-        <div className={`${card} mt-8 flex flex-wrap items-end gap-3 p-3`}>
-          <label className="min-w-40 flex-1 text-xs font-medium text-stone-600">
-            Service
-            <select className={`${field} mt-1`} value={service} onChange={(e) => setService(e.target.value)}>
-              <option value="">Any</option>
+        <section className="flex flex-col gap-4" aria-labelledby="experts-title">
+          <div className="flex flex-col gap-3">
+            <h2 id="experts-title" className="cvb-h2 text-ink">
+              Experts
+            </h2>
+            <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Service">
+              <Chip selected={!service} onClick={() => setService("")}>
+                Any service
+              </Chip>
               {Object.entries(SERVICE_LABEL).map(([k, v]) => (
-                <option key={k} value={k}>
+                <Chip key={k} selected={service === k} onClick={() => setService(service === k ? "" : k)}>
                   {v}
-                </option>
+                </Chip>
               ))}
-            </select>
-          </label>
-          <label className="min-w-40 flex-1 text-xs font-medium text-stone-600">
-            Language
-            <input className={`${field} mt-1`} value={language} placeholder="e.g. Urdu" onChange={(e) => setLanguage(e.target.value)} />
-          </label>
-        </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <TextField
+                size="sm"
+                icon="languages"
+                aria-label="Language"
+                className="w-full sm:w-64"
+                value={language}
+                placeholder="Language, e.g. Urdu"
+                onChange={(e) => setLanguage(e.target.value)}
+              />
+              {filtered && (
+                <Button
+                  variant="link"
+                  size="sm"
+                  onClick={() => {
+                    setService("");
+                    setLanguage("");
+                  }}
+                >
+                  Clear filters
+                </Button>
+              )}
+            </div>
+          </div>
 
-        {experts.isLoading ? (
-          <p className="py-10 text-center text-sm text-stone-500">Loading…</p>
-        ) : !experts.data?.length ? (
-          <p className="mt-4 rounded-xl border border-dashed border-stone-300 bg-white px-4 py-10 text-center text-sm text-stone-500">
-            No experts match yet. You can still order a review: we&apos;ll match you with the first available expert.
-          </p>
-        ) : (
-          <ul className="mt-4 grid gap-3 md:grid-cols-2" aria-label="Experts">
-            {experts.data.map((e) => (
-              <ExpertCard key={e.userId} expert={e} />
-            ))}
-          </ul>
-        )}
+          {experts.isLoading ? (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {[0, 1, 2].map((i) => (
+                <Skeleton key={i} height={196} shape="block" />
+              ))}
+            </div>
+          ) : !experts.data?.length ? (
+            <Card>
+              <EmptyState
+                icon="users"
+                title={filtered ? "No experts match these filters" : "No experts match yet"}
+                actions={
+                  filtered ? (
+                    <Button
+                      onClick={() => {
+                        setService("");
+                        setLanguage("");
+                      }}
+                    >
+                      Clear filters
+                    </Button>
+                  ) : undefined
+                }
+              >
+                <p>You can still order a review: we&apos;ll match you with the first available expert.</p>
+              </EmptyState>
+            </Card>
+          ) : (
+            <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Experts">
+              {experts.data.map((e) => (
+                <ExpertCard
+                  key={e.userId}
+                  expert={e}
+                  from={fromPrice(e, catalog.data)}
+                  book={me.data ? () => setBooking(e) : undefined}
+                  signInHref={`/sign-in?next=${encodeURIComponent(path)}`}
+                />
+              ))}
+            </ul>
+          )}
+        </section>
       </main>
+      {booking && <BookDialog open onClose={() => setBooking(null)} expert={booking} />}
     </div>
   );
 }
 
-function ExpertCard({ expert: e }: { expert: ExpertDto }) {
+function ExpertCard({
+  expert: e,
+  from,
+  book,
+  signInHref,
+}: {
+  expert: ExpertDto;
+  from: number | null;
+  book?: () => void;
+  signInHref: string;
+}) {
   return (
-    <li>
-      <Link href={`/experts/${e.userId}`} className={`${card} flex h-full gap-4 p-4 transition hover:border-stone-300`}>
+    <li className="cvb-expert relative transition-[border-color,box-shadow] hover:border-line-strong hover:shadow-sm">
+      <div className="cvb-expert-head">
         <Avatar name={e.displayName} photoUrl={e.photoUrl} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h2 className="truncate font-semibold text-stone-900">{e.displayName}</h2>
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <h3 className="cvb-expert-name truncate">
+            {/* The name links to the profile and stretches over the card; Book sits above it. */}
+            <Link
+              href={`/experts/${e.userId}`}
+              className="after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-none focus-visible:after:shadow-[var(--focus-ring)]"
+            >
+              {e.displayName}
+            </Link>
+          </h3>
+          {e.headline && <p className="line-clamp-2 text-[13px] leading-[18px] text-ink-3">{e.headline}</p>}
+          <span className="mt-1">
             <Stars avg={e.ratingAvg} count={e.ratingCount} />
-          </div>
-          {e.headline && <p className="truncate text-sm text-stone-600">{e.headline}</p>}
-          <div className="mt-2 flex flex-wrap gap-1">
-            {e.services.map((s) => (
-              <span key={s} className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-medium text-stone-700">
-                {SERVICE_LABEL[s] ?? s}
-              </span>
-            ))}
-            {e.languages.map((l) => (
-              <span key={l} className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-800">
-                {l}
-              </span>
-            ))}
-          </div>
+          </span>
         </div>
-      </Link>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {e.services.map((s) => (
+          <Badge key={s}>{SERVICE_LABEL[s] ?? s}</Badge>
+        ))}
+      </div>
+      {e.languages.length > 0 && (
+        <span className="cvb-caption flex items-center gap-1">
+          <Icon name="languages" size={14} /> {e.languages.join(", ")}
+        </span>
+      )}
+      <div className="cvb-expert-foot mt-auto">
+        <span>
+          {from !== null && (
+            <>
+              <span className="cvb-caption">From </span>
+              <span className="cvb-price">{money(from)}</span>
+            </>
+          )}
+        </span>
+        {book ? (
+          <Button variant="primary" size="sm" className="relative z-10" onClick={book}>
+            Book
+          </Button>
+        ) : (
+          <Button size="sm" className="relative z-10" href={signInHref}>
+            Sign in to book
+          </Button>
+        )}
+      </div>
     </li>
   );
 }

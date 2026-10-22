@@ -47,14 +47,14 @@ export const STATUS_LABEL: Record<OrderDto["status"], string> = {
 };
 
 export const STATUS_TONE: Record<OrderDto["status"], string> = {
-  pending_payment: "bg-stone-100 text-stone-700 ring-stone-200",
-  paid: "bg-sky-50 text-sky-800 ring-sky-200",
-  in_progress: "bg-violet-50 text-violet-800 ring-violet-200",
-  delivered: "bg-amber-50 text-amber-900 ring-amber-200",
-  completed: "bg-emerald-50 text-emerald-800 ring-emerald-200",
-  cancelled: "bg-stone-100 text-stone-500 ring-stone-200",
-  refunded: "bg-stone-100 text-stone-600 ring-stone-200",
-  disputed: "bg-red-50 text-red-700 ring-red-200",
+  pending_payment: "bg-surface-2 text-ink-2 ring-line",
+  paid: "bg-info-soft text-info ring-info/40",
+  in_progress: "bg-brand-soft text-brand-ink ring-brand/40",
+  delivered: "bg-warning-soft text-warning ring-warning/40",
+  completed: "bg-success-soft text-success ring-success/40",
+  cancelled: "bg-surface-2 text-ink-3 ring-line",
+  refunded: "bg-surface-2 text-ink-2 ring-line",
+  disputed: "bg-danger-soft text-danger ring-danger/40",
 };
 
 export const SERVICE_LABEL: Record<string, string> = { review: "CV review", writing: "CV writing", coaching: "Coaching", linkedin: "LinkedIn makeover" };

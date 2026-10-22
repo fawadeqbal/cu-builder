@@ -5,11 +5,10 @@ import { CoverLetterDocument, isTemplateId } from "@cvb/templates";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
-import { DownloadIcon } from "@cvb/ui";
+import { Button, LogoMark } from "@cvb/ui";
 import { api } from "@/lib/api";
 import { paperSizeAttr } from "@/lib/page";
 import { downloadCvPdf } from "@/lib/pdf";
-import { btn } from "../ui/styles";
 import { FullPageMessage } from "../ui/FullPageMessage";
 
 /** The read-only page behind a cover letter's share link. */
@@ -35,23 +34,23 @@ export default function PublicLetter({ slug }: { slug: string }) {
 
   return (
     <>
-      <div className="no-print min-h-dvh bg-stone-100">
-        <header className="sticky top-0 z-20 border-b border-stone-200 bg-white/90 backdrop-blur">
-          <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
-            <div className="min-w-0 flex-1 truncate text-sm font-semibold text-stone-900">{l.sender.name} · cover letter</div>
-            <button type="button" onClick={() => void download()} disabled={busy} className={btn.primary}>
-              <DownloadIcon className="size-4" /> {busy ? "Preparing…" : "Download PDF"}
-            </button>
+      <div className="no-print min-h-dvh bg-canvas">
+        <header className="sticky top-0 z-20 border-b border-line bg-surface">
+          <div className="mx-auto flex h-16 max-w-(--layout-md) items-center gap-3 px-4 sm:px-6">
+            <h1 className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{l.sender.name} · cover letter</h1>
+            <Button variant="primary" icon="download" loading={busy} onClick={() => void download()}>
+              {busy ? "Preparing…" : "Download PDF"}
+            </Button>
           </div>
         </header>
-        <main className="overflow-x-auto px-2 py-6">
+        <main className="preview-canvas overflow-x-auto px-2 py-10">
           <div className="paper mx-auto" data-size={paperSizeAttr(l.pageSize)}>
             {doc}
           </div>
-          <p className="mt-8 text-center text-xs text-stone-500">
-            Made with{" "}
-            <Link href="/" className="font-semibold text-brand hover:underline">
-              CV Builder
+          <p className="cvb-caption mt-8 flex items-center justify-center gap-1.5">
+            Made with
+            <Link href="/" className="inline-flex items-center gap-1 font-semibold text-brand-ink hover:underline">
+              <LogoMark size={16} /> CV Builder
             </Link>
           </p>
         </main>

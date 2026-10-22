@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { stepZoom, type Zoom } from "@/lib/layout";
 import { PAGE_SIZES, paperSizeAttr, type PageSize } from "@/lib/page";
 import type { StepId } from "@/lib/steps";
@@ -8,7 +8,7 @@ import type { CV } from "@cvb/domain";
 import type { TemplateId } from "@cvb/templates/catalog";
 import { CVDocument } from "@cvb/templates";
 import { TemplatePicker } from "./TemplatePicker";
-import { FitPageIcon, FitWidthIcon, MinusIcon, PlusIcon, SwapIcon } from "@cvb/ui";
+import { Button, FitPageIcon, FitWidthIcon, Icon, IconButton } from "@cvb/ui";
 
 const PRINT_MARGIN_MM = 10 + 12; // top + bottom @page margin in globals.css
 const PAD = 24; // space around the sheet inside the pane
@@ -86,7 +86,7 @@ export function Preview({
       const paperW = paper.offsetWidth;
       const paperH = paper.offsetHeight;
       if (!paperW) return;
-            const availW = Math.max(120, scroll.clientWidth - PAD * 2);
+      const availW = Math.max(120, scroll.clientWidth - PAD * 2);
       const availH = Math.max(120, scroll.clientHeight - PAD * 2);
       const { w, h } = PAGE_SIZES[pageSize];
       const pxPerMm = paperW / w;
@@ -176,27 +176,27 @@ export function Preview({
     if (section?.dataset.step) onEditSection(section.dataset.step as StepId);
   }
 
-  const btn =
-    "grid size-7 place-items-center rounded-md text-stone-500 transition hover:bg-stone-100 hover:text-stone-900 disabled:opacity-35 disabled:hover:bg-transparent";
-  const fitBtn = (active: boolean) =>
-    `${btn} ${active ? "bg-brand/10 !text-brand hover:bg-brand/15" : ""}`;
+  // A pressed fit button shows as selected; IconButton passes aria-pressed through.
+  const fitBtn = (active: boolean) => (active ? "!bg-brand-soft !text-ink" : "");
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="@container flex h-12 shrink-0 items-center gap-2 border-b border-stone-200 bg-white/85 px-3 backdrop-blur">
-        <span className="hidden shrink-0 items-center gap-1.5 rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-600 @md:flex">
-          <span className="tabular-nums">{m.pages}</span> {m.pages === 1 ? "page" : "pages"}
-          <span className="text-stone-400">· {PAGE_SIZES[pageSize].label}</span>
+      <div className="@container flex h-12 shrink-0 items-center gap-2 border-b border-line bg-surface px-3">
+        <span className="cvb-badge hidden shrink-0 @md:inline-flex">
+          <Icon name="file" size={14} />
+          <span className="cvb-num">{m.pages}</span> {m.pages === 1 ? "page" : "pages"}
+          <span className="text-ink-3">· {PAGE_SIZES[pageSize].label}</span>
         </span>
         {(m.pages > 1 || fontScale !== 1) && (
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={fontScale !== 1 && m.pages === 1 ? () => onFontScale(1) : fitToPage}
             title={fontScale !== 1 ? `Text at ${Math.round(fontScale * 100)}%` : "Shrink spacing and text slightly so the CV fits on one page"}
-            className="hidden shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold text-brand ring-1 ring-inset ring-brand/30 hover:bg-brand/5 @md:block"
+            className="hidden shrink-0 @md:inline-flex"
           >
             {fontScale !== 1 && m.pages === 1 ? `Reset size (${Math.round(fontScale * 100)}%)` : "Fit to one page"}
-          </button>
+          </Button>
         )}
 
         <div className="@md:ms-auto">
@@ -204,33 +204,29 @@ export function Preview({
         </div>
 
         <div className="ms-auto flex items-center gap-0.5">
-          <button type="button" className={btn} title="Zoom out" aria-label="Zoom out" disabled={scale <= MIN_SCALE + 0.01} onClick={() => onZoom(clampScale(stepZoom(scale, -1)))}>
-            <MinusIcon className="size-4" />
-          </button>
+          <IconButton icon="minus" size="sm" label="Zoom out" disabled={scale <= MIN_SCALE + 0.01} onClick={() => onZoom(clampScale(stepZoom(scale, -1)))} />
           <button
             type="button"
             title="Reset to fit width"
             onClick={() => onZoom("width")}
-            className="w-12 rounded-md py-1 text-center text-xs font-medium tabular-nums text-stone-700 hover:bg-stone-100"
+            className="cvb-btn cvb-btn-ghost cvb-btn-sm w-14 justify-center px-0 font-mono text-xs"
           >
             {Math.round(scale * 100)}%
           </button>
-          <button type="button" className={btn} title="Zoom in" aria-label="Zoom in" disabled={scale >= MAX_SCALE - 0.01} onClick={() => onZoom(clampScale(stepZoom(scale, 1)))}>
-            <PlusIcon className="size-4" />
-          </button>
-          <span className="mx-1 hidden h-4 w-px bg-stone-200 @sm:block" />
-          <button type="button" className={`${fitBtn(zoom === "width")} hidden @sm:grid`} title="Fit width" aria-label="Fit width" aria-pressed={zoom === "width"} onClick={() => onZoom("width")}>
-            <FitWidthIcon className="size-4" />
-          </button>
-          <button type="button" className={`${fitBtn(zoom === "page")} hidden @sm:grid`} title="Fit whole page" aria-label="Fit whole page" aria-pressed={zoom === "page"} onClick={() => onZoom("page")}>
-            <FitPageIcon className="size-4" />
-          </button>
+          <IconButton icon="plus" size="sm" label="Zoom in" disabled={scale >= MAX_SCALE - 0.01} onClick={() => onZoom(clampScale(stepZoom(scale, 1)))} />
+          <span className="mx-1 hidden h-4 w-px bg-line @sm:block" aria-hidden="true" />
+          <span className="hidden items-center gap-0.5 @sm:flex">
+            <ToolButton label="Fit width" pressed={zoom === "width"} className={fitBtn(zoom === "width")} onClick={() => onZoom("width")}>
+              <FitWidthIcon className="size-4" />
+            </ToolButton>
+            <ToolButton label="Fit whole page" pressed={zoom === "page"} className={fitBtn(zoom === "page")} onClick={() => onZoom("page")}>
+              <FitPageIcon className="size-4" />
+            </ToolButton>
+          </span>
           {onSwap && (
             <>
-              <span className="mx-1 h-4 w-px bg-stone-200" />
-              <button type="button" className={btn} title="Swap sides" aria-label="Swap editor and preview sides" onClick={onSwap}>
-                <SwapIcon className="size-4" />
-              </button>
+              <span className="mx-1 h-4 w-px bg-line" aria-hidden="true" />
+              <IconButton icon="sort" size="sm" label="Swap editor and preview sides" onClick={onSwap} />
             </>
           )}
         </div>
@@ -246,9 +242,9 @@ export function Preview({
             opacity: m.paperW ? 1 : 0,
           }}
         >
-          <div className="absolute left-0 top-0 origin-top-left" style={{ transform: `scale(${scale})` }}>
+          <div className="absolute start-0 top-0 origin-top-left rtl:origin-top-right" style={{ transform: `scale(${scale})` }}>
             {activeStep && onEditSection && (
-              <style>{`.preview-live [data-step="${activeStep}"]{box-shadow:inset 0 0 0 100vmax rgb(30 75 143 / 0.045),0 0 0 3pt rgb(30 75 143 / 0.045)}`}</style>
+              <style>{`.preview-live [data-step="${activeStep}"]{box-shadow:inset 0 0 0 100vmax color-mix(in srgb, var(--brand) 4.5%, transparent),0 0 0 3pt color-mix(in srgb, var(--brand) 4.5%, transparent)}`}</style>
             )}
             <div
               ref={paperRef}
@@ -264,15 +260,15 @@ export function Preview({
                 const pxPerMm = m.paperW / PAGE_SIZES[pageSize].w;
                 const top = (10 + (i + 1) * (PAGE_SIZES[pageSize].h - PRINT_MARGIN_MM)) * pxPerMm;
                 return (
-                  <div key={i} aria-hidden="true" className="pointer-events-none absolute inset-x-0 border-t-2 border-dashed border-rose-300/80" style={{ top }}>
-                    <span className="absolute -top-2.5 end-2 rounded bg-rose-50 px-1.5 text-[10px] font-semibold text-rose-500">Page {i + 2}</span>
+                  <div key={i} aria-hidden="true" className="pointer-events-none absolute inset-x-0 border-t-2 border-dashed border-danger/80" style={{ top }}>
+                    <span className="absolute -top-2.5 end-2 rounded-xs bg-danger-soft px-1.5 text-[10px] font-semibold text-danger">Page {i + 2}</span>
                   </div>
                 );
               })}
           </div>
         </div>
         {onEditSection && (
-          <p className="mt-4 text-center text-xs text-stone-400">Click any part of your CV to edit it</p>
+          <p className="cvb-caption mt-4 text-center">Click any part of your CV to edit it</p>
         )}
       </div>
     </div>
@@ -286,19 +282,28 @@ export function MiniPreview({ cv, template, accent, scale = 1, onOpen }: { cv: C
       type="button"
       onClick={onOpen}
       title="Show preview (Alt+2)"
-      className="group fixed bottom-24 end-6 z-30 hidden w-[150px] overflow-hidden rounded-xl bg-white text-start shadow-xl ring-1 ring-stone-900/10 transition hover:-translate-y-0.5 hover:shadow-2xl lg:block"
+      className="group fixed bottom-24 end-6 z-30 hidden w-[150px] overflow-hidden rounded-lg border border-line bg-surface text-start shadow-md transition hover:-translate-y-0.5 hover:shadow-lg focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none lg:block"
     >
-      <div aria-hidden="true" className="relative h-[176px] overflow-hidden bg-stone-100">
-        <div className="absolute left-2 top-2 w-[210mm] origin-top-left scale-[0.168]">
+      <div aria-hidden="true" className="preview-canvas relative h-[176px] overflow-hidden">
+        <div className="absolute start-2 top-2 w-[210mm] origin-top-left scale-[0.168] rtl:origin-top-right">
           <div className="paper">
             <CVDocument cv={cv} template={template} accent={accent} scale={scale} />
           </div>
         </div>
       </div>
-      <div className="flex items-center justify-between border-t border-stone-200 px-2.5 py-1.5 text-xs font-medium text-stone-700">
+      <div className="flex items-center justify-between border-t border-line px-2.5 py-1.5 text-xs font-semibold text-ink-2">
         Live preview
-        <span className="text-stone-400 transition group-hover:translate-x-0.5 group-hover:text-brand">→</span>
+        <Icon name="arrow-right" size={14} className="text-ink-3 transition group-hover:text-brand-ink" />
       </div>
+    </button>
+  );
+}
+
+/** A small toolbar toggle with a custom icon (IconButton only takes Folio icon names). */
+function ToolButton({ label, pressed, className, onClick, children }: { label: string; pressed: boolean; className?: string; onClick: () => void; children: ReactNode }) {
+  return (
+    <button type="button" title={label} aria-label={label} aria-pressed={pressed} onClick={onClick} className={`cvb-btn cvb-btn-ghost cvb-btn-sm cvb-btn-icon ${className ?? ""}`}>
+      {children}
     </button>
   );
 }

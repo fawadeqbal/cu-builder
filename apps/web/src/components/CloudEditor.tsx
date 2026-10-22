@@ -2,9 +2,9 @@
 
 import type { ResumeDto, ResumeImportDto } from "@cvb/contracts";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { Alert, Button, EmptyState, Spinner } from "@cvb/ui";
 import { api, isApiError } from "@/lib/api";
 import { useCloudDocument } from "@/lib/document";
 import { keys, useResume } from "@/lib/queries";
@@ -20,17 +20,27 @@ export default function CloudEditor({ id }: { id: string }) {
 
 function Loaded({ id }: { id: string }) {
   const resume = useResume(id);
-  if (resume.isLoading) return <FullPageMessage>Opening your CV…</FullPageMessage>;
+  if (resume.isLoading)
+    return (
+      <FullPageMessage>
+        <span className="flex items-center gap-3">
+          <Spinner /> Opening your CV…
+        </span>
+      </FullPageMessage>
+    );
   if (!resume.data) {
     const missing = isApiError(resume.error, "NOT_FOUND");
     return (
       <FullPageMessage>
-        <div className="flex flex-col items-center gap-3">
-          <p>{missing ? "This CV doesn't exist, or it was deleted." : "We couldn't open this CV. Please try again."}</p>
-          <Link href="/app" className="font-semibold text-brand hover:underline">
-            Back to My CVs
-          </Link>
-        </div>
+        <EmptyState
+          icon={missing ? "file" : "alert-triangle"}
+          title={missing ? "This CV doesn't exist, or it was deleted." : "We couldn't open this CV. Please try again."}
+          actions={
+            <Button variant="secondary" icon="arrow-left" href="/app">
+              Back to My CVs
+            </Button>
+          }
+        />
       </FullPageMessage>
     );
   }
@@ -81,23 +91,25 @@ function ImportReview() {
   if (!importId || !item.data) return null;
   const dismiss = () => router.replace(window.location.pathname);
   return (
-    <div className="border-b border-sky-200 bg-sky-50 px-4 py-2.5 text-sm text-sky-950">
-      <div className="flex items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <strong className="font-semibold">We filled in your CV from {item.data.fileName}.</strong>{" "}
-          {item.data.warnings.length ? "Please check these first:" : "Go through each step to check names, dates and bullet points."}
-          {item.data.warnings.length > 0 && (
-            <ul className="mt-1 list-disc ps-5 text-sky-900">
-              {item.data.warnings.map((w) => (
-                <li key={w}>{w}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-        <button type="button" onClick={dismiss} className="shrink-0 font-semibold hover:underline">
+    <Alert
+      tone="info"
+      banner
+      className="border-b border-line px-4 sm:px-6"
+      title={`We filled in your CV from ${item.data.fileName}.`}
+      actions={
+        <Button variant="secondary" size="sm" onClick={dismiss}>
           Got it
-        </button>
-      </div>
-    </div>
+        </Button>
+      }
+    >
+      {item.data.warnings.length ? "Please check these first:" : "Go through each step to check names, dates and bullet points."}
+      {item.data.warnings.length > 0 && (
+        <ul className="mt-1 list-disc ps-5">
+          {item.data.warnings.map((w) => (
+            <li key={w}>{w}</li>
+          ))}
+        </ul>
+      )}
+    </Alert>
   );
 }

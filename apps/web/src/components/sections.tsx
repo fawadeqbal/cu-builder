@@ -1,6 +1,7 @@
 "use client";
 
 import { DETAIL_LABELS, newId, regionRules, type DetailKey } from "@cvb/domain";
+import { Chip, EmptyState, Icon, ProgressBar } from "@cvb/ui";
 import { useT } from "@/lib/i18n";
 import type { CV, ListKey, Personal } from "@cvb/domain";
 import { BulletsAssist } from "./ai/BulletsAssist";
@@ -41,11 +42,12 @@ function useList(cv: CV, onChange: (cv: CV) => void) {
   return { set, add, card };
 }
 
-function Empty({ children }: { children: React.ReactNode }) {
+/** Shown in place of an empty list, above its "Add" button. */
+function Empty({ icon, title, children }: { icon: string; title: string; children?: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-dashed border-stone-300 bg-white/60 px-4 py-8 text-center text-sm text-stone-500">
+    <EmptyState icon={icon} title={title} className="rounded-lg border border-dashed border-line-strong px-4 py-8 [&_.cvb-h2]:text-[17px] [&_.cvb-h2]:leading-6">
       {children}
-    </div>
+    </EmptyState>
   );
 }
 
@@ -135,12 +137,15 @@ function DetailsPanel({ cv, onChange }: SectionProps) {
   if (region === "default") {
     const filled = all.some((k) => cv.details[k].trim());
     return (
-      <details open={filled} className="group rounded-2xl border border-stone-200 bg-white shadow-xs [&_summary::-webkit-details-marker]:hidden">
-        <summary className="flex cursor-pointer list-none flex-col gap-0.5 px-5 py-4">
-          <span className="text-sm font-semibold text-stone-900">{t("details.title")}</span>
-          <span className="text-xs text-stone-500">{t("details.descAll")}</span>
+      <details open={filled} className="cvb-card group [&_summary::-webkit-details-marker]:hidden">
+        <summary className="flex cursor-pointer list-none items-start gap-3 rounded-lg px-5 py-4 focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none">
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="cvb-h3">{t("details.title")}</span>
+            <span className="cvb-card-desc">{t("details.descAll")}</span>
+          </span>
+          <Icon name="chevron-down" size={18} className="mt-0.5 text-ink-3 transition group-open:rotate-180" />
         </summary>
-        <div className="px-5 pb-5">{body}</div>
+        <div className="border-t border-line p-5">{body}</div>
       </details>
     );
   }
@@ -162,8 +167,7 @@ const SUMMARY_STARTERS = [
 export function SummarySection({ cv, onChange }: SectionProps) {
   const t = useT();
   const words = cv.summary.trim() ? cv.summary.trim().split(/\s+/).length : 0;
-  const tone =
-    words === 0 ? "text-stone-400" : words < 30 ? "text-amber-600" : words <= 90 ? "text-emerald-600" : "text-amber-600";
+  const tone = words === 0 ? "brand" : words < 30 ? "warning" : words <= 90 ? "success" : "warning";
   const label =
     words === 0 ? "Aim for 40–80 words" : words < 30 ? "A little short" : words <= 90 ? "Good length" : "Try to shorten it";
 
@@ -178,26 +182,28 @@ export function SummarySection({ cv, onChange }: SectionProps) {
           onChange={(v) => onChange({ ...cv, summary: v })}
         />
         <SummaryAssist cv={cv} onChange={(summary) => onChange({ ...cv, summary })} />
-        <div className="flex items-center gap-3 text-xs">
-          <span className={`font-medium ${tone}`}>{label}</span>
-          <span className="h-1 flex-1 overflow-hidden rounded-full bg-stone-100" aria-hidden="true">
-            <span
-              className={`block h-full rounded-full transition-[width] duration-300 ${words >= 30 && words <= 90 ? "bg-emerald-500" : words ? "bg-amber-400" : ""}`}
-              style={{ width: `${Math.min(100, (words / 80) * 100)}%` }}
-            />
-          </span>
-          <span className="tabular-nums text-stone-500">{words} words</span>
-        </div>
+        <ProgressBar
+          value={Math.min(words, 80)}
+          max={80}
+          tone={tone}
+          label={
+            <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${words >= 30 && words <= 90 ? "text-success" : words ? "text-warning" : "text-ink-3"}`}>
+              {words >= 30 && words <= 90 ? <Icon name="check-circle" size={14} /> : words > 0 && <Icon name="alert-triangle" size={14} />}
+              {label}
+            </span>
+          }
+          valueLabel={<span className="text-xs text-ink-3">{words} words</span>}
+        />
       </Panel>
       {!cv.summary.trim() && (
         <div className="flex flex-col gap-2">
-          <span className="text-xs font-medium text-stone-500">{t("f.summaryStarters")}</span>
+          <span className="cvb-label">{t("f.summaryStarters")}</span>
           {SUMMARY_STARTERS.map((s) => (
             <button
               key={s}
               type="button"
               onClick={() => onChange({ ...cv, summary: s })}
-              className="rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-start text-sm text-stone-600 shadow-xs transition hover:border-brand/50 hover:bg-brand/[0.03] hover:text-brand"
+              className="rounded-md border border-line bg-surface px-3.5 py-2.5 text-start text-sm text-ink-2 transition hover:border-brand hover:bg-brand-soft hover:text-ink focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none"
             >
               {s}
             </button>
@@ -219,8 +225,8 @@ export function ExperienceSection({ cv, onChange }: SectionProps) {
   return (
     <div className="flex flex-col gap-3">
       {cv.experience.length === 0 && (
-        <Empty>
-          No jobs added yet. Internships, part-time and freelance work all count.
+        <Empty icon="briefcase" title="No jobs added yet.">
+          Internships, part-time and freelance work all count.
           <br />
           No experience yet? Skip this step and add projects instead.
         </Empty>
@@ -263,7 +269,7 @@ export function EducationSection({ cv, onChange }: SectionProps) {
   const { set, add, card } = useList(cv, onChange);
   return (
     <div className="flex flex-col gap-3">
-      {cv.education.length === 0 && <Empty>Add your degree, diploma or school.</Empty>}
+      {cv.education.length === 0 && <Empty icon="graduation-cap" title="Add your degree, diploma or school." />}
       {cv.education.map((ed, i) => (
         <ItemCard key={ed.id} {...card("education", i, ed.degree, ed.id)}>
           <div className="grid grid-cols-1 gap-4 @min-[520px]:grid-cols-2">
@@ -296,17 +302,12 @@ export function SkillsSection({ cv, onChange }: SectionProps) {
       <SkillsAssist cv={cv} onChange={onChange} />
       {suggestions.length > 0 && (
         <div className="flex flex-col gap-2">
-          <span className="text-xs font-medium text-stone-500">Quick add a group:</span>
-          <div className="flex flex-wrap gap-1.5">
+          <span className="cvb-label">Quick add a group:</span>
+          <div className="flex flex-wrap gap-2">
             {suggestions.map((g) => (
-              <button
-                key={g}
-                type="button"
-                onClick={() => add("skills", { id: newId("skill"), category: g, items: "" })}
-                className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-600 shadow-xs transition hover:border-brand/50 hover:text-brand"
-              >
-                + {g}
-              </button>
+              <Chip key={g} icon="plus" onClick={() => add("skills", { id: newId("skill"), category: g, items: "" })}>
+                {g}
+              </Chip>
             ))}
           </div>
         </div>
@@ -337,7 +338,9 @@ export function ProjectsSection({ cv, onChange }: SectionProps) {
   return (
     <div className="flex flex-col gap-3">
       {cv.projects.length === 0 && (
-        <Empty>Projects show what you can build. Add personal, university or freelance projects.</Empty>
+        <Empty icon="files" title="Projects show what you can build.">
+          Add personal, university or freelance projects.
+        </Empty>
       )}
       {cv.projects.map((p, i) => (
         <ItemCard key={p.id} {...card("projects", i, p.name, p.id)}>
@@ -380,7 +383,7 @@ export function ExtrasSection({ cv, onChange }: SectionProps) {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
-        <h3 className="text-sm font-semibold text-stone-900">{t("f.languages")}</h3>
+        <h3 className="cvb-h3">{t("f.languages")}</h3>
         {cv.languages.map((l, i) => (
           <ItemCard key={l.id} {...card("languages", i, l.name, l.id)}>
             <div className="grid grid-cols-1 gap-4 @min-[520px]:grid-cols-2">
@@ -393,7 +396,7 @@ export function ExtrasSection({ cv, onChange }: SectionProps) {
       </div>
 
       <div className="flex flex-col gap-3">
-        <h3 className="text-sm font-semibold text-stone-800">{t("f.certificates")}</h3>
+        <h3 className="cvb-h3">{t("f.certificates")}</h3>
         {cv.certificates.map((c, i) => (
           <ItemCard key={c.id} {...card("certificates", i, c.name, c.id)}>
             <TextField label={t("f.certificate")} value={c.name} placeholder="AWS Cloud Practitioner" onChange={(v) => set("certificates", c.id, { name: v })} />

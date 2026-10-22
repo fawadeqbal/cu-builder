@@ -5,7 +5,7 @@ import { LIMITS, can, columnKey } from "@cvb/domain";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, type DragEvent, type FormEvent } from "react";
-import { PlusIcon, TrashIcon } from "@cvb/ui";
+import { Alert, Badge, ChevronDownIcon, Button, DataTable, EmptyState, IconButton, PageHeader, SearchField, SegmentedControl, Select, Skeleton, StageDot, Switch, TextField, type Column } from "@cvb/ui";
 import { gateForError } from "@/lib/ai";
 import { api } from "@/lib/api";
 import type { Gate } from "@/lib/plans";
@@ -15,16 +15,16 @@ import { AppHeader } from "../AppHeader";
 import { RequireAuth } from "../RequireAuth";
 import { UpgradeDialog } from "../UpgradeDialog";
 import { Dialog } from "../ui/Dialog";
-import { btn, card, field, label } from "../ui/styles";
 import { ApplicationDrawer } from "./ApplicationDrawer";
 import { CalendarView } from "./CalendarView";
 import { OffersView } from "./OffersView";
+import { stageOf, stageVar } from "./stage";
 
 const VIEWS = [
-  { id: "board", label: "Board" },
-  { id: "list", label: "List" },
-  { id: "calendar", label: "Calendar" },
-  { id: "offers", label: "Offers" },
+  { id: "board", label: "Board", icon: "kanban" },
+  { id: "list", label: "List", icon: "list" },
+  { id: "calendar", label: "Calendar", icon: "calendar" },
+  { id: "offers", label: "Offers", icon: "award" },
 ] as const;
 type View = (typeof VIEWS)[number]["id"];
 
@@ -65,44 +65,53 @@ function Tracker({ me }: { me: MeDto }) {
   };
 
   return (
-    <div className="min-h-dvh bg-stone-50">
+    <div className="min-h-dvh bg-canvas">
       <AppHeader />
-      <main className="mx-auto max-w-[90rem] px-4 pb-20 pt-8 sm:px-6">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="min-w-0 flex-1">
-            <h1 className="text-2xl font-semibold tracking-tight text-stone-900">Applications</h1>
-            <p className="text-sm text-stone-500">
-              {all.length} active
+      <main className="mx-auto flex max-w-(--layout-xl) flex-col gap-6 px-4 pb-20 pt-10 sm:px-6">
+        <PageHeader
+          title="Applications"
+          description={
+            <>
+              <span className="cvb-num">{all.length}</span> active
               {limited && ` of ${LIMITS[me.plan].trackedJobs} on the Free plan`}
-            </p>
+            </>
+          }
+          actions={
+            <>
+              <WeeklyEmailToggle />
+              <Button icon="settings" onClick={() => setEditingColumns(true)}>
+                Edit columns
+              </Button>
+              <Button variant="primary" icon="plus" onClick={() => setAdding(true)}>
+                Add application
+              </Button>
+            </>
+          }
+        />
+
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="max-w-full overflow-x-auto">
+            <SegmentedControl<View>
+              label="Views"
+              value={view}
+              onChange={(v) => go({ view: v === "board" ? null : v })}
+              options={VIEWS.map((v) => ({ value: v.id, label: v.label, icon: v.icon }))}
+            />
           </div>
-          <input type="search" aria-label="Search applications" placeholder="Search…" className={`${field} w-44`} value={search} onChange={(e) => setSearch(e.target.value)} />
-          <WeeklyEmailToggle />
-          <button type="button" className={btn.secondary} onClick={() => setEditingColumns(true)}>
-            Edit columns
-          </button>
-          <button type="button" className={btn.primary} onClick={() => setAdding(true)}>
-            <PlusIcon className="size-4" /> Add application
-          </button>
+          <SearchField label="Search applications" placeholder="Search…" className="ms-auto w-full sm:w-64" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
 
-        <nav className="mt-4 flex gap-1 overflow-x-auto border-b border-stone-200 text-sm font-medium" aria-label="Views">
-          {VIEWS.map((v) => (
-            <button
-              key={v.id}
-              type="button"
-              aria-current={v.id === view ? "page" : undefined}
-              onClick={() => go({ view: v.id === "board" ? null : v.id })}
-              className={`-mb-px whitespace-nowrap border-b-2 px-3 py-2 ${v.id === view ? "border-brand text-stone-900" : "border-transparent text-stone-500 hover:text-stone-800"}`}
-            >
-              {v.label}
-            </button>
-          ))}
-        </nav>
-
-        <div className="mt-6">
+        <div>
           {board.isLoading || apps.isLoading ? (
-            <p className="py-10 text-center text-sm text-stone-500">Loading…</p>
+            <div className="cvb-board" aria-busy="true">
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="cvb-column">
+                  <Skeleton width="40%" height={14} />
+                  <Skeleton height={84} shape="block" />
+                  <Skeleton height={84} shape="block" />
+                </div>
+              ))}
+            </div>
           ) : all.length === 0 && view !== "calendar" ? (
             <Empty onAdd={() => setAdding(true)} />
           ) : view === "board" ? (
@@ -126,21 +135,24 @@ function Tracker({ me }: { me: MeDto }) {
 }
 
 function Empty({ onAdd }: { onAdd: () => void }) {
-  const router = useRouter();
   return (
-    <div className={`${card} flex flex-col items-center gap-3 px-6 py-14 text-center`}>
-      <h2 className="text-lg font-semibold text-stone-900">Track every application in one place</h2>
-      <p className="max-w-md text-sm text-stone-600">
+    <div className="cvb-card">
+      <EmptyState
+        icon="kanban"
+        title="Track every application in one place"
+        actions={
+          <>
+            <Button variant="primary" icon="plus" onClick={onAdd}>
+              Add application
+            </Button>
+            <Button icon="search" href="/jobs?tab=feed">
+              Find jobs
+            </Button>
+          </>
+        }
+      >
         Add the jobs you&apos;re applying for, drag them from Saved to Offer, keep contacts and notes, and get reminders to follow up.
-      </p>
-      <div className="flex flex-wrap justify-center gap-2">
-        <button type="button" className={btn.primary} onClick={onAdd}>
-          <PlusIcon className="size-4" /> Add application
-        </button>
-        <button type="button" className={btn.secondary} onClick={() => router.push("/jobs?tab=feed")}>
-          Find jobs
-        </button>
-      </div>
+      </EmptyState>
     </div>
   );
 }
@@ -154,10 +166,9 @@ function WeeklyEmailToggle() {
   });
   if (!prefs.data) return null;
   return (
-    <label className="flex cursor-pointer items-center gap-2 text-sm text-stone-600" title="A Monday email with your progress and the week's interviews and deadlines">
-      <input type="checkbox" className="size-4 accent-brand" checked={prefs.data.weeklyDigest} onChange={(e) => save.mutate(e.target.checked)} />
-      Weekly email
-    </label>
+    <span className="me-2 text-sm" title="A Monday email with your progress and the week's interviews and deadlines">
+      <Switch label="Weekly email" checked={prefs.data.weeklyDigest} onChange={(on) => save.mutate(on)} />
+    </span>
   );
 }
 
@@ -214,7 +225,7 @@ function BoardView({ columns, apps, onOpen }: { columns: BoardDto["columns"]; ap
   }
 
   return (
-    <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-4 sm:-mx-6 sm:px-6" data-testid="board">
+    <div className="cvb-board -mx-4 px-4 pb-4 sm:-mx-6 sm:px-6" data-testid="board">
       {columns.map((c) => {
         const list = byColumn.get(c.key) ?? [];
         return (
@@ -222,7 +233,9 @@ function BoardView({ columns, apps, onOpen }: { columns: BoardDto["columns"]; ap
             key={c.key}
             aria-label={c.label}
             data-column={c.key}
-            className={`flex w-72 shrink-0 flex-col rounded-2xl bg-stone-100/80 p-2 ring-1 transition ${over?.column === c.key ? "ring-brand/50" : "ring-stone-200"}`}
+            data-over={over?.column === c.key ? "" : undefined}
+            className="cvb-column"
+            style={stageVar(c.key)}
             onDragOver={(e) => {
               e.preventDefault();
               if (over?.column !== c.key) setOver({ column: c.key, index: list.length });
@@ -232,9 +245,10 @@ function BoardView({ columns, apps, onOpen }: { columns: BoardDto["columns"]; ap
               drop(c.key, over?.column === c.key ? over.index : list.length);
             }}
           >
-            <header className="flex items-center justify-between px-2 py-1.5">
-              <h2 className="text-sm font-semibold text-stone-800">{c.label}</h2>
-              <span className="rounded-full bg-white px-2 text-xs font-semibold tabular-nums text-stone-500 ring-1 ring-stone-200">{list.length}</span>
+            <header className="cvb-column-head">
+              <span className="cvb-dot" aria-hidden="true" />
+              <h2 className="min-w-0 truncate text-[13px] font-semibold">{c.label}</h2>
+              <span className="cvb-column-count">{list.length}</span>
             </header>
             <ol className="flex min-h-16 flex-col gap-2">
               {list.map((a, i) => (
@@ -277,25 +291,42 @@ function BoardView({ columns, apps, onOpen }: { columns: BoardDto["columns"]; ap
 function Card({ app, now, columns, onOpen, onMove }: { app: ApplicationDto; now: number; columns: BoardDto["columns"]; onOpen: () => void; onMove: (column: string) => void }) {
   const soon = app.interviewAt && new Date(app.interviewAt).getTime() > now ? app.interviewAt : null;
   return (
-    <div className="cursor-grab rounded-xl bg-white p-3 shadow-xs ring-1 ring-stone-200 transition hover:ring-stone-300 active:cursor-grabbing">
-      <button type="button" onClick={onOpen} className="block w-full text-start">
-        <div className="line-clamp-2 text-sm font-semibold text-stone-900">{app.job.title}</div>
-        <div className="truncate text-xs text-stone-500">{[app.job.company, app.job.location].filter(Boolean).join(" · ") || "No company"}</div>
+    <div className="cvb-appcard active:cursor-grabbing">
+      <button type="button" onClick={onOpen} className="block w-full rounded-sm text-start focus-visible:shadow-(--focus-ring) focus-visible:outline-none">
+        <span className="cvb-appcard-title">{app.job.title}</span>
+        <span className="cvb-appcard-sub block truncate">{[app.job.company, app.job.location].filter(Boolean).join(" · ") || "No company"}</span>
       </button>
-      <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] font-medium">
-        {soon && <span className="rounded-full bg-violet-50 px-2 py-0.5 text-violet-700 ring-1 ring-violet-200">Interview {shortDate(soon)}</span>}
-        {app.deadlineAt && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-amber-800 ring-1 ring-amber-200">Due {shortDate(app.deadlineAt)}</span>}
-        {app.shareLinkId && <span className="rounded-full bg-stone-100 px-2 py-0.5 text-stone-600">{app.linkViews} CV views</span>}
-        {app.offer && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700 ring-1 ring-emerald-200">Offer details</span>}
-        <label className="ms-auto opacity-70 focus-within:opacity-100 group-hover:opacity-100">
+      <div className="cvb-appcard-foot">
+        {soon && (
+          <Badge tone="info" icon="calendar">
+            Interview {shortDate(soon)}
+          </Badge>
+        )}
+        {app.deadlineAt && (
+          <Badge tone="warning" icon="clock">
+            Due {shortDate(app.deadlineAt)}
+          </Badge>
+        )}
+        {app.shareLinkId && <Badge icon="eye">{app.linkViews} CV views</Badge>}
+        {app.offer && (
+          <Badge tone="success" icon="award">
+            Offer details
+          </Badge>
+        )}
+        <label className="relative ms-auto flex items-center rounded-sm text-ink-3 opacity-80 focus-within:opacity-100 group-hover:opacity-100">
           <span className="sr-only">Move {app.job.title} to</span>
-          <select className="max-w-24 rounded-md bg-transparent py-0.5 text-[11px] text-stone-500 hover:bg-stone-100" value={app.status} onChange={(e) => onMove(e.target.value)}>
+          <select
+            className="max-w-28 cursor-pointer appearance-none rounded-sm bg-transparent py-0.5 pe-4 ps-1 text-[11px] text-ink-3 hover:bg-surface-2 hover:text-ink focus-visible:shadow-(--focus-ring) focus-visible:outline-none"
+            value={app.status}
+            onChange={(e) => onMove(e.target.value)}
+          >
             {columns.map((c) => (
               <option key={c.key} value={c.key}>
                 {c.label}
               </option>
             ))}
           </select>
+          <ChevronDownIcon className="pointer-events-none absolute end-0.5 size-3" />
         </label>
       </div>
     </div>
@@ -308,62 +339,42 @@ function ListView({ columns, apps, onOpen }: { columns: BoardDto["columns"]; app
   const old = useApplications(true);
   const rows = archived ? (old.data ?? []) : apps;
   const label = (key: string) => columns.find((c) => c.key === key)?.label ?? key;
+  const cols: Column<ApplicationDto>[] = [
+    {
+      key: "job",
+      label: "Job",
+      render: (a) => (
+        <button type="button" className="text-start" onClick={() => onOpen(a.id)}>
+          <span className="block font-semibold text-ink hover:underline">{a.job.title}</span>
+          <span className="cvb-caption block font-normal">{a.job.company}</span>
+        </button>
+      ),
+    },
+    {
+      key: "stage",
+      label: "Stage",
+      render: (a) =>
+        archived ? (
+          <span className="inline-flex items-center gap-2 text-ink-2">
+            <StageDot stage={stageOf(a.status)} />
+            {label(a.status)}
+          </span>
+        ) : (
+          <Select size="sm" aria-label={`Stage of ${a.job.title}`} className="min-w-36" value={a.status} onChange={(e) => update.mutate({ id: a.id, patch: { status: e.target.value } })} options={columns.map((c) => ({ value: c.key, label: c.label }))} />
+        ),
+    },
+    { key: "applied", label: "Applied", render: (a) => shortDate(a.appliedAt) },
+    { key: "interview", label: "Interview", render: (a) => shortDate(a.interviewAt) },
+    { key: "views", label: "CV views", numeric: true, render: (a) => (a.shareLinkId ? a.linkViews : "—") },
+    { key: "updated", label: "Updated", render: (a) => <span className="text-ink-3">{shortDate(a.updatedAt)}</span> },
+  ];
   return (
-    <div className={`${card} overflow-hidden`}>
-      <div className="flex items-center justify-end border-b border-stone-100 px-4 py-2">
-        <label className="flex items-center gap-2 text-sm text-stone-600">
-          <input type="checkbox" className="size-4 accent-brand" checked={archived} onChange={(e) => setArchived(e.target.checked)} /> Show archived
-        </label>
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-end">
+        <Switch label="Show archived" checked={archived} onChange={setArchived} />
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[44rem] text-start text-sm">
-          <thead className="bg-stone-50 text-xs font-semibold uppercase tracking-wide text-stone-500">
-            <tr>
-              <th className="px-4 py-2.5">Job</th>
-              <th className="px-4 py-2.5">Stage</th>
-              <th className="px-4 py-2.5">Applied</th>
-              <th className="px-4 py-2.5">Interview</th>
-              <th className="px-4 py-2.5">CV views</th>
-              <th className="px-4 py-2.5">Updated</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-stone-100">
-            {rows.map((a) => (
-              <tr key={a.id} className="hover:bg-stone-50/60">
-                <td className="px-4 py-2.5">
-                  <button type="button" className="text-start" onClick={() => onOpen(a.id)}>
-                    <div className="font-medium text-stone-900 hover:underline">{a.job.title}</div>
-                    <div className="text-xs text-stone-500">{a.job.company}</div>
-                  </button>
-                </td>
-                <td className="px-4 py-2.5">
-                  {archived ? (
-                    <span className="text-stone-600">{label(a.status)}</span>
-                  ) : (
-                    <select aria-label={`Stage of ${a.job.title}`} className={`${field} py-1`} value={a.status} onChange={(e) => update.mutate({ id: a.id, patch: { status: e.target.value } })}>
-                      {columns.map((c) => (
-                        <option key={c.key} value={c.key}>
-                          {c.label}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </td>
-                <td className="px-4 py-2.5 text-stone-600">{shortDate(a.appliedAt)}</td>
-                <td className="px-4 py-2.5 text-stone-600">{shortDate(a.interviewAt)}</td>
-                <td className="px-4 py-2.5 tabular-nums text-stone-600">{a.shareLinkId ? a.linkViews : "—"}</td>
-                <td className="px-4 py-2.5 text-stone-500">{shortDate(a.updatedAt)}</td>
-              </tr>
-            ))}
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-stone-500">
-                  Nothing here.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      <div className="[&_table]:min-w-[44rem]">
+        <DataTable caption="Applications" columns={cols} rows={rows} rowKey={(a) => a.id} empty="Nothing here." />
       </div>
     </div>
   );
@@ -425,63 +436,40 @@ function AddApplication({
   return (
     <Dialog open={open} onClose={onClose} title="Add an application" size="md">
       <form onSubmit={submit} className="flex flex-col gap-4">
-        <div>
-          <label className={label} htmlFor="app-job">
-            Job
-          </label>
-          <select id="app-job" className={field} value={jobId} onChange={(e) => setJobId(e.target.value)}>
-            <option value="new">A new job…</option>
-            {jobs.data?.map((j) => (
-              <option key={j.id} value={j.id}>
-                {j.title}
-                {j.company ? ` — ${j.company}` : ""}
-              </option>
-            ))}
-          </select>
-        </div>
+        <Select id="app-job" label="Job" value={jobId} onChange={(e) => setJobId(e.target.value)}>
+          <option value="new">A new job…</option>
+          {jobs.data?.map((j) => (
+            <option key={j.id} value={j.id}>
+              {j.title}
+              {j.company ? ` — ${j.company}` : ""}
+            </option>
+          ))}
+        </Select>
         {jobId === "new" && (
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <label className={label} htmlFor="app-title">
-                Job title
-              </label>
-              <input id="app-title" required className={field} value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} />
+          <>
+            <TextField id="app-title" label="Job title" required value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} />
+            <div className="cvb-field-row">
+              <TextField id="app-company" label="Company" value={company} maxLength={200} onChange={(e) => setCompany(e.target.value)} />
+              <TextField id="app-url" label="Posting link" optional type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://" />
             </div>
-            <div>
-              <label className={label} htmlFor="app-company">
-                Company
-              </label>
-              <input id="app-company" className={field} value={company} maxLength={200} onChange={(e) => setCompany(e.target.value)} />
-            </div>
-            <div>
-              <label className={label} htmlFor="app-url">
-                Posting link (optional)
-              </label>
-              <input id="app-url" type="url" className={field} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://" />
-            </div>
-          </div>
+          </>
         )}
-        <div>
-          <label className={label} htmlFor="app-cv">
-            CV you&apos;re sending (optional)
-          </label>
-          <select id="app-cv" className={field} value={resumeId} onChange={(e) => setResumeId(e.target.value)}>
-            <option value="">Choose later</option>
-            {resumes.data?.items.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.title}
-              </option>
-            ))}
-          </select>
-        </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        <Select id="app-cv" label="CV you're sending" optional value={resumeId} onChange={(e) => setResumeId(e.target.value)}>
+          <option value="">Choose later</option>
+          {resumes.data?.items.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.title}
+            </option>
+          ))}
+        </Select>
+        {error && <Alert tone="danger">{error}</Alert>}
         <div className="flex justify-end gap-2">
-          <button type="button" className={btn.ghost} onClick={onClose}>
+          <Button variant="ghost" onClick={onClose}>
             Cancel
-          </button>
-          <button type="submit" className={btn.primary} disabled={create.isPending}>
+          </Button>
+          <Button type="submit" variant="primary" icon="plus" loading={create.isPending}>
             {create.isPending ? "Adding…" : "Add"}
-          </button>
+          </Button>
         </div>
       </form>
     </Dialog>
@@ -514,40 +502,35 @@ function ColumnsEditor({ open, onClose, board }: { open: boolean; onClose: () =>
       title="Board columns"
       description="Rename, reorder, add or remove stages. Cards in a removed column move to the first one."
       footer={
-        <div className="flex justify-end gap-2">
-          <button type="button" className={btn.ghost} onClick={onClose}>
+        <>
+          <Button variant="ghost" onClick={onClose}>
             Cancel
-          </button>
-          <button type="button" className={btn.primary} disabled={save.isPending || cols.length === 0} onClick={() => save.mutate()}>
+          </Button>
+          <Button variant="primary" disabled={cols.length === 0} loading={save.isPending} onClick={() => save.mutate()}>
             Save
-          </button>
-        </div>
+          </Button>
+        </>
       }
     >
       <ol className="flex flex-col gap-2">
         {cols.map((c, i) => (
-          <li key={c.key} className="flex items-center gap-2">
-            <input
+          <li key={c.key} className="flex items-center gap-1" style={stageVar(c.key)}>
+            <span className="cvb-dot me-1 text-(--stage)" aria-hidden="true" />
+            <TextField
               aria-label={`Column ${i + 1} name`}
-              className={field}
+              className="min-w-0 flex-1"
               value={c.label}
               maxLength={40}
               onChange={(e) => setCols((all) => all.map((x) => (x.key === c.key ? { ...x, label: e.target.value } : x)))}
             />
-            <button type="button" className={btn.ghost} aria-label="Move up" onClick={() => swap(i, i - 1)}>
-              ↑
-            </button>
-            <button type="button" className={btn.ghost} aria-label="Move down" onClick={() => swap(i, i + 1)}>
-              ↓
-            </button>
-            <button type="button" className={btn.ghost} aria-label={`Remove ${c.label}`} disabled={cols.length === 1} onClick={() => setCols((all) => all.filter((x) => x.key !== c.key))}>
-              <TrashIcon className="size-4" />
-            </button>
+            <IconButton icon="chevron-up" label="Move up" disabled={i === 0} onClick={() => swap(i, i - 1)} />
+            <IconButton icon="chevron-down" label="Move down" disabled={i === cols.length - 1} onClick={() => swap(i, i + 1)} />
+            <IconButton icon="trash" label={`Remove ${c.label}`} disabled={cols.length === 1} onClick={() => setCols((all) => all.filter((x) => x.key !== c.key))} />
           </li>
         ))}
       </ol>
       <form
-        className="mt-3 flex gap-2"
+        className="flex gap-2"
         onSubmit={(e) => {
           e.preventDefault();
           if (!name.trim() || cols.length >= 12) return;
@@ -555,10 +538,10 @@ function ColumnsEditor({ open, onClose, board }: { open: boolean; onClose: () =>
           setName("");
         }}
       >
-        <input aria-label="New column name" className={field} value={name} maxLength={40} placeholder="New column, e.g. Phone screen" onChange={(e) => setName(e.target.value)} />
-        <button type="submit" className={btn.secondary}>
+        <TextField aria-label="New column name" className="min-w-0 flex-1" value={name} maxLength={40} placeholder="New column, e.g. Phone screen" onChange={(e) => setName(e.target.value)} />
+        <Button type="submit" icon="plus">
           Add
-        </button>
+        </Button>
       </form>
     </Dialog>
   );

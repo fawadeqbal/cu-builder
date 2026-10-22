@@ -4,12 +4,12 @@ import type { CoverLetterDto, JobDto, JobMatchDto, ResumeDto, TailorProposalDto 
 import { addKeyword, matchJob, newId, type CV } from "@cvb/domain";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Alert, Button, Icon, Spinner } from "@cvb/ui";
 import { gateForError, useAiCall } from "@/lib/ai";
 import { api } from "@/lib/api";
 import type { Gate } from "@/lib/plans";
 import { useJobs } from "@/lib/queries";
 import { Dialog } from "../ui/Dialog";
-import { btn } from "../ui/styles";
 import { JobForm } from "./JobForm";
 import { MatchResult } from "./MatchResult";
 import { TailorReview } from "./TailorReview";
@@ -119,22 +119,22 @@ export function MatchDialog({ open, onClose, cv, resumeId, flush, onCv, onGate }
         footer={
           job && match ? (
             <>
-              <button type="button" className={btn.ghost} onClick={() => (setJob(null), setMatch(null))}>
-                ← Another job
-              </button>
+              <Button variant="ghost" icon="arrow-left" className="me-auto" onClick={() => (setJob(null), setMatch(null))}>
+                Another job
+              </Button>
               {cloud ? (
                 <>
-                  <button type="button" className={btn.secondary} disabled={busy !== null} onClick={() => void startLetter()}>
+                  <Button icon="mail" disabled={busy !== null} loading={busy === "letter"} onClick={() => void startLetter()}>
                     {busy === "letter" ? "Opening…" : "Write a cover letter"}
-                  </button>
-                  <button type="button" className={btn.primary} disabled={busy !== null} onClick={() => void startTailor()}>
-                    {busy === "tailor" ? "Tailoring…" : "✦ Tailor for this job"}
-                  </button>
+                  </Button>
+                  <Button variant="primary" icon="sparkle" disabled={busy !== null} loading={busy === "tailor"} onClick={() => void startTailor()}>
+                    {busy === "tailor" ? "Tailoring…" : "Tailor for this job"}
+                  </Button>
                 </>
               ) : (
-                <button type="button" className={btn.primary} onClick={() => onGate({ kind: "account", what: "tailor your CV and save jobs" })}>
+                <Button variant="primary" icon="sparkle" onClick={() => onGate({ kind: "account", what: "tailor your CV and save jobs" })}>
                   Tailor for this job
-                </button>
+                </Button>
               )}
             </>
           ) : undefined
@@ -143,31 +143,40 @@ export function MatchDialog({ open, onClose, cv, resumeId, flush, onCv, onGate }
         {!job ? (
           <div className="flex flex-col gap-5">
             {cloud && jobs.data && jobs.data.length > 0 && !adding && (
-              <div>
-                <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500">Your saved jobs</h4>
+              <div className="flex flex-col gap-2">
+                <h3 className="cvb-overline">Your saved jobs</h3>
                 <ul className="flex max-h-64 flex-col gap-1.5 overflow-y-auto">
                   {jobs.data.map((j) => (
                     <li key={j.id}>
-                      <button type="button" onClick={() => void run(j)} className="w-full rounded-xl border border-stone-200 px-3 py-2 text-start text-sm hover:border-brand/50 hover:bg-brand/[0.03]">
-                        <span className="font-medium text-stone-900">{j.title}</span>
-                        {j.company && <span className="text-stone-500"> · {j.company}</span>}
+                      <button type="button" onClick={() => void run(j)} className="flex w-full items-center gap-2 rounded-md border border-line bg-surface px-3 py-2.5 text-start text-sm transition-colors hover:border-brand hover:bg-brand-soft">
+                        <span className="min-w-0 flex-1 truncate">
+                          <span className="font-medium text-ink">{j.title}</span>
+                          {j.company && <span className="text-ink-3"> · {j.company}</span>}
+                        </span>
+                        <Icon name="chevron-right" size={16} className="shrink-0 text-ink-3" />
                       </button>
                     </li>
                   ))}
                 </ul>
-                <button type="button" className="mt-3 text-sm font-semibold text-brand hover:underline" onClick={() => setAdding(true)}>
-                  + Add a new job
-                </button>
+                <Button variant="link" icon="plus" className="self-start" onClick={() => setAdding(true)}>
+                  Add a new job
+                </Button>
               </div>
             )}
             {(!cloud || adding || (jobs.data && jobs.data.length === 0)) && <JobForm local={!cloud} onSaved={(j) => void run(j)} />}
           </div>
         ) : busy === "match" && !match ? (
-          <p className="py-8 text-center text-sm text-stone-500">Checking your match…</p>
+          <p className="flex items-center justify-center gap-2 py-8 text-sm text-ink-3">
+            <Spinner /> Checking your match…
+          </p>
         ) : match ? (
           <MatchResult match={match} onAdd={addMissing} onUnlock={() => onGate(cloud ? { kind: "feature", feature: "jobMatch" } : { kind: "account", what: "see every keyword" })} />
         ) : null}
-        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+        {error && (
+          <Alert tone="danger" className="mt-3">
+            {error}
+          </Alert>
+        )}
       </Dialog>
       {tailor && job && (
         <TailorReview open onClose={() => setTailor(null)} base={tailor.base} proposal={tailor.proposal.proposal} notes={tailor.proposal.notes} job={job} />

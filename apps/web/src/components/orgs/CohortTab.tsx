@@ -1,13 +1,15 @@
 "use client";
 
-import type { OrgDto } from "@cvb/contracts";
+import type { CohortDto, OrgDto } from "@cvb/contracts";
 import Link from "next/link";
 import { useState } from "react";
-import { DownloadIcon } from "@cvb/ui";
+import { Button, DataTable, Icon, ScoreRing, SearchField, Select, Skeleton, StatTile } from "@cvb/ui";
 import { useCohort } from "@/lib/orgs";
-import { btn, card, field } from "../ui/styles";
 
-const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" }) : "—");
+type Row = CohortDto["rows"][number];
+
+const day = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" }) : "—";
 
 /** The career office's view: who has a CV, how strong it is, and how the job hunt is going. */
 export function CohortTab({ org, canExport }: { org: OrgDto; canExport: boolean }) {
@@ -29,89 +31,138 @@ export function CohortTab({ org, canExport }: { org: OrgDto; canExport: boolean 
     : [];
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-end gap-2">
-        <label className="text-xs font-medium text-stone-600">
-          Cohort
-          <select aria-label="Cohort" className={`${field} mt-1 w-48`} value={cohort} onChange={(e) => setCohort(e.target.value)}>
-            <option value="">Everyone</option>
-            {d?.cohorts.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </label>
-        <input type="search" aria-label="Search students" placeholder="Search by name or email" className={`${field} w-64`} value={search} onChange={(e) => setSearch(e.target.value)} />
+    <div className="flex flex-col gap-6 [&_.cvb-table-wrap]:relative">
+      <div className="flex flex-wrap items-end gap-3">
+        <Select
+          aria-label="Cohort"
+          label="Cohort"
+          className="w-full sm:w-48"
+          value={cohort}
+          onChange={(e) => setCohort(e.target.value)}
+        >
+          <option value="">Everyone</option>
+          {d?.cohorts.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </Select>
+        <SearchField
+          label="Search students"
+          placeholder="Search by name or email"
+          className="w-full sm:w-64"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
         {canExport && (
-          <a href={`/api/v1/orgs/${org.id}/cohort.csv${cohort ? `?cohort=${encodeURIComponent(cohort)}` : ""}`} className={`${btn.secondary} ms-auto`} download>
-            <DownloadIcon className="size-4" /> Export CSV
-          </a>
+          <Button
+            icon="download"
+            className="sm:ms-auto"
+            href={`/api/v1/orgs/${org.id}/cohort.csv${cohort ? `?cohort=${encodeURIComponent(cohort)}` : ""}`}
+            download
+          >
+            Export CSV
+          </Button>
         )}
       </div>
 
       {data.isLoading ? (
-        <p className="py-10 text-center text-sm text-stone-500">Loading…</p>
+        <div className="cvb-stat-grid">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} height={104} shape="block" />
+          ))}
+        </div>
       ) : (
-        <>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-5" aria-label="Cohort metrics">
+        tiles.length > 0 && (
+          <div className="cvb-stat-grid" aria-label="Cohort metrics" role="group">
             {tiles.map(([k, v, sub]) => (
-              <div key={k} className={`${card} px-4 py-3`}>
-                <div className="text-xs font-medium text-stone-500">{k}</div>
-                <div className="text-2xl font-semibold tabular-nums text-stone-900">{v}</div>
-                <div className="text-xs text-stone-500">{sub}</div>
-              </div>
+              <StatTile key={k} label={k} value={v} hint={sub} />
             ))}
           </div>
-          <div className={`${card} overflow-hidden`}>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[52rem] text-start text-sm">
-                <thead className="bg-stone-50 text-xs font-semibold uppercase tracking-wide text-stone-500">
-                  <tr>
-                    {["Student", "Cohort", "CVs", "ATS", "Applied", "Interviews", "Offers", "Last active", ""].map((h) => (
-                      <th key={h} className="px-4 py-2.5 text-start">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-100">
-                  {rows.map((r) => (
-                    <tr key={r.userId}>
-                      <td className="px-4 py-2.5">
-                        <div className="font-medium text-stone-900">{r.name || r.email}</div>
-                        <div className="text-xs text-stone-500">{r.email}</div>
-                      </td>
-                      <td className="px-4 py-2.5 text-stone-600">{r.cohort || "—"}</td>
-                      <td className="px-4 py-2.5 tabular-nums">{r.cvs}</td>
-                      <td className="px-4 py-2.5 tabular-nums">
-                        {r.bestAts === null ? "—" : <span className={r.bestAts >= 75 ? "text-emerald-700" : r.bestAts >= 50 ? "text-amber-700" : "text-red-700"}>{r.bestAts}</span>}
-                      </td>
-                      <td className="px-4 py-2.5 tabular-nums">{r.applications}</td>
-                      <td className="px-4 py-2.5 tabular-nums">{r.interviews}</td>
-                      <td className="px-4 py-2.5 tabular-nums">{r.placed ? <span className="font-semibold text-emerald-700">{r.offers}</span> : r.offers}</td>
-                      <td className="px-4 py-2.5 text-stone-500">{day(r.lastActiveAt)}</td>
-                      <td className="px-4 py-2.5 text-end">
-                        {r.bestResumeId && (
-                          <Link href={`/review/${r.bestResumeId}`} className="text-sm font-medium text-brand hover:underline">
-                            Review CV
-                          </Link>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                  {rows.length === 0 && (
-                    <tr>
-                      <td colSpan={9} className="px-4 py-10 text-center text-stone-500">
-                        No students yet. Invite them from Members &amp; invites, or share your join link.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </>
+        )
+      )}
+
+      {data.isLoading ? (
+        <Skeleton height={200} shape="block" />
+      ) : (
+        <div className="flex flex-col gap-2">
+          <p className="cvb-caption" role="status">
+            {rows.length} {rows.length === 1 ? "student" : "students"}
+          </p>
+          <DataTable<Row>
+            caption="Students"
+            rows={rows}
+            rowKey={(r) => r.userId}
+            empty="No students yet. Invite them from Members & invites, or share your join link."
+            columns={[
+              {
+                key: "student",
+                label: "Student",
+                render: (r) => (
+                  <span className="flex flex-col">
+                    <span className="text-ink">{r.name || r.email}</span>
+                    <span className="cvb-caption font-normal">{r.email}</span>
+                  </span>
+                ),
+              },
+              {
+                key: "cohort",
+                label: "Cohort",
+                render: (r) => r.cohort || <span className="text-ink-3">Not set</span>,
+              },
+              { key: "cvs", label: "CVs", numeric: true, render: (r) => r.cvs },
+              {
+                key: "ats",
+                label: "ATS",
+                render: (r) =>
+                  r.bestAts === null ? (
+                    <span className="text-ink-3">—</span>
+                  ) : (
+                    <ScoreRing
+                      size="sm"
+                      value={r.bestAts}
+                      tone={r.bestAts >= 75 ? "success" : r.bestAts >= 50 ? "warning" : "danger"}
+                      label={`ATS score ${r.bestAts} out of 100`}
+                    />
+                  ),
+              },
+              { key: "applied", label: "Applied", numeric: true, render: (r) => r.applications },
+              { key: "interviews", label: "Interviews", numeric: true, render: (r) => r.interviews },
+              {
+                key: "offers",
+                label: "Offers",
+                numeric: true,
+                render: (r) =>
+                  r.placed ? (
+                    <span className="inline-flex items-center gap-1 font-semibold text-success" title="Placed">
+                      <Icon name="check-circle" size={14} label="Placed" />
+                      {r.offers}
+                    </span>
+                  ) : (
+                    r.offers
+                  ),
+              },
+              {
+                key: "last",
+                label: "Last active",
+                render: (r) => <span className="whitespace-nowrap">{day(r.lastActiveAt)}</span>,
+              },
+              {
+                key: "review",
+                label: <span className="cvb-sr">Actions</span>,
+                render: (r) =>
+                  r.bestResumeId && (
+                    <Link
+                      href={`/review/${r.bestResumeId}`}
+                      className="whitespace-nowrap font-medium text-brand-ink hover:underline"
+                    >
+                      Review CV
+                    </Link>
+                  ),
+              },
+            ]}
+          />
+        </div>
       )}
     </div>
   );

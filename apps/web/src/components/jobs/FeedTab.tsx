@@ -2,15 +2,14 @@
 
 import type { ApplicationDto, FeedJobDto, JobPreferencesDto } from "@cvb/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
 import { useState, type FormEvent } from "react";
+import { Alert, Button, Checkbox, EmptyState, Field, Icon, MatchScore, RadioGroup, Skeleton, Spinner, TextField } from "@cvb/ui";
 import { gateForError } from "@/lib/ai";
 import { api } from "@/lib/api";
 import type { Gate } from "@/lib/plans";
 import { keys } from "@/lib/queries";
 import { trackerKeys, useFeed, usePreferences, type FeedResult } from "@/lib/tracker";
 import { Dialog } from "../ui/Dialog";
-import { btn, card, field, label } from "../ui/styles";
 
 const SOURCE_LINK: Record<string, string> = { remotive: "https://remotive.com", jooble: "https://jooble.org", adzuna: "https://www.adzuna.com" };
 
@@ -19,8 +18,6 @@ const ago = (iso: string | null) => {
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
   return days <= 0 ? "today" : days === 1 ? "yesterday" : days < 30 ? `${days} days ago` : new Date(iso).toLocaleDateString();
 };
-
-const scoreTone = (s: number) => (s >= 70 ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : s >= 45 ? "bg-amber-50 text-amber-800 ring-amber-200" : "bg-stone-100 text-stone-600 ring-stone-200");
 
 /** "Find jobs": postings from job boards, scored against your CV, saved to the tracker in one click. */
 export function FeedTab({ onGate }: { onGate: (g: Gate) => void }) {
@@ -44,46 +41,57 @@ export function FeedTab({ onGate }: { onGate: (g: Gate) => void }) {
   const range = salary.data?.range;
   return (
     <div className="flex flex-col gap-5">
-      <form onSubmit={search} className={`${card} flex flex-wrap items-end gap-2 p-3`}>
-        <label className="min-w-48 flex-[2] text-xs font-medium text-stone-600">
-          Job title or keywords
-          <input className={`${field} mt-1`} value={form.q} placeholder={keywords || "e.g. React developer"} onChange={(e) => setForm({ ...form, q: e.target.value })} />
-        </label>
-        <label className="min-w-36 flex-1 text-xs font-medium text-stone-600">
-          Location
-          <input className={`${field} mt-1`} value={form.location} placeholder="Anywhere" onChange={(e) => setForm({ ...form, location: e.target.value })} />
-        </label>
-        <label className="flex items-center gap-2 px-1 pb-2 text-sm text-stone-700">
-          <input type="checkbox" className="size-4 accent-brand" checked={form.remote} onChange={(e) => setForm({ ...form, remote: e.target.checked })} /> Remote only
-        </label>
-        <button type="submit" className={btn.primary}>
-          Search
-        </button>
-        <button type="button" className={btn.secondary} onClick={() => setEditingPrefs(true)}>
-          Preferences &amp; alerts
-        </button>
+      <form onSubmit={search} className="cvb-card flex flex-wrap items-end gap-3 p-4" role="search">
+        <TextField label="Job title or keywords" className="min-w-48 flex-[2]" icon="search" value={form.q} placeholder={keywords || "e.g. React developer"} onChange={(e) => setForm({ ...form, q: e.target.value })} />
+        <TextField label="Location" className="min-w-36 flex-1" icon="map-pin" value={form.location} placeholder="Anywhere" onChange={(e) => setForm({ ...form, location: e.target.value })} />
+        <Checkbox label="Remote only" className="pb-2.5" checked={form.remote} onChange={(e) => setForm({ ...form, remote: e.target.checked })} />
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" icon="search">
+            Search
+          </Button>
+          <Button variant="ghost" icon="sliders" onClick={() => setEditingPrefs(true)}>
+            Preferences &amp; alerts
+          </Button>
+        </div>
       </form>
 
       {range && (
-        <div className={`${card} flex flex-wrap items-center gap-x-6 gap-y-1 px-4 py-3 text-sm`}>
-          <span className="font-semibold text-stone-900">Market salary for “{keywords}”</span>
-          <span className="text-stone-600">
-            Typical {range.p25.toLocaleString()}–{range.p75.toLocaleString()} · median <strong>{range.median.toLocaleString()}</strong>
+        <div className="cvb-card flex flex-wrap items-center gap-x-6 gap-y-1 px-5 py-3 text-sm">
+          <span className="font-semibold text-ink">Market salary for “{keywords}”</span>
+          <span className="text-ink-2">
+            Typical <span className="cvb-num">{range.p25.toLocaleString()}–{range.p75.toLocaleString()}</span> · median <strong className="cvb-num text-ink">{range.median.toLocaleString()}</strong>
           </span>
-          <span className="text-xs text-stone-500">
+          <span className="cvb-caption">
             {range.samples.toLocaleString()} postings · {range.source}
           </span>
         </div>
       )}
 
       {feed.isLoading ? (
-        <p className="py-10 text-center text-sm text-stone-500">Searching job boards…</p>
+        <div className="flex flex-col gap-3">
+          <p className="flex items-center gap-2 text-sm text-ink-3">
+            <Spinner /> Searching job boards…
+          </p>
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} height={148} shape="block" />
+          ))}
+        </div>
       ) : feed.isError ? (
-        <p className="py-10 text-center text-sm text-red-600">{feed.error.message}</p>
+        <Alert tone="danger">{feed.error.message}</Alert>
       ) : !keywords ? (
-        <p className="rounded-xl border border-dashed border-stone-300 bg-white px-4 py-10 text-center text-sm text-stone-500">
-          Search for a job title, or set the roles you want in Preferences to see jobs here every time.
-        </p>
+        <div className="cvb-card">
+          <EmptyState
+            icon="search"
+            title="Find jobs that fit your CV"
+            actions={
+              <Button icon="sliders" onClick={() => setEditingPrefs(true)}>
+                Preferences &amp; alerts
+              </Button>
+            }
+          >
+            Search for a job title, or set the roles you want in Preferences to see jobs here every time.
+          </EmptyState>
+        </div>
       ) : (
         <Results data={feed.data!} onGate={onGate} />
       )}
@@ -96,21 +104,27 @@ export function FeedTab({ onGate }: { onGate: (g: Gate) => void }) {
 function Results({ data, onGate }: { data: FeedResult; onGate: (g: Gate) => void }) {
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm text-stone-500">
-        {data.jobs.length} jobs for <strong className="text-stone-800">{data.keywords}</strong>. Match scores use your most recently edited CV.
+      <p className="text-sm text-ink-3">
+        <span className="cvb-num">{data.jobs.length}</span> jobs for <strong className="text-ink">{data.keywords}</strong>. Match scores use your most recently edited CV.
       </p>
-      {data.jobs.length === 0 && <p className="rounded-xl bg-white px-4 py-8 text-center text-sm text-stone-500 ring-1 ring-stone-200">No jobs found. Try a broader title.</p>}
+      {data.jobs.length === 0 && (
+        <div className="cvb-card">
+          <EmptyState icon="search" title="No jobs found">
+            Try a broader title.
+          </EmptyState>
+        </div>
+      )}
       <ul className="flex flex-col gap-3" aria-label="Job results">
         {data.jobs.map((j) => (
           <FeedCard key={j.externalId} job={j} onGate={onGate} />
         ))}
       </ul>
-      <p className="text-xs text-stone-500">
+      <p className="cvb-caption">
         Jobs from{" "}
         {data.sources.map((s, i) => (
           <span key={s}>
             {i > 0 && ", "}
-            <a className="underline" href={SOURCE_LINK[s] ?? "#"} target="_blank" rel="noreferrer noopener">
+            <a className="text-brand-ink underline" href={SOURCE_LINK[s] ?? "#"} target="_blank" rel="noreferrer noopener">
               {s[0]!.toUpperCase() + s.slice(1)}
             </a>
           </span>
@@ -142,53 +156,63 @@ function FeedCard({ job, onGate }: { job: FeedJobDto; onGate: (g: Gate) => void 
   });
   const isSaved = job.saved || saved;
   return (
-    <li className={`${card} p-4`}>
-      <div className="flex items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <h3 className="font-semibold text-stone-900">{job.title}</h3>
-          <p className="text-sm text-stone-600">{[job.company, job.location, job.salary].filter(Boolean).join(" · ")}</p>
-          <p className="mt-0.5 text-xs text-stone-500">
-            {job.source}
-            {job.postedAt && ` · ${ago(job.postedAt)}`}
-            {job.remote && " · Remote"}
-          </p>
+    <li className="cvb-job">
+      <div className="cvb-job-head flex-wrap">
+        <div className="min-w-0 flex-1 basis-56">
+          <h3 className="cvb-job-title break-words">{job.title}</h3>
+          <div className="cvb-job-meta mt-1">
+            {job.company && (
+              <span>
+                <Icon name="building" size={14} /> {job.company}
+              </span>
+            )}
+            {job.location && (
+              <span>
+                <Icon name="map-pin" size={14} /> {job.location}
+              </span>
+            )}
+            {job.salary && <span className="cvb-num">{job.salary}</span>}
+          </div>
         </div>
         {job.score !== null && (
-          <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${scoreTone(job.score)}`} title="How well your CV matches this job">
-            {job.score}% match
+          <span title="How well your CV matches this job">
+            <MatchScore score={job.score} />
           </span>
         )}
       </div>
-      {job.description && (
-        <div className={`mt-2 whitespace-pre-line text-sm leading-relaxed text-stone-600 ${open ? "" : "line-clamp-3"}`}>{job.description}</div>
-      )}
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      {job.description && <div className={`whitespace-pre-line break-words text-sm leading-relaxed text-ink-2 ${open ? "" : "line-clamp-3"}`}>{job.description}</div>}
+      <div className="cvb-job-actions items-center">
         {isSaved ? (
           <>
-            <Link href={saved ? `/tracker?app=${saved.id}` : "/tracker"} className={btn.secondary}>
-              ✓ In your tracker
-            </Link>
+            <Button icon="check" href={saved ? `/tracker?app=${saved.id}` : "/tracker"}>
+              In your tracker
+            </Button>
             {saved && (
-              <Link href={`/jobs?tab=saved&job=${saved.job.id}`} className={btn.ghost}>
-                Tailor CV or write a letter →
-              </Link>
+              <Button variant="ghost" iconEnd="arrow-right" href={`/jobs?tab=saved&job=${saved.job.id}`}>
+                Tailor CV or write a letter
+              </Button>
             )}
           </>
         ) : (
-          <button type="button" className={btn.primary} disabled={save.isPending} onClick={() => save.mutate()}>
+          <Button variant="primary" icon="plus" loading={save.isPending} onClick={() => save.mutate()}>
             {save.isPending ? "Saving…" : "Save to tracker"}
-          </button>
+          </Button>
         )}
-        <a href={job.url} target="_blank" rel="noreferrer noopener" className={btn.ghost}>
-          View posting ↗
-        </a>
+        <Button variant="ghost" href={job.url} target="_blank" rel="noreferrer noopener" iconEnd="external-link">
+          View posting
+        </Button>
         {job.description.length > 240 && (
-          <button type="button" className="ms-auto text-sm font-medium text-brand hover:underline" onClick={() => setOpen((v) => !v)}>
+          <Button variant="link" size="sm" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
             {open ? "Less" : "More"}
-          </button>
+          </Button>
         )}
+        <span className="cvb-caption ms-auto">
+          {job.source}
+          {job.postedAt && ` · ${ago(job.postedAt)}`}
+          {job.remote && " · Remote"}
+        </span>
       </div>
-      {save.error && !gateForError(save.error) && <p className="mt-2 text-sm text-red-600">{save.error.message}</p>}
+      {save.error && !gateForError(save.error) && <Alert tone="danger">{save.error.message}</Alert>}
     </li>
   );
 }
@@ -197,7 +221,13 @@ function PreferencesDialog({ onClose }: { onClose: () => void }) {
   const prefs = usePreferences();
   return (
     <Dialog open onClose={onClose} title="Job preferences" description="Used for your feed and job alerts.">
-      {prefs.data ? <PreferencesForm initial={prefs.data} onClose={onClose} /> : <p className="py-6 text-center text-sm text-stone-500">Loading…</p>}
+      {prefs.data ? (
+        <PreferencesForm initial={prefs.data} onClose={onClose} />
+      ) : (
+        <div className="flex justify-center py-6">
+          <Spinner />
+        </div>
+      )}
     </Dialog>
   );
 }
@@ -227,24 +257,23 @@ function PreferencesForm({ initial, onClose }: { initial: JobPreferencesDto; onC
         save.mutate();
       }}
     >
-      <div>
-        <label className={label} htmlFor="p-title">
-          Roles you want (up to 5)
-        </label>
-        <div className="mb-2 flex flex-wrap gap-1.5">
-          {p.titles.map((t) => (
-            <span key={t} className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-800">
-              {t}
-              <button type="button" aria-label={`Remove ${t}`} className="text-stone-500 hover:text-stone-900" onClick={() => setP({ ...p, titles: p.titles.filter((x) => x !== t) })}>
-                ×
-              </button>
-            </span>
-          ))}
-        </div>
+      <Field label="Roles you want (up to 5)" htmlFor="p-title">
+        {p.titles.length > 0 && (
+          <div className="mb-1 flex flex-wrap gap-1.5">
+            {p.titles.map((t) => (
+              <span key={t} className="cvb-chip-wrap">
+                <span className="cvb-chip">{t}</span>
+                <button type="button" className="cvb-chip-remove" aria-label={`Remove ${t}`} onClick={() => setP({ ...p, titles: p.titles.filter((x) => x !== t) })}>
+                  <Icon name="x" size={14} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
         <div className="flex gap-2">
-          <input
+          <TextField
             id="p-title"
-            className={field}
+            className="min-w-0 flex-1"
             value={title}
             maxLength={80}
             placeholder="e.g. Frontend developer"
@@ -256,60 +285,48 @@ function PreferencesForm({ initial, onClose }: { initial: JobPreferencesDto; onC
               }
             }}
           />
-          <button type="button" className={btn.secondary} onClick={addTitle} disabled={p.titles.length >= 5}>
+          <Button icon="plus" onClick={addTitle} disabled={p.titles.length >= 5}>
             Add
-          </button>
+          </Button>
         </div>
+      </Field>
+      <div className="cvb-field-row">
+        <TextField id="p-location" label="Location" value={p.location} maxLength={120} placeholder="Anywhere" onChange={(e) => setP({ ...p, location: e.target.value })} />
+        <TextField
+          id="p-salary"
+          label="Minimum yearly salary"
+          hint="Hides jobs that state lower pay; jobs without a salary stay."
+          inputMode="numeric"
+          value={p.salaryMin ?? ""}
+          placeholder="Any"
+          onChange={(e) => setP({ ...p, salaryMin: e.target.value.replace(/\D/g, "") ? Number(e.target.value.replace(/\D/g, "")) : null })}
+        />
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <label className={label} htmlFor="p-location">
-            Location
-          </label>
-          <input id="p-location" className={field} value={p.location} maxLength={120} placeholder="Anywhere" onChange={(e) => setP({ ...p, location: e.target.value })} />
-        </div>
-        <div>
-          <label className={label} htmlFor="p-salary">
-            Minimum yearly salary
-          </label>
-          <input
-            id="p-salary"
-            inputMode="numeric"
-            className={field}
-            value={p.salaryMin ?? ""}
-            placeholder="Any"
-            onChange={(e) => setP({ ...p, salaryMin: e.target.value.replace(/\D/g, "") ? Number(e.target.value.replace(/\D/g, "")) : null })}
-          />
-          <p className="mt-1 text-xs text-stone-500">Hides jobs that state lower pay; jobs without a salary stay.</p>
-        </div>
+      <Checkbox label="Remote jobs only" checked={p.remote} onChange={(e) => setP({ ...p, remote: e.target.checked })} />
+      <div className="flex flex-col gap-1.5">
+        <RadioGroup
+          legend="Email me new jobs"
+          name="alerts"
+          orientation="horizontal"
+          value={p.alerts}
+          onChange={(a) => setP({ ...p, alerts: a })}
+          options={(["off", "daily", "weekly"] as const).map((a) => ({ value: a, label: a === "off" ? "Never" : a === "daily" ? "Daily" : "Weekly" }))}
+        />
+        {p.alerts !== "off" && p.titles.length === 0 && (
+          <p className="flex items-center gap-1 text-xs text-warning">
+            <Icon name="alert-triangle" size={14} /> Add at least one role so alerts know what to look for.
+          </p>
+        )}
       </div>
-      <label className="flex items-center gap-2 text-sm text-stone-700">
-        <input type="checkbox" className="size-4 accent-brand" checked={p.remote} onChange={(e) => setP({ ...p, remote: e.target.checked })} /> Remote jobs only
-      </label>
-      <fieldset>
-        <legend className={label}>Email me new jobs</legend>
-        <div className="flex gap-4 text-sm text-stone-700">
-          {(["off", "daily", "weekly"] as const).map((a) => (
-            <label key={a} className="flex items-center gap-1.5">
-              <input type="radio" name="alerts" className="accent-brand" checked={p.alerts === a} onChange={() => setP({ ...p, alerts: a })} />
-              {a === "off" ? "Never" : a === "daily" ? "Daily" : "Weekly"}
-            </label>
-          ))}
-        </div>
-        {p.alerts !== "off" && p.titles.length === 0 && <p className="mt-1 text-xs text-amber-700">Add at least one role so alerts know what to look for.</p>}
-      </fieldset>
-      <label className="flex items-center gap-2 text-sm text-stone-700">
-        <input type="checkbox" className="size-4 accent-brand" checked={p.weeklyDigest} onChange={(e) => setP({ ...p, weeklyDigest: e.target.checked })} /> Monday email with my
-        application progress
-      </label>
-      {save.error && <p className="text-sm text-red-600">{save.error.message}</p>}
+      <Checkbox label="Monday email with my application progress" checked={p.weeklyDigest} onChange={(e) => setP({ ...p, weeklyDigest: e.target.checked })} />
+      {save.error && <Alert tone="danger">{save.error.message}</Alert>}
       <div className="flex justify-end gap-2">
-        <button type="button" className={btn.ghost} onClick={onClose}>
+        <Button variant="ghost" onClick={onClose}>
           Cancel
-        </button>
-        <button type="submit" className={btn.primary} disabled={save.isPending}>
+        </Button>
+        <Button type="submit" variant="primary" loading={save.isPending}>
           Save
-        </button>
+        </Button>
       </div>
     </form>
   );

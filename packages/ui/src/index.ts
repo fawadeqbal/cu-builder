@@ -1,2 +1,2 @@
+export * from "./ds";
 export * from "./icons";
-export * from "./TierBadge";

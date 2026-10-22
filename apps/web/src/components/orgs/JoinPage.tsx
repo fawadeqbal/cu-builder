@@ -3,14 +3,13 @@
 import type { JoinPreviewDto, OrgDto } from "@cvb/contracts";
 import { ROLE_LABEL } from "@cvb/domain";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { ORG_KIND_LABEL, orgKeys } from "@/lib/orgs";
 import { keys, useMe } from "@/lib/queries";
 import { AuthShell } from "../auth/AuthShell";
 import { FullPageMessage } from "../ui/FullPageMessage";
-import { btn } from "../ui/styles";
+import { Alert, Avatar, Button, EmptyState, Spinner } from "@cvb/ui";
 
 /** The branded join link (/join/<code>) and email invitations (/join/<token>). */
 export function JoinPage({ code }: { code: string }) {
@@ -32,17 +31,30 @@ export function JoinPage({ code }: { code: string }) {
     },
   });
 
-  if (me.isLoading || preview.isLoading) return <FullPageMessage>Opening the invitation…</FullPageMessage>;
+  if (me.isLoading || preview.isLoading)
+    return (
+      <FullPageMessage>
+        <span className="flex items-center gap-2">
+          <Spinner /> Opening the invitation…
+        </span>
+      </FullPageMessage>
+    );
   const p = preview.data;
   if (!p)
     return (
       <FullPageMessage>
-        <div className="flex max-w-sm flex-col items-center gap-3">
-          <p className="text-base font-semibold text-stone-800">This invitation isn&apos;t valid</p>
-          <p>{preview.error?.message ?? "It may have expired or been cancelled."}</p>
-          <Link href="/" className="font-semibold text-brand hover:underline">
-            Go to CV Builder
-          </Link>
+        <div className="cvb-card max-w-sm">
+          <EmptyState
+            icon="mail"
+            title="This invitation isn't valid"
+            actions={
+              <Button variant="primary" href="/">
+                Go to CV Builder
+              </Button>
+            }
+          >
+            <p>{preview.error?.message ?? "It may have expired or been cancelled."}</p>
+          </EmptyState>
         </div>
       </FullPageMessage>
     );
@@ -65,37 +77,48 @@ export function JoinPage({ code }: { code: string }) {
         </>
       }
     >
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-4">
         {p.logoUrl && (
-          // eslint-disable-next-line @next/next/no-img-element -- organisation logo
-          <img src={p.logoUrl} alt={`${p.orgName} logo`} className="mx-auto h-12 max-w-40 object-contain" />
+          <div className="flex items-center gap-3 rounded-md border border-line bg-surface-2 p-3">
+            <Avatar name={`${p.orgName} logo`} src={p.logoUrl} shape="square" size="lg" />
+            <span className="cvb-h3 min-w-0 text-ink">{p.orgName}</span>
+          </div>
         )}
         {p.kind !== "agency" && p.role === "member" && (
-          <p className="text-sm text-stone-600">Your CVs stay yours. The career office can see your progress (CVs, ATS score, applications) and comment on your CV to help you.</p>
+          <p className="text-ink-2">
+            Your CVs stay yours. The career office can see your progress (CVs, ATS score, applications) and comment on
+            your CV to help you.
+          </p>
         )}
         {full ? (
-          <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">{p.orgName} has no free seats right now. Ask them to add more, then open this link again.</p>
+          <Alert tone="warning">
+            {p.orgName} has no free seats right now. Ask them to add more, then open this link again.
+          </Alert>
         ) : me.data ? (
           p.alreadyMember ? (
-            <Link href="/org" className={`${btn.primary} w-full`}>
+            <Button variant="primary" block href="/org">
               You&apos;re a member. Open
-            </Link>
+            </Button>
           ) : (
-            <button type="button" className={`${btn.primary} w-full`} disabled={join.isPending} onClick={() => join.mutate()}>
+            <Button variant="primary" block loading={join.isPending} onClick={() => join.mutate()}>
               {join.isPending ? "Joining…" : `Join as ${me.data.email}`}
-            </button>
+            </Button>
           )
         ) : (
-          <>
-            <Link href={`/sign-up?next=${next}${p.invitedEmail ? `&email=${encodeURIComponent(p.invitedEmail)}` : ""}`} className={`${btn.primary} w-full`}>
+          <div className="flex flex-col gap-2">
+            <Button
+              variant="primary"
+              block
+              href={`/sign-up?next=${next}${p.invitedEmail ? `&email=${encodeURIComponent(p.invitedEmail)}` : ""}`}
+            >
               Create an account to join
-            </Link>
-            <Link href={`/sign-in?next=${next}`} className={`${btn.secondary} w-full`}>
+            </Button>
+            <Button block href={`/sign-in?next=${next}`}>
               I already have an account
-            </Link>
-          </>
+            </Button>
+          </div>
         )}
-        {join.error && <p className="text-sm text-red-600">{join.error.message}</p>}
+        {join.error && <Alert tone="danger">{join.error.message}</Alert>}
       </div>
     </AuthShell>
   );

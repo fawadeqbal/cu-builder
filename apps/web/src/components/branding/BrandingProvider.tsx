@@ -1,7 +1,7 @@
 "use client";
 
 import type { PublicBrandingDto } from "@cvb/contracts";
-import { allowedTemplates, brandCssVariables } from "@cvb/domain";
+import { allowedTemplates, brandStylesheet } from "@cvb/domain";
 import { TEMPLATES } from "@cvb/templates/catalog";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
@@ -27,7 +27,7 @@ function loadBranding(): Promise<Branding | null> {
 
 /**
  * White label: on a partner's custom domain, fetches its branding once and applies the brand
- * colours (CSS variables on <html>, which Tailwind's brand utilities read), the product name in
+ * colour to the design-system tokens (a stylesheet covering light and dark), the product name in
  * the tab title, and the logo as favicon. Mount once, around the app (providers.tsx).
  */
 export function BrandingProvider({ children }: { children: ReactNode }) {
@@ -38,8 +38,11 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
     void loadBranding().then((b) => {
       if (!alive || !b) return;
       setBranding(b);
-      const root = document.documentElement;
-      for (const [k, v] of Object.entries(brandCssVariables(b))) root.style.setProperty(k, v);
+      const css = brandStylesheet(b);
+      if (css) {
+        const style = document.getElementById("cvb-brand") ?? document.head.appendChild(Object.assign(document.createElement("style"), { id: "cvb-brand" }));
+        style.textContent = css;
+      }
       if (b.productName) document.title = document.title.replace(/CV Builder/g, b.productName);
       if (b.logoUrl) {
         const icon = document.querySelector<HTMLLinkElement>('link[rel="icon"]') ?? document.head.appendChild(Object.assign(document.createElement("link"), { rel: "icon" }));

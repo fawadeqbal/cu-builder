@@ -12,7 +12,8 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
-    "@cvb/domain": "workspace:*"
+    "@cvb/domain": "workspace:*",
+    "@cvb/ui": "workspace:*"
   },
   "devDependencies": {
     "@cvb/eslint-config": "workspace:*",
