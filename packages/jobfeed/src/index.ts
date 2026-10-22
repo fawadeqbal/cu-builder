@@ -1,51 +1,19 @@
 /**
  * The job feed. Each provider is an adapter behind `JobFeedProvider`; `JobFeed` asks every
- * enabled one, tolerates failures, removes duplicates and sorts newest first. Providers
+ * enabled one, tolerates failures, removes duplicates (first-hand company postings win over
+ * aggregator copies) and sorts newest first. Providers
  * receive `fetch` so tests run without the network.
  */
 
-export type FeedQuery = { keywords: string; location?: string; remote?: boolean; page?: number };
+import { stripHtml, type FeedJob, type FeedQuery, type JobFeedProvider } from "./core";
+import { ArbeitnowProvider, CompanyBoardsProvider, DEFAULT_BOARDS, HimalayasProvider, parseBoards, RemoteOkProvider } from "./sources";
 
-export type FeedJob = {
-  externalId: string;
-  source: string;
-  title: string;
-  company: string;
-  location: string;
-  remote: boolean;
-  salary: string;
-  url: string;
-  /** Plain text, possibly a snippet. */
-  description: string;
-  postedAt: string | null;
-};
-
-export interface JobFeedProvider {
-  readonly id: string;
-  search(query: FeedQuery): Promise<FeedJob[]>;
-}
+export * from "./core";
+export * from "./sources";
 
 type Fetch = typeof fetch;
 
 const TIMEOUT_MS = 8_000;
-
-export function stripHtml(html: string): string {
-  return html
-    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, " ")
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/(p|div|li|h[1-6])>/gi, "\n")
-    .replace(/<li[^>]*>/gi, "- ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;|&rsquo;/g, "'")
-    .replace(/[ \t]+/g, " ")
-    .replace(/ *\n\s*/g, "\n")
-    .trim();
-}
 
 const money = (min?: number | null, max?: number | null, currency = "") => {
   const f = (n: number) => (n >= 1000 ? `${Math.round(n / 1000)}k` : String(n));
@@ -206,12 +174,24 @@ export class JobFeed {
   constructor(
     readonly providers: JobFeedProvider[],
     private readonly onError: (provider: string, error: unknown) => void = () => {},
+    private readonly timeoutMs = 10_000,
   ) {}
 
+  /**
+   * Starts filling the providers' caches (the company boards take a while on a cold start), so
+   * the first search is fast. Fire and forget; failures go to onError.
+   */
+  warm(): void {
+    for (const p of this.providers) p.warm?.().catch((e: unknown) => this.onError(p.id, e));
+  }
+
   async search(query: FeedQuery): Promise<FeedJob[]> {
+    // A slow provider doesn't hold the page: it's skipped this time and its cache keeps filling.
+    const within = <T,>(promise: Promise<T>, ms: number) =>
+      Promise.race([promise, new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`timed out after ${ms}ms`)), ms).unref?.())]);
     const results = await Promise.all(
       this.providers.map((p) =>
-        p.search(query).catch((e: unknown) => {
+        within(p.search(query), this.timeoutMs).catch((e: unknown) => {
           this.onError(p.id, e);
           return [] as FeedJob[];
         }),
@@ -222,8 +202,10 @@ export class JobFeed {
     for (const job of results.flat()) {
       if (!job.title || !job.url) continue;
       const key = `${norm(job.title)}|${norm(job.company)}`;
-      if (seen.has(key)) continue;
+      const link = job.url.replace(/^https?:\/\/(www\.)?/i, "").replace(/[?#].*$/, "").replace(/\/$/, "").toLowerCase();
+      if (seen.has(key) || seen.has(link)) continue;
       seen.add(key);
+      seen.add(link);
       if (query.remote && !job.remote) continue;
       out.push(job);
     }
@@ -233,9 +215,28 @@ export class JobFeed {
 
 export const JOB_FEED = Symbol.for("cvb.JobFeed");
 
-/** Builds the feed from configuration: Remotive always, Jooble and Adzuna when keys are set. */
-export function createJobFeed(config: { JOOBLE_API_KEY?: string; ADZUNA_APP_ID?: string; ADZUNA_APP_KEY?: string; ADZUNA_COUNTRY?: string }, onError?: (p: string, e: unknown) => void): JobFeed {
-  const providers: JobFeedProvider[] = [new RemotiveProvider()];
+export type JobFeedConfig = {
+  JOOBLE_API_KEY?: string;
+  ADZUNA_APP_ID?: string;
+  ADZUNA_APP_KEY?: string;
+  ADZUNA_COUNTRY?: string;
+  HIMALAYAS_API_KEY?: string;
+  /** Company career boards to follow ("greenhouse:gitlab, ashby:ramp=Ramp"); unset = defaults, "none" = off. */
+  JOBFEED_COMPANIES?: string;
+};
+
+/**
+ * Builds the feed from configuration. Order matters for duplicates: company career boards come
+ * first (the original posting), then the free remote boards, then the aggregators.
+ */
+export function createJobFeed(config: JobFeedConfig, onError?: (p: string, e: unknown) => void): JobFeed {
+  const providers: JobFeedProvider[] = [];
+  const spec = config.JOBFEED_COMPANIES?.trim();
+  if (spec !== "none") {
+    const boards = parseBoards(spec || DEFAULT_BOARDS);
+    if (boards.length) providers.push(new CompanyBoardsProvider(boards, fetch, (board, e) => onError?.(`companies/${board}`, e)));
+  }
+  providers.push(new HimalayasProvider(config.HIMALAYAS_API_KEY ?? ""), new RemotiveProvider(), new ArbeitnowProvider(), new RemoteOkProvider());
   if (config.JOOBLE_API_KEY) providers.push(new JoobleProvider(config.JOOBLE_API_KEY));
   if (config.ADZUNA_APP_ID && config.ADZUNA_APP_KEY) providers.push(new AdzunaProvider(config.ADZUNA_APP_ID, config.ADZUNA_APP_KEY, config.ADZUNA_COUNTRY || "gb"));
   return new JobFeed(providers, onError);

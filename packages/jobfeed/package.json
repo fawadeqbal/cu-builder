@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Job feed behind a port: Remotive (no key), Jooble and Adzuna adapters, merged and de-duplicated; Adzuna salary ranges.",
+  "description": "Job feed behind a port: company career boards (Greenhouse, Lever, Ashby, SmartRecruiters), Himalayas, Remotive, Arbeitnow, RemoteOK, Jooble and Adzuna, merged and de-duplicated; Adzuna salary ranges.",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

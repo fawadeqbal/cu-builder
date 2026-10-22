@@ -21,7 +21,7 @@ describe("providers", () => {
 });
 
 describe("JobFeed", () => {
-  const job = (o: Partial<FeedJob>): FeedJob => ({ externalId: "x", source: "s", title: "T", company: "C", location: "", remote: false, salary: "", url: "https://x", description: "", postedAt: null, ...o });
+  const job = (o: Partial<FeedJob>): FeedJob => ({ externalId: "x", source: "s", title: "T", company: "C", location: "", remote: false, salary: "", url: `https://x.example/${o.externalId ?? "x"}`, description: "", postedAt: null, ...o });
   const fixed = (id: string, jobs: FeedJob[]): JobFeedProvider => ({ id, search: async () => jobs });
 
   it("merges, de-duplicates, filters remote and survives a failing provider", async () => {

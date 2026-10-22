@@ -13,7 +13,10 @@ import { NOTIFICATIONS_STORE, PrismaNotificationsStore } from "./notifications.s
       inject: [WORKER_CONFIG],
       useFactory: (c: WorkerConfig) => {
         const log = new Logger("JobFeed");
-        return createJobFeed(c, (p, e) => log.warn(`${p} failed: ${e instanceof Error ? e.message : String(e)}`));
+        const feed = createJobFeed(c, (p, e) => log.warn(`${p} failed: ${e instanceof Error ? e.message : String(e)}`));
+        // Load the company career boards in the background so the first search is quick.
+        feed.warm();
+        return feed;
       },
     },
   ],

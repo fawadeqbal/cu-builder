@@ -15,7 +15,10 @@ import { FeedService } from "./feed.service.js";
       inject: [APP_CONFIG],
       useFactory: (config: AppConfig) => {
         const log = new Logger("JobFeed");
-        return createJobFeed(config, (provider, e) => log.warn(`${provider} failed: ${e instanceof Error ? e.message : String(e)}`));
+        const feed = createJobFeed(config, (provider, e) => log.warn(`${provider} failed: ${e instanceof Error ? e.message : String(e)}`));
+        // Load the company career boards in the background so the first search is quick.
+        feed.warm();
+        return feed;
       },
     },
   ],

@@ -42,8 +42,15 @@ export const AiEnvSchema = z.object({
   AI_MODEL_SMART: z.string().default("claude-sonnet-5-5"),
 });
 
-/** Job feed providers. Remotive needs no key; Jooble and Adzuna switch on when their keys are set. */
+/**
+ * Job feed providers. Company career boards, Himalayas, Remotive, Arbeitnow and RemoteOK need no
+ * key; Jooble and Adzuna switch on when their keys are set.
+ */
 export const JobFeedEnvSchema = z.object({
+  /** Optional free Himalayas key (higher rate limit). */
+  HIMALAYAS_API_KEY: optional,
+  /** Career boards to follow: "greenhouse:gitlab, lever:spotify=Spotify, ashby:ramp=Ramp". Unset = built-in list, "none" = off. */
+  JOBFEED_COMPANIES: optional,
   JOOBLE_API_KEY: optional,
   ADZUNA_APP_ID: optional,
   ADZUNA_APP_KEY: optional,

@@ -11,7 +11,16 @@ import { keys } from "@/lib/queries";
 import { trackerKeys, useFeed, usePreferences, type FeedResult } from "@/lib/tracker";
 import { Dialog } from "../ui/Dialog";
 
-const SOURCE_LINK: Record<string, string> = { remotive: "https://remotive.com", jooble: "https://jooble.org", adzuna: "https://www.adzuna.com" };
+/** Credit and link back to every job source (their terms ask for it). */
+const SOURCE_LINK: Record<string, string> = {
+  himalayas: "https://himalayas.app",
+  remotive: "https://remotive.com",
+  arbeitnow: "https://www.arbeitnow.com",
+  remoteok: "https://remoteok.com",
+  jooble: "https://jooble.org",
+  adzuna: "https://www.adzuna.com",
+};
+const SOURCE_NAME: Record<string, string> = { companies: "company career pages", himalayas: "Himalayas", remotive: "Remotive", arbeitnow: "Arbeitnow", remoteok: "Remote OK", jooble: "Jooble", adzuna: "Adzuna" };
 
 const ago = (iso: string | null) => {
   if (!iso) return "";
@@ -124,9 +133,13 @@ function Results({ data, onGate }: { data: FeedResult; onGate: (g: Gate) => void
         {data.sources.map((s, i) => (
           <span key={s}>
             {i > 0 && ", "}
-            <a className="text-brand-ink underline" href={SOURCE_LINK[s] ?? "#"} target="_blank" rel="noreferrer noopener">
-              {s[0]!.toUpperCase() + s.slice(1)}
-            </a>
+            {SOURCE_LINK[s] ? (
+              <a className="text-brand-ink underline" href={SOURCE_LINK[s]} target="_blank" rel="noreferrer noopener">
+                {SOURCE_NAME[s] ?? s}
+              </a>
+            ) : (
+              (SOURCE_NAME[s] ?? s)
+            )}
           </span>
         ))}
         . Postings open on the original site.
