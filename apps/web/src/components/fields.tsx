@@ -1,8 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Card, Icon, IconButton, TextArea as DsTextArea, TextField as DsTextField } from "@cvb/ui";
-import { useT } from "@/lib/i18n";
+import { Card, TextArea as DsTextArea, TextField as DsTextField } from "@cvb/ui";
 
 /** A card that groups related fields under a heading. */
 export function Panel({
@@ -107,52 +106,5 @@ export function LinesField({
       placeholder={placeholder}
       rows={rows}
     />
-  );
-}
-
-/** Wraps each item of a list section with move up / move down / remove controls. */
-export function ItemCard({
-  title,
-  index,
-  total,
-  onMove,
-  onRemove,
-  children,
-}: {
-  title: string;
-  index: number;
-  total: number;
-  onMove: (dir: -1 | 1) => void;
-  onRemove: () => void;
-  children: ReactNode;
-}) {
-  const t = useT();
-  return (
-    <section className="cvb-card">
-      <div className="flex items-center gap-3 border-b border-line py-2 ps-4 pe-2">
-        <span className="grid size-6 shrink-0 place-items-center rounded-md bg-surface-2 font-mono text-xs text-ink-3">{index + 1}</span>
-        <h3 className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{title}</h3>
-        <div className="flex shrink-0 items-center gap-0.5">
-          <IconButton icon="chevron-up" size="sm" label={t("common.moveUp")} onClick={() => onMove(-1)} disabled={index === 0} />
-          <IconButton icon="chevron-down" size="sm" label={t("common.moveDown")} onClick={() => onMove(1)} disabled={index === total - 1} />
-          <IconButton icon="trash" size="sm" label={t("common.remove")} onClick={onRemove} className="hover:!bg-danger-soft hover:!text-danger" />
-        </div>
-      </div>
-      <div className="flex flex-col gap-4 p-5">{children}</div>
-    </section>
-  );
-}
-
-/** The dashed "add another" target under a list. */
-export function AddButton({ onClick, children }: { onClick: () => void; children: ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex min-h-11 items-center justify-center gap-2 rounded-lg border border-dashed border-line-control px-4 py-2.5 text-sm font-semibold text-ink-2 transition hover:border-brand hover:bg-brand-soft hover:text-ink focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none"
-    >
-      <Icon name="plus" size={18} />
-      {children}
-    </button>
   );
 }

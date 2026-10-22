@@ -159,6 +159,7 @@ export type ButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "type"> 
   rel?: string;
   download?: string | boolean;
   type?: "button" | "submit" | "reset";
+  ref?: Ref<HTMLButtonElement>;
 };
 
 export function Button({ variant = "secondary", size = "md", icon, iconEnd, loading, block, disabled, href, target, rel, download, type = "button", className, children, ...rest }: ButtonProps) {

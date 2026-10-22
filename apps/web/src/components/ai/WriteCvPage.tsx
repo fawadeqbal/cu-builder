@@ -4,8 +4,8 @@ import type { MeDto, ResumeDto } from "@cvb/contracts";
 import type { CV } from "@cvb/domain";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useId, useState, type ReactNode } from "react";
-import { Alert, Button, Card, Field, Icon, IconButton, markPlaceholders, PageHeader, SegmentedControl, TextArea, TextField } from "@cvb/ui";
+import { useState, type ReactNode } from "react";
+import { Alert, Button, Card, Field, Icon, markPlaceholders, PageHeader, SegmentedControl, TextArea, TextField } from "@cvb/ui";
 import { useAiCall, useCredits } from "@/lib/ai";
 import {
   assembleCv,
@@ -31,6 +31,7 @@ import { keys, useResumes } from "@/lib/queries";
 import { AppHeader } from "../AppHeader";
 import { RequireAuth } from "../RequireAuth";
 import { UpgradeDialog } from "../UpgradeDialog";
+import { EditableCard, EditingScope, EntryList, TagView, TextView, ViewRows, useEditingScope } from "../form/editable";
 import { AiStepList, useAiSteps, type AiTask } from "./AiSteps";
 
 const MAX_JOBS = 6;
@@ -38,6 +39,17 @@ const MAX_PROJECTS = 4;
 const MAX_EDUCATION = 6;
 const fid = (key: string) => `cv-${key}`;
 const entryName = (a: string, b: string, fallback: string) => [a.trim(), b.trim()].filter(Boolean).join(" at ") || fallback;
+const joinDot = (...parts: string[]) => parts.map((p) => p.trim()).filter(Boolean).join(" · ");
+const isBlank = (o: Record<string, string>) => Object.entries(o).every(([k, v]) => k === "key" || !v.trim());
+
+/** Which card holds the field with this error key (cards open to show it). */
+function cardFor(key: string): string {
+  if (key === "name" || key === "title") return "about";
+  if (key === "email") return "contact";
+  const m = /^(job|project|edu)-(.+)-[a-z]+$/.exec(key);
+  if (!m) return "about";
+  return `${m[1] === "job" ? "jobs" : m[1] === "project" ? "projects" : "education"}:${m[2]}`;
+}
 
 /** "Write a new CV with AI": a guided form, then AI writes the lines and summary from it. */
 export function WriteCvPage() {
@@ -46,7 +58,9 @@ export function WriteCvPage() {
       {(me) => (
         <div className="min-h-dvh bg-canvas">
           <AppHeader />
-          <WriteCv me={me} />
+          <EditingScope initial="about">
+            <WriteCv me={me} />
+          </EditingScope>
         </div>
       )}
     </RequireAuth>
@@ -62,6 +76,7 @@ function WriteCv({ me }: { me: MeDto }) {
   const credits = useCredits(true);
   const resumes = useResumes();
   const runner = useAiSteps();
+  const scope = useEditingScope();
   const [d, setD] = useState<CvDraft>(() => ({
     name: me.name.includes("@") ? "" : me.name,
     title: "",
@@ -70,9 +85,9 @@ function WriteCv({ me }: { me: MeDto }) {
     location: "",
     link: "",
     level: "mid",
-    jobs: [blankJob()],
+    jobs: [],
     projects: [],
-    education: [blankEducation()],
+    education: [],
     skills: "",
     languages: "",
   }));
@@ -117,7 +132,9 @@ function WriteCv({ me }: { me: MeDto }) {
     setSubmitted(true);
     const first = Object.keys(errors)[0];
     if (first) {
-      document.getElementById(fid(first))?.focus();
+      // Open the card with the first problem, then focus the field once it's rendered.
+      scope.open(cardFor(first));
+      setTimeout(() => document.getElementById(fid(first))?.focus(), 60);
       return;
     }
     if (atLimit) return setGate({ kind: "feature", feature: "resume.multiple" });
@@ -200,53 +217,58 @@ function WriteCv({ me }: { me: MeDto }) {
     setD((x) => ({ ...x, [k]: (x[k] as CvDraft[K][number][]).map((it) => (it.key === key ? { ...it, ...patch } : it)) }));
   const removeFrom = (k: "jobs" | "projects" | "education", key: string) => setD((x) => ({ ...x, [k]: (x[k] as { key: string }[]).filter((it) => it.key !== key) }));
 
+  const addTo = <K extends "jobs" | "projects" | "education">(k: K, item: CvDraft[K][number]) => {
+    setD((x) => ({ ...x, [k]: [...x[k], item] }));
+    return item.key;
+  };
+  const invalidIn = (prefix: string, key: string) => Object.keys(errors).some((e) => e.startsWith(`${prefix}-${key}-`) && err(e));
+
   const jobsCard = (
-    <Card
+    <ListSection
       title="Jobs"
-      description={early ? "Internships, part-time work and volunteering count. Most recent first." : "Most recent first. Up to 6 here; you can add more in the editor."}
-      footer={
-        d.jobs.length < MAX_JOBS ? (
-          <Button icon="plus" onClick={() => set("jobs", [...d.jobs, blankJob()])}>
-            Add a job
-          </Button>
-        ) : undefined
-      }
+      description={early ? "Optional. Internships, part-time work and volunteering count. Most recent first." : "Most recent first. Up to 6 here; you can add more in the editor."}
     >
-      {d.jobs.length === 0 ? (
-        <p className="text-sm text-ink-3">No jobs added. That&apos;s fine if you&apos;re just starting out.</p>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {d.jobs.map((j, i) => (
-            <JobFields key={j.key} n={i + 1} job={j} err={err} blur={blur} onChange={(patch) => updateList("jobs", j.key, patch)} onRemove={() => removeFrom("jobs", j.key)} />
-          ))}
-        </div>
-      )}
-    </Card>
+      <EntryList<DraftJob>
+        list="jobs"
+        items={d.jobs}
+        getId={(j) => j.key}
+        title={(j) => entryName(j.role, j.company, "New job")}
+        subtitle={(j) => joinDot(j.date, j.location) || undefined}
+        view={(j) => <NotesView notes={j.notes} empty="No notes yet. Add what you did so AI can write the lines." />}
+        isBlank={isBlank}
+        invalid={(j) => invalidIn("job", j.key)}
+        onAdd={() => addTo("jobs", blankJob())}
+        addLabel={d.jobs.length ? "Add another job" : "Add a job"}
+        max={MAX_JOBS}
+        onRemove={(key) => removeFrom("jobs", key)}
+        noun="job"
+        edit={(j) => <JobFields job={j} err={err} blur={blur} onChange={(patch) => updateList("jobs", j.key, patch)} />}
+      />
+    </ListSection>
   );
 
   const educationCard = (
-    <Card
-      title="Education"
-      description="Degrees, diplomas or school. Add details like grades or modules if they help."
-      footer={
-        d.education.length < MAX_EDUCATION ? (
-          <Button icon="plus" onClick={() => set("education", [...d.education, blankEducation()])}>
-            Add education
-          </Button>
-        ) : undefined
-      }
-    >
-      {d.education.length === 0 ? (
-        <p className="text-sm text-ink-3">No education added.</p>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {d.education.map((e, i) => (
-            <EducationFields key={e.key} n={i + 1} edu={e} err={err} blur={blur} onChange={(patch) => updateList("education", e.key, patch)} onRemove={() => removeFrom("education", e.key)} />
-          ))}
-        </div>
-      )}
-    </Card>
+    <ListSection title="Education" description="Degrees, diplomas or school. Add details like grades or modules if they help.">
+      <EntryList<DraftEducation>
+        list="education"
+        items={d.education}
+        getId={(e) => e.key}
+        title={(e) => e.degree.trim() || e.school.trim() || "New education"}
+        subtitle={(e) => joinDot(e.degree.trim() ? e.school : "", e.date) || undefined}
+        view={(e) => (e.details.trim() ? <p className="text-sm text-ink-2">{e.details}</p> : null)}
+        isBlank={isBlank}
+        invalid={(e) => invalidIn("edu", e.key)}
+        onAdd={() => addTo("education", blankEducation())}
+        addLabel={d.education.length ? "Add another" : "Add education"}
+        max={MAX_EDUCATION}
+        onRemove={(key) => removeFrom("education", key)}
+        noun="education"
+        edit={(e) => <EducationFields edu={e} err={err} blur={blur} onChange={(patch) => updateList("education", e.key, patch)} />}
+      />
+    </ListSection>
   );
+
+  const levelLabel = LEVELS.find((l) => l.value === d.level)?.label ?? "";
 
   return (
     <main className="mx-auto flex w-full max-w-(--layout-md) flex-col gap-6 px-4 pb-20 pt-10 sm:px-6">
@@ -348,8 +370,24 @@ function WriteCv({ me }: { me: MeDto }) {
             </Alert>
           )}
 
-          <Card title="About you" description="Your name and the job you want are all we need to start.">
-            <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3">
+            <EditableCard
+              id="about"
+              icon="user"
+              title="About you"
+              subtitle="Your name and the job you want are all we need to start."
+              invalid={Boolean(err("name") || err("title"))}
+              view={
+                <ViewRows
+                  showEmpty
+                  rows={[
+                    { label: "Full name", value: d.name },
+                    { label: "Target job title", value: d.title },
+                    { label: "Experience level", value: levelLabel },
+                  ]}
+                />
+              }
+            >
               <div className="cvb-field-row">
                 <TextField id={fid("name")} label="Full name" required autoComplete="name" maxLength={120} value={d.name} error={err("name")} onBlur={blur("name")} onChange={(e) => set("name", e.target.value)} />
                 <TextField
@@ -364,6 +402,29 @@ function WriteCv({ me }: { me: MeDto }) {
                   onChange={(e) => set("title", e.target.value)}
                 />
               </div>
+              <Field label="Experience level" hint={early ? "We'll put your education first; projects help a lot." : undefined}>
+                <SegmentedControl<Level> label="Experience level" block value={d.level} onChange={(level) => set("level", level)} options={LEVELS.map((l) => ({ value: l.value, label: l.label }))} />
+              </Field>
+            </EditableCard>
+
+            <EditableCard
+              id="contact"
+              icon="mail"
+              title="Contact"
+              subtitle="How employers reach you. All optional."
+              invalid={Boolean(err("email"))}
+              empty={isBlank({ email: d.email, phone: d.phone, location: d.location, link: d.link })}
+              view={
+                <ViewRows
+                  rows={[
+                    { label: "Email", value: d.email, icon: "mail", ltr: true },
+                    { label: "Phone", value: d.phone, icon: "phone", ltr: true },
+                    { label: "Location", value: d.location, icon: "map-pin" },
+                    { label: "LinkedIn or website", value: d.link, icon: "link", ltr: true },
+                  ]}
+                />
+              }
+            >
               <div className="cvb-field-row">
                 <TextField id={fid("email")} label="Email" type="email" autoComplete="email" dir="ltr" maxLength={160} value={d.email} error={err("email")} onBlur={blur("email")} onChange={(e) => set("email", e.target.value)} />
                 <TextField id={fid("phone")} label="Phone" type="tel" autoComplete="tel" dir="ltr" maxLength={60} value={d.phone} onChange={(e) => set("phone", e.target.value)} />
@@ -372,21 +433,8 @@ function WriteCv({ me }: { me: MeDto }) {
                 <TextField id={fid("location")} label="Location" placeholder="Lahore, Pakistan" maxLength={160} value={d.location} onChange={(e) => set("location", e.target.value)} />
                 <TextField id={fid("link")} label="LinkedIn or website" dir="ltr" placeholder="linkedin.com/in/you" maxLength={240} value={d.link} onChange={(e) => set("link", e.target.value)} />
               </div>
-              <Field label="Experience level" hint={early ? "We'll put your education first; projects help a lot." : undefined}>
-                <SegmentedControl<Level>
-                  label="Experience level"
-                  block
-                  value={d.level}
-                  onChange={(level) => {
-                    set("level", level);
-                    // Students often have no jobs yet: start them with a project instead of an empty job.
-                    if (level === "student" && d.projects.length === 0) set("projects", [blankProject()]);
-                  }}
-                  options={LEVELS.map((l) => ({ value: l.value, label: l.label }))}
-                />
-              </Field>
-            </div>
-          </Card>
+            </EditableCard>
+          </div>
 
           {early ? (
             <>
@@ -400,34 +448,42 @@ function WriteCv({ me }: { me: MeDto }) {
             </>
           )}
 
-          <Card
-            title="Projects"
-            description="Optional. Side projects, coursework or open source, up to 4."
-            footer={
-              d.projects.length < MAX_PROJECTS ? (
-                <Button icon="plus" onClick={() => set("projects", [...d.projects, blankProject()])}>
-                  Add a project
-                </Button>
-              ) : undefined
+          <ListSection title="Projects" description={early ? "Side projects, coursework or open source, up to 4. They help a lot when you have little work experience." : "Optional. Side projects, coursework or open source, up to 4."}>
+            <EntryList<DraftProject>
+              list="projects"
+              items={d.projects}
+              getId={(p) => p.key}
+              title={(p) => p.name.trim() || "New project"}
+              subtitle={(p) => p.link.trim() || undefined}
+              view={(p) => <NotesView notes={p.notes} empty="No notes yet. Say what it is and what you did." />}
+              isBlank={isBlank}
+              invalid={(p) => invalidIn("project", p.key)}
+              onAdd={() => addTo("projects", blankProject())}
+              addLabel={d.projects.length ? "Add another project" : "Add a project"}
+              max={MAX_PROJECTS}
+              onRemove={(key) => removeFrom("projects", key)}
+              noun="project"
+              edit={(p) => <ProjectFields project={p} err={err} blur={blur} onChange={(patch) => updateList("projects", p.key, patch)} />}
+            />
+          </ListSection>
+
+          <EditableCard
+            id="skills"
+            icon="sparkle"
+            title="Skills and languages"
+            subtitle="List them however you like; AI sorts skills into groups and adds nothing new."
+            empty={!d.skills.trim() && !d.languages.trim()}
+            emptyText="Add your skills so AI can group them for you."
+            view={
+              <div className="flex flex-col gap-3">
+                {d.skills.trim() ? <TagView text={d.skills} max={20} /> : <p className="text-sm text-ink-3">No skills yet.</p>}
+                {d.languages.trim() && <ViewRows rows={[{ label: "Languages", value: d.languages, icon: "languages" }]} />}
+              </div>
             }
           >
-            {d.projects.length === 0 ? (
-              <p className="text-sm text-ink-3">No projects added.</p>
-            ) : (
-              <div className="flex flex-col gap-4">
-                {d.projects.map((p, i) => (
-                  <ProjectFields key={p.key} n={i + 1} project={p} err={err} blur={blur} onChange={(patch) => updateList("projects", p.key, patch)} onRemove={() => removeFrom("projects", p.key)} />
-                ))}
-              </div>
-            )}
-          </Card>
-
-          <Card title="Skills and languages" description="List them however you like; AI sorts skills into groups and adds nothing new.">
-            <div className="flex flex-col gap-4">
-              <TextArea id={fid("skills")} label="Skills" rows={3} maxLength={2000} placeholder="React, Node.js, SQL, teamwork…" value={d.skills} onChange={(e) => set("skills", e.target.value)} />
-              <TextField id={fid("languages")} label="Languages" optional maxLength={400} placeholder="English – fluent, Urdu – native" value={d.languages} onChange={(e) => set("languages", e.target.value)} />
-            </div>
-          </Card>
+            <TextArea id={fid("skills")} label="Skills" rows={3} maxLength={2000} placeholder="React, Node.js, SQL, teamwork…" value={d.skills} onChange={(e) => set("skills", e.target.value)} />
+            <TextField id={fid("languages")} label="Languages" optional maxLength={400} placeholder="English – fluent, Urdu – native" value={d.languages} onChange={(e) => set("languages", e.target.value)} />
+          </EditableCard>
 
           <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4 sm:flex-row sm:items-center">
             <p className="flex min-w-0 flex-1 items-start gap-2 text-sm text-ink-2">
@@ -467,25 +523,27 @@ function WriteCv({ me }: { me: MeDto }) {
 
 type FieldProps = { err: (key: string) => string | undefined; blur: (key: string) => () => void };
 
-function Entry({ heading, onRemove, removeLabel, children }: { heading: string; onRemove: () => void; removeLabel: string; children: ReactNode }) {
-  const id = useId();
+/** A heading and short guidance above a list of entries. */
+function ListSection({ title, description, children }: { title: string; description: string; children: ReactNode }) {
   return (
-    <div role="group" aria-labelledby={id} className="flex flex-col gap-4 rounded-lg border border-line bg-surface-2 p-4">
-      <div className="flex items-center gap-2">
-        <h4 id={id} className="min-w-0 flex-1 text-sm font-semibold text-ink">
-          {heading}
-        </h4>
-        <IconButton icon="trash" size="sm" label={removeLabel} onClick={onRemove} />
+    <section className="flex flex-col gap-3">
+      <div>
+        <h2 className="cvb-h3">{title}</h2>
+        <p className="cvb-card-desc">{description}</p>
       </div>
       {children}
-    </div>
+    </section>
   );
 }
 
-function JobFields({ n, job, onChange, onRemove, err, blur }: FieldProps & { n: number; job: DraftJob; onChange: (p: Partial<DraftJob>) => void; onRemove: () => void }) {
+function NotesView({ notes, empty }: { notes: string; empty: string }) {
+  return notes.trim() ? <TextView text={notes} lines={3} /> : <p className="text-sm text-ink-3">{empty}</p>;
+}
+
+function JobFields({ job, onChange, err, blur }: FieldProps & { job: DraftJob; onChange: (p: Partial<DraftJob>) => void }) {
   const k = `job-${job.key}`;
   return (
-    <Entry heading={`Job ${n}`} onRemove={onRemove} removeLabel={`Remove job ${n}`}>
+    <>
       <div className="cvb-field-row">
         <TextField id={fid(`${k}-role`)} label="Job title" maxLength={160} value={job.role} error={err(`${k}-role`)} onBlur={blur(`${k}-role`)} onChange={(e) => onChange({ role: e.target.value })} />
         <TextField id={fid(`${k}-company`)} label="Company" maxLength={160} value={job.company} onChange={(e) => onChange({ company: e.target.value })} />
@@ -504,14 +562,14 @@ function JobFields({ n, job, onChange, onRemove, err, blur }: FieldProps & { n: 
         value={job.notes}
         onChange={(e) => onChange({ notes: e.target.value })}
       />
-    </Entry>
+    </>
   );
 }
 
-function ProjectFields({ n, project, onChange, onRemove, err, blur }: FieldProps & { n: number; project: DraftProject; onChange: (p: Partial<DraftProject>) => void; onRemove: () => void }) {
+function ProjectFields({ project, onChange, err, blur }: FieldProps & { project: DraftProject; onChange: (p: Partial<DraftProject>) => void }) {
   const k = `project-${project.key}`;
   return (
-    <Entry heading={`Project ${n}`} onRemove={onRemove} removeLabel={`Remove project ${n}`}>
+    <>
       <div className="cvb-field-row">
         <TextField id={fid(`${k}-name`)} label="Name" maxLength={160} value={project.name} error={err(`${k}-name`)} onBlur={blur(`${k}-name`)} onChange={(e) => onChange({ name: e.target.value })} />
         <TextField id={fid(`${k}-link`)} label="Link" optional dir="ltr" placeholder="github.com/you/project" maxLength={240} value={project.link} onChange={(e) => onChange({ link: e.target.value })} />
@@ -525,14 +583,14 @@ function ProjectFields({ n, project, onChange, onRemove, err, blur }: FieldProps
         value={project.notes}
         onChange={(e) => onChange({ notes: e.target.value })}
       />
-    </Entry>
+    </>
   );
 }
 
-function EducationFields({ n, edu, onChange, onRemove, err, blur }: FieldProps & { n: number; edu: DraftEducation; onChange: (p: Partial<DraftEducation>) => void; onRemove: () => void }) {
+function EducationFields({ edu, onChange, err, blur }: FieldProps & { edu: DraftEducation; onChange: (p: Partial<DraftEducation>) => void }) {
   const k = `edu-${edu.key}`;
   return (
-    <Entry heading={`Education ${n}`} onRemove={onRemove} removeLabel={`Remove education ${n}`}>
+    <>
       <div className="cvb-field-row">
         <TextField id={fid(`${k}-degree`)} label="Degree or qualification" maxLength={160} placeholder="BSc Computer Science" value={edu.degree} error={err(`${k}-degree`)} onBlur={blur(`${k}-degree`)} onChange={(e) => onChange({ degree: e.target.value })} />
         <TextField id={fid(`${k}-school`)} label="School" maxLength={160} value={edu.school} onChange={(e) => onChange({ school: e.target.value })} />
@@ -541,6 +599,6 @@ function EducationFields({ n, edu, onChange, onRemove, err, blur }: FieldProps &
         <TextField id={fid(`${k}-date`)} label="Dates" placeholder="2018 – 2022" maxLength={80} value={edu.date} onChange={(e) => onChange({ date: e.target.value })} />
         <TextField id={fid(`${k}-details`)} label="Details" optional maxLength={400} placeholder="Grade, modules, awards" value={edu.details} onChange={(e) => onChange({ details: e.target.value })} />
       </div>
-    </Entry>
+    </>
   );
 }
