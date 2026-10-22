@@ -1,0 +1,157 @@
+/* ------------------------------------------------------------------ Simple
+   Minimal and centred: one column, a ruled heading per section, one accent.
+   Type scale (4 sizes): name 21pt · headline / entry title 9.6pt · body 8.8pt · small 8.2pt. */
+
+.tpl-simple {
+  --s-ac: var(--cv-accent, #1e4b8f);
+  --s-ink: #222;
+  --s-muted: #555;
+  --s-rule: #d6d6d6;
+  font-family: var(--font-inter), "Liberation Sans", Arial, sans-serif;
+  font-size: 8.8pt;
+  line-height: 1.36;
+  color: var(--s-ink);
+}
+.tpl-simple a {
+  color: var(--s-ac);
+  overflow-wrap: anywhere;
+}
+.tpl-simple :where(h2, h3) {
+  margin: 0;
+  font: inherit;
+}
+.tpl-simple ul {
+  list-style: disc;
+  margin: 2.5pt 0 0;
+  padding-inline-start: 10pt;
+}
+.tpl-simple li {
+  margin: 0;
+  padding-inline-start: 1.5pt;
+}
+.tpl-simple li + li {
+  margin-top: 1.2pt;
+}
+.tpl-simple li::marker {
+  color: var(--s-muted);
+  font-size: 0.85em;
+}
+
+/* Header: centred */
+.s-head {
+  text-align: center;
+  padding-bottom: 2pt;
+}
+.s-name {
+  font-size: 21pt;
+  font-weight: 700;
+  letter-spacing: -0.3pt;
+  line-height: 1.1;
+}
+.s-headline {
+  margin-top: 3pt;
+  font-size: 9.6pt;
+  font-weight: 600;
+  color: var(--s-ac);
+}
+.s-tagline {
+  margin-top: 1pt;
+  font-size: 8.2pt;
+  color: var(--s-muted);
+}
+.s-contact {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1pt 0;
+  margin-top: 5pt;
+  font-size: 8.2pt;
+}
+.s-contact + .s-contact {
+  margin-top: 1.5pt;
+}
+.s-contact > span {
+  white-space: nowrap;
+}
+.s-contact > span + span::before {
+  content: "|";
+  margin-inline: 6pt;
+  color: #b5b5b5;
+}
+.s-head .cv-details {
+  justify-content: center;
+  font-size: 8.2pt;
+}
+
+/* Sections */
+.s-section {
+  margin-top: 9pt;
+}
+.s-section h2 {
+  font-size: 8.8pt;
+  font-weight: 700;
+  letter-spacing: 1.2pt;
+  text-transform: uppercase;
+  padding-bottom: 2pt;
+  margin-bottom: 4pt;
+  border-bottom: 0.8pt solid var(--s-ac);
+}
+
+/* Entries */
+.s-entry + .s-entry {
+  margin-top: 5.5pt;
+}
+.s-top {
+  break-inside: avoid;
+}
+.s-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8pt;
+}
+.s-title {
+  min-width: 0;
+  font-size: 9.6pt;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.s-org {
+  font-weight: 400;
+}
+.s-date {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: 8.2pt;
+  color: var(--s-muted);
+  font-variant-numeric: tabular-nums;
+}
+.s-sub {
+  margin-top: 0.5pt;
+  color: var(--s-muted);
+  font-size: 8.2pt;
+}
+.s-tools {
+  break-before: avoid; /* never a lone tools line at the top of a page */
+  margin-top: 2pt;
+  color: var(--s-muted);
+  font-size: 8.2pt;
+}
+.s-tools-label {
+  font-weight: 600;
+  color: var(--s-ink);
+}
+
+/* Skills, certificates, languages: one line each */
+.s-skill + .s-skill {
+  margin-top: 2pt;
+}
+.s-skill b,
+.s-section p b {
+  font-weight: 600;
+}
+
+/* Nastaliq (Urdu) has tall ascenders: give section headings more room. */
+.cv-doc[lang="ur"] .s-section {
+  margin-top: 14pt;
+}

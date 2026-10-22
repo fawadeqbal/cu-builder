@@ -1,0 +1,106 @@
+/* ------------------------------------------------------------------ Cover letters */
+
+.letter {
+  --l-accent: var(--cv-accent, #1e4b8f);
+  font-family: var(--font-inter), "Liberation Sans", Arial, sans-serif;
+  font-size: 10pt;
+  line-height: 1.5;
+  color: #1f2933;
+}
+.letter p {
+  margin: 0 0 9pt;
+}
+.letter-head {
+  margin-bottom: 18pt;
+}
+.letter-name {
+  font-size: 20pt;
+  font-weight: 700;
+  color: var(--l-accent);
+  line-height: 1.15;
+}
+.letter-title {
+  font-size: 10.5pt;
+  font-weight: 600;
+  margin-top: 2pt;
+}
+.letter-contact {
+  font-size: 8.8pt;
+  color: #5b6673;
+  margin-top: 4pt;
+}
+.letter-date {
+  color: #5b6673;
+}
+.letter-to {
+  margin-bottom: 12pt !important;
+}
+.letter-subject {
+  font-weight: 700;
+}
+.letter-sign {
+  margin-top: 14pt !important;
+}
+.letter-signature {
+  display: inline-block;
+  margin-top: 16pt;
+  font-weight: 600;
+}
+
+/* Classic: a rule under the header. */
+.letter-classic .letter-head {
+  padding-bottom: 10pt;
+  border-bottom: 1.5pt solid var(--l-accent);
+}
+
+/* Band: the header sits on a band of the accent colour. */
+.letter-band .letter-head {
+  margin: -10mm -12mm 18pt;
+  padding: 10mm 12mm 8mm;
+  background: var(--l-accent);
+  color: #fff;
+}
+.letter-band .letter-name,
+.letter-band .letter-contact {
+  color: #fff;
+}
+.letter-band .letter-contact {
+  opacity: 0.85;
+}
+
+/* Elegant: serif, centred header with thin rules. */
+.letter-elegant {
+  font-family: var(--font-source-serif), Georgia, serif;
+  font-size: 10.5pt;
+}
+.letter-elegant .letter-head {
+  text-align: center;
+  padding: 0 0 10pt;
+  border-bottom: 0.75pt solid #c8c3b8;
+}
+.letter-elegant .letter-name {
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 18pt;
+}
+
+/* Agency / institution mark above a CV (CVDocument `brand`). */
+.cv-brand {
+  display: flex;
+  align-items: center;
+  gap: 3mm;
+  padding: 3mm 0 2mm;
+  margin-bottom: 2mm;
+  border-bottom: 0.3mm solid var(--cv-accent);
+  font-size: 8.5pt;
+  color: #44403c;
+}
+.cv-brand-logo {
+  max-height: 9mm;
+  max-width: 40mm;
+  object-fit: contain;
+}
+.cv-brand-name {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}

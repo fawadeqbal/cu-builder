@@ -16,16 +16,41 @@ export function contacts(p: Personal): Contact[] {
   return out;
 }
 
+/** One contact detail. Email, phone and links are kept left-to-right inside right-to-left CVs. */
 export function ContactText({ c }: { c: Contact }) {
-  return c.href && c.kind !== "phone" ? <a href={c.href}>{c.text}</a> : <>{c.text}</>;
+  if (c.href && c.kind !== "phone")
+    return (
+      <a href={c.href} dir="ltr" className="cv-ltr">
+        {c.text}
+      </a>
+    );
+  return c.kind === "phone" ? (
+    <span dir="ltr" className="cv-ltr">
+      {c.text}
+    </span>
+  ) : (
+    <>{c.text}</>
+  );
 }
 
-/** "React, Next.js · Node" → ["React", "Next.js", "Node"] */
+/**
+ * "React, Next.js (App Router, RSC) · Node" → ["React", "Next.js (App Router, RSC)", "Node"].
+ * Separators inside brackets don't split, so "AWS (EC2, S3)" stays one skill.
+ */
 export function splitItems(items: string): string[] {
-  return items
-    .split(/\s*(?:,|;|·|\||\n)\s*/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const out: string[] = [];
+  let depth = 0;
+  let cur = "";
+  for (const ch of items) {
+    if (ch === "(" || ch === "[") depth++;
+    else if ((ch === ")" || ch === "]") && depth > 0) depth--;
+    if (depth === 0 && /[,;·|\n]/.test(ch)) {
+      out.push(cur);
+      cur = "";
+    } else cur += ch;
+  }
+  out.push(cur);
+  return out.map((s) => s.trim()).filter(Boolean);
 }
 
 export function initials(name: string): string {

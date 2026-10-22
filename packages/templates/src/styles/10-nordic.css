@@ -1,0 +1,192 @@
+/* ------------------------------------------------------------------ Nordic
+   Type scale: name 27pt light · headings 8.8pt spaced caps · entry titles 10.2pt · body 9.5pt (meta 9pt).
+   Rhythm: hairline and 12pt above every section, 10pt between entries, 2pt between bullets. */
+
+.tpl-nordic {
+  --ink: #2b2b2b;
+  --muted: #595959;
+  --rule: #dedede;
+  --n-col: 27mm;
+  --n-gap: 5mm;
+  --n-section-gap: 11pt;
+  --n-entry-gap: 10pt;
+  font-size: 9.5pt;
+  line-height: 1.45;
+  color: var(--ink);
+  text-align: start;
+  padding: 1mm 1mm 0;
+}
+.tpl-nordic a {
+  overflow-wrap: anywhere;
+}
+:where(.tpl-nordic) h3 {
+  margin: 0;
+  font-size: inherit;
+}
+
+/* Header */
+.n-head {
+  padding-bottom: 12pt;
+}
+.n-name {
+  font-size: 27pt;
+  font-weight: 300;
+  letter-spacing: -0.4pt;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+.n-headline {
+  margin-top: 5pt;
+  font-size: 9pt;
+  font-weight: 600;
+  letter-spacing: 2pt;
+  line-height: 1.35;
+  text-transform: uppercase;
+  color: var(--ac);
+}
+.n-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2pt 14pt;
+  margin-top: 9pt;
+  font-size: 9pt;
+  color: var(--muted);
+}
+.n-contact a {
+  color: inherit;
+}
+.n-head .cv-details {
+  margin-top: 5pt;
+  font-size: 9pt;
+  color: var(--muted);
+}
+.n-head .cv-details dt {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+/* Sections */
+.n-section {
+  margin-top: var(--n-section-gap);
+  padding-top: var(--n-section-gap);
+  border-top: 0.5pt solid var(--rule);
+}
+.n-section > h2 {
+  margin: 0 0 8pt;
+  font-size: 8.8pt;
+  font-weight: 600;
+  letter-spacing: 1.8pt;
+  line-height: 1.3;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.n-lead {
+  line-height: 1.55;
+}
+.n-tagline {
+  margin-top: 4pt !important;
+  font-size: 9pt;
+}
+
+/* Rows: a quiet column (date or label) and the body */
+.n-row {
+  display: grid;
+  grid-template-columns: var(--n-col) minmax(0, 1fr);
+  column-gap: var(--n-gap);
+  align-items: baseline;
+}
+.n-row + .n-row {
+  margin-top: var(--n-entry-gap);
+}
+.n-rows--dense .n-row + .n-row {
+  margin-top: 4pt;
+}
+.n-date {
+  font-size: 9pt;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.n-nowrap {
+  white-space: nowrap;
+}
+.n-label {
+  font-size: inherit;
+  font-weight: 500;
+  color: var(--ink);
+  font-variant-numeric: normal;
+}
+.n-body {
+  min-width: 0;
+}
+.n-title {
+  font-size: 10.2pt;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.n-dash {
+  font-weight: 400;
+  color: var(--muted);
+}
+.n-org {
+  font-weight: 500;
+  color: var(--ac);
+}
+.n-school {
+  color: var(--ac);
+  font-weight: 500;
+}
+.n-muted {
+  color: var(--muted);
+}
+.n-meta {
+  margin-top: 1pt;
+}
+.n-links a {
+  color: var(--ac);
+}
+.n-cert {
+  font-weight: 500;
+}
+.n-langs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2pt 16pt;
+}
+.n-lang {
+  font-weight: 500;
+}
+.n-stack {
+  break-before: avoid;
+  margin-top: 3pt;
+  font-size: 9pt;
+}
+.n-stack-label {
+  font-weight: 600;
+}
+
+/* Bullets: an accent en dash with a hanging indent */
+.tpl-nordic ul {
+  list-style: none;
+  margin: 3pt 0 0;
+  padding-inline-start: 0;
+}
+.tpl-nordic li {
+  position: relative;
+  margin-bottom: 2pt;
+  padding-inline-start: 11pt;
+}
+.tpl-nordic li:last-child {
+  margin-bottom: 0;
+}
+/* A page never starts with only the last bullet of an entry (the stack line, when there is one,
+   already stays with it). */
+.n-body > ul:last-child > li:last-child:not(:first-child) {
+  break-before: avoid;
+}
+.tpl-nordic li::before {
+  content: "–";
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  color: var(--ac);
+}

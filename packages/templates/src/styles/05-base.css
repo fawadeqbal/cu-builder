@@ -1,0 +1,37 @@
+/* ------------------------------------------------------------------ Base for every template
+   Shared variables, font and list defaults. Wrapped in :where() (no specificity) so each
+   template's own rules always win, whatever order the files load in. */
+:where(.tpl) {
+  --ac: var(--cv-accent, #1e4b8f);
+  --ink: #1c1c1e;
+  --muted: #5f6368;
+  --rule: #dcdcdf;
+  --tint: color-mix(in srgb, var(--ac) 9%, #fff);
+  --sans: var(--font-inter), "Liberation Sans", Arial, sans-serif;
+  --serif: var(--font-source-serif), Georgia, "Times New Roman", serif;
+  --mono: var(--font-cv-mono), ui-monospace, Menlo, Consolas, monospace;
+  font-family: var(--sans);
+  font-size: 8.8pt;
+  line-height: 1.4;
+  color: var(--ink);
+}
+:where(.tpl) p {
+  margin: 0;
+}
+:where(.tpl) a {
+  color: var(--ac);
+}
+:where(.tpl) ul {
+  list-style: disc;
+  margin: 2pt 0 0;
+  padding-inline-start: 11pt;
+}
+:where(.tpl) li {
+  margin-bottom: 1.5pt;
+}
+:where(.tpl) li::marker {
+  color: var(--ac);
+}
+:where(.tpl) h2 {
+  margin: 0;
+}

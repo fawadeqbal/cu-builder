@@ -1,0 +1,254 @@
+/* ------------------------------------------------------------------ Creative
+   Type scale: name 27pt · section heading 11pt · entry title and body 9pt · meta 8pt.
+   The accent fills the header band and marks headings; everything else is ink and grey. */
+
+.tpl.tpl-creative {
+  --cr-ac: var(--cv-accent, #c2410c);
+  --cr-ink: #1e1f22;
+  --cr-muted: #5a5c61;
+  --cr-rule: #e2e3e6;
+  --cr-chip: #f1f1f3;
+  font-family: var(--font-inter), "Liberation Sans", Arial, sans-serif;
+  font-size: 9pt;
+  line-height: 1.35;
+  color: var(--cr-ink);
+}
+.tpl.tpl-creative p {
+  margin: 0;
+}
+.tpl.tpl-creative a {
+  color: inherit;
+}
+.tpl.tpl-creative h2 {
+  margin: 0;
+}
+
+/* ---- header band */
+.tpl.tpl-creative .cr-head {
+  padding: 6.5mm 8mm 6mm;
+  border-radius: 4pt;
+  background: var(--cr-ac);
+  color: #fff;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.tpl.tpl-creative .cr-head:has(> .cv-photo--head) {
+  min-height: 0;
+  padding-inline-end: 40mm;
+}
+.tpl.tpl-creative .cr-head > .cv-photo--head {
+  top: 6mm;
+  inset-inline-end: 8mm;
+  width: 25mm;
+  height: 25mm;
+  border: 1.5pt solid rgb(255 255 255 / 0.85);
+  box-sizing: border-box;
+}
+.tpl.tpl-creative .cr-head a {
+  color: #fff;
+}
+.cr-name {
+  font-size: 27pt;
+  font-weight: 700;
+  letter-spacing: -0.5pt;
+  line-height: 1.05;
+}
+.cr-headline {
+  margin-top: 4pt;
+  font-size: 11pt;
+  font-weight: 500;
+}
+.cr-tagline {
+  margin-top: 2pt;
+  font-size: 8pt;
+  color: rgb(255 255 255 / 0.85);
+}
+.cr-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2pt 13pt;
+  margin-top: 8pt;
+  font-size: 8pt;
+}
+.cr-contact > span {
+  overflow-wrap: anywhere;
+}
+.cr-head .cv-details {
+  margin-top: 3pt;
+  font-size: 8pt;
+}
+.cr-head .cv-details dt {
+  color: rgb(255 255 255 / 0.85);
+}
+
+/* ---- summary and body */
+.cr-summary {
+  margin-top: 9pt;
+  line-height: 1.4;
+}
+.cr-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 53mm;
+  column-gap: 7mm;
+}
+.cr-body--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+.cr-main,
+.cr-side {
+  min-width: 0;
+}
+.cr-section {
+  margin-top: 11pt;
+}
+.tpl.tpl-creative .cr-section h2 {
+  margin-bottom: 5pt;
+  font-size: 11pt;
+  font-weight: 700;
+  letter-spacing: -0.1pt;
+  color: var(--cr-ink);
+}
+.tpl.tpl-creative .cr-section h2::after {
+  content: "";
+  display: block;
+  width: 8mm;
+  height: 2pt;
+  margin-top: 2.5pt;
+  border-radius: 1pt;
+  background: var(--cr-ac);
+}
+
+/* ---- entries */
+.cr-entry + .cr-entry {
+  margin-top: 7pt;
+}
+.cr-entry-head {
+  break-inside: avoid;
+}
+.cr-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8pt;
+}
+.cr-title {
+  min-width: 0;
+  font-weight: 700;
+}
+.cr-date {
+  flex: none;
+  font-size: 8pt;
+  font-weight: 500;
+  color: var(--cr-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.cr-org {
+  margin-top: 0.5pt;
+}
+.cr-company {
+  font-weight: 600;
+  color: color-mix(in srgb, var(--cr-ac) 88%, #000);
+}
+.cr-muted {
+  color: var(--cr-muted);
+}
+.cr-num {
+  font-variant-numeric: tabular-nums;
+}
+.cr-links {
+  margin-top: 0.5pt;
+  font-size: 8pt;
+  overflow-wrap: anywhere;
+}
+.tpl.tpl-creative .cr-links a {
+  color: color-mix(in srgb, var(--cr-ac) 88%, #000);
+}
+.tpl.tpl-creative .cr-main ul {
+  margin: 3pt 0 0;
+  padding-inline-start: 10pt;
+  list-style: disc outside;
+}
+.tpl.tpl-creative .cr-main li {
+  margin: 0 0 0.7pt;
+  padding-inline-start: 1pt;
+}
+.tpl.tpl-creative .cr-main li:last-child {
+  margin-bottom: 0;
+}
+.tpl.tpl-creative .cr-main li::marker {
+  color: var(--cr-ac);
+}
+.tpl.tpl-creative .cr-stack {
+  margin-top: 2pt;
+  font-size: 8pt;
+  color: var(--cr-muted);
+}
+.cr-stack-label {
+  font-weight: 600;
+}
+
+/* ---- side column */
+.cr-skill,
+.cr-side-item {
+  margin-top: 6pt;
+}
+.cr-lang {
+  margin-top: 3pt;
+}
+.cr-keep > h2 + * {
+  margin-top: 0;
+}
+.cr-skill-cat {
+  margin-bottom: 2.5pt;
+  font-size: 8pt;
+  font-weight: 700;
+  letter-spacing: 0.4pt;
+  text-transform: uppercase;
+  color: var(--cr-muted);
+}
+.tpl.tpl-creative ul.cr-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2.5pt 3pt;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tpl.tpl-creative ul.cr-chips > li {
+  margin: 0;
+  padding: 0.8pt 5pt;
+  border-radius: 3pt;
+  background: var(--cr-chip);
+  font-size: 8pt;
+  line-height: 1.35;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.cr-side-title {
+  font-weight: 700;
+}
+.cr-side .cr-company {
+  font-weight: 500;
+}
+.cr-lang {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6pt;
+}
+.cr-lang {
+  flex-wrap: wrap;
+  column-gap: 6pt;
+  row-gap: 0;
+}
+.cr-lang > .cr-muted {
+  margin-inline-start: auto;
+  font-size: 8pt;
+  text-align: end;
+}
+
+/* Nastaliq has deep descenders: give the heading bar room. */
+.cv-doc[lang="ur"] .tpl-creative .cr-section h2::after {
+  margin-top: 6pt;
+}

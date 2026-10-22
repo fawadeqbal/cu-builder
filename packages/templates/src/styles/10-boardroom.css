@@ -1,0 +1,204 @@
+/* ------------------------------------------------------------------ Boardroom
+   A narrow start column (name, contact, education, expertise) beside the main column, a serif summary.
+   Type scale: name 24pt (serif) · section heading 12pt (serif) · entry title 10.6pt (serif) · body 9.2pt · side/meta 8.5pt.
+   Rhythm: 12pt between sections, 8pt between entries, 1.5pt between bullets. */
+
+.tpl.tpl-boardroom {
+  --ink: #1f1f1f;
+  --muted: #555;
+  --bd-section-gap: 12pt;
+  --bd-entry-gap: 8pt;
+  display: grid;
+  grid-template-columns: 54mm minmax(0, 1fr);
+  gap: 0 7mm;
+  font-size: 9.2pt;
+  line-height: 1.4;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.tpl.tpl-boardroom a {
+  color: inherit;
+}
+.tpl-boardroom :where(h3) {
+  margin: 0;
+  font: inherit;
+}
+
+/* Side column. Its rule runs the full height of the grid, page after page. */
+.bd-side {
+  min-width: 0;
+  padding-inline-end: 6mm;
+  border-inline-end: 0.6pt solid color-mix(in srgb, var(--ac) 40%, #fff);
+  font-size: 8.5pt;
+  line-height: 1.38;
+}
+.bd-name {
+  font-family: var(--serif);
+  font-size: 24pt;
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.2pt;
+  overflow-wrap: anywhere;
+}
+.bd-name span {
+  display: block;
+}
+.bd-name span + span {
+  color: var(--ac);
+}
+.bd-headline {
+  margin-top: 6pt;
+  font-size: 8pt;
+  font-weight: 600;
+  letter-spacing: 1.5pt;
+  line-height: 1.35;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.bd-rule {
+  width: 14mm;
+  height: 1.5pt;
+  margin: 8pt 0;
+  background: var(--ac);
+}
+.bd-contact > div {
+  overflow-wrap: anywhere;
+}
+.bd-contact > div + div {
+  margin-top: 1.5pt;
+}
+.bd-side .cv-details {
+  margin-top: 6pt;
+  font-size: 8.5pt;
+  gap: 1.5pt;
+}
+.bd-side-section {
+  margin-top: var(--bd-section-gap);
+}
+.tpl-boardroom .bd-side-section h2,
+.tpl-boardroom .bd-section h2 {
+  margin: 0 0 5pt;
+  font-family: var(--serif);
+  font-size: 12pt;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--ac);
+}
+.bd-side-item {
+  overflow-wrap: break-word;
+}
+.bd-side-item + .bd-side-item {
+  margin-top: 5pt;
+}
+.bd-side-title {
+  font-weight: 600;
+}
+
+/* Main column */
+.bd-main {
+  min-width: 0;
+}
+.bd-summary {
+  padding-bottom: 9pt;
+  border-bottom: 0.6pt solid var(--rule);
+  font-family: var(--serif);
+  font-size: 10.6pt;
+  line-height: 1.5;
+}
+.bd-tagline {
+  margin-top: 4pt !important;
+  font-family: var(--sans);
+  font-size: 8.5pt;
+  line-height: 1.4;
+  color: var(--muted);
+}
+.bd-section {
+  margin-top: var(--bd-section-gap);
+}
+.bd-summary + .bd-section {
+  margin-top: 10pt;
+}
+.bd-entry + .bd-entry {
+  margin-top: var(--bd-entry-gap);
+}
+.bd-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8pt;
+}
+.bd-role {
+  min-width: 0;
+  font-family: var(--serif);
+  font-size: 10.6pt;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.bd-date {
+  flex: none;
+  font-size: 8.5pt;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.bd-org {
+  margin-top: 0.5pt;
+  color: var(--muted);
+}
+.bd-company {
+  font-weight: 600;
+  color: var(--ink);
+}
+.bd-links {
+  font-size: 8.5pt;
+  overflow-wrap: anywhere;
+}
+.bd-muted {
+  color: var(--muted);
+}
+.bd-stack {
+  margin-top: 2pt;
+  font-size: 8.5pt;
+  color: var(--muted);
+}
+.tpl-boardroom .bd-main ul {
+  list-style: disc;
+  margin: 2.5pt 0 0;
+  padding-inline-start: 11pt;
+}
+.tpl-boardroom .bd-main li {
+  margin: 0;
+  padding-inline-start: 1pt;
+}
+.tpl-boardroom .bd-main li + li,
+.bd-tail > ul {
+  margin-top: 1.5pt;
+}
+.tpl-boardroom li::marker {
+  color: var(--ac);
+  font-size: 0.85em;
+}
+
+/* Skills as label / value rows (main column, CVs without experience) */
+.bd-def {
+  display: grid;
+  grid-template-columns: 30mm minmax(0, 1fr);
+  gap: 0 5mm;
+}
+.bd-def + .bd-def {
+  margin-top: 3pt;
+}
+.bd-def-label {
+  font-weight: 600;
+}
+
+/* Urdu (Nastaliq): the stacked name needs more leading than the Latin setting. */
+.cv-doc[lang="ur"] .tpl-boardroom .bd-name {
+  line-height: 1.6;
+}
+.cv-doc[lang="ur"] .tpl-boardroom h2,
+.cv-doc[lang="ur"] .tpl-boardroom .bd-role {
+  line-height: 1.8;
+}
+.cv-doc[lang="ur"] .tpl-boardroom h2 {
+  margin-bottom: 8pt;
+}

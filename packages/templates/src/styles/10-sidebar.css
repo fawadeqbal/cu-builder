@@ -1,0 +1,302 @@
+/* ------------------------------------------------------------------ Sidebar Pro
+   Type scale: name 23pt · section heading 9.5pt caps · entry title and body 9pt · meta 8pt.
+   The panel sits on the inline-start side, full height. In print it is painted once per page
+   (a fixed layer repeats on every printed page), so page 2 has a full panel too. */
+
+.tpl.tpl-sidebar {
+  --sb-ac: var(--cv-accent, #1f2a44);
+  --sb-ink: #1f2023;
+  --sb-muted: #5a5c61;
+  --sb-rule: #e3e4e8;
+  --sb-side-w: 57mm;
+  display: grid;
+  grid-template-columns: var(--sb-side-w) minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "side head"
+    "side main";
+  column-gap: 6.5mm;
+  font-family: var(--font-inter), "Liberation Sans", Arial, sans-serif;
+  font-size: 9pt;
+  line-height: 1.35;
+  color: var(--sb-ink);
+}
+.tpl.tpl-sidebar p {
+  margin: 0;
+}
+.tpl.tpl-sidebar a {
+  color: inherit;
+}
+.tpl.tpl-sidebar h2 {
+  margin: 0;
+}
+
+/* ---- side panel */
+.sb-side {
+  grid-area: side;
+  box-sizing: border-box;
+  min-height: 274mm;
+  padding: 7mm 5.5mm 6mm;
+  border-radius: 3pt;
+  background: var(--sb-ac);
+  color: #fff;
+  font-size: 8.5pt;
+  line-height: 1.38;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  /* Each printed fragment of the panel keeps its own padding. */
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.tpl.tpl-sidebar .sb-side a {
+  color: #fff;
+}
+.sb-mono {
+  display: grid;
+  place-items: center;
+  width: 20mm;
+  height: 20mm;
+  margin-bottom: 9pt;
+  border-radius: 50%;
+  border: 1pt solid rgb(255 255 255 / 0.5);
+  font-size: 17pt;
+  font-weight: 300;
+  letter-spacing: 1pt;
+  line-height: 1;
+}
+.sb-contact {
+  margin: 0;
+}
+.sb-contact > div + div {
+  margin-top: 4.5pt;
+}
+.sb-contact dt {
+  font-size: 6.8pt;
+  font-weight: 600;
+  letter-spacing: 0.9pt;
+  text-transform: uppercase;
+  color: rgb(255 255 255 / 0.72);
+}
+.sb-contact dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.sb-side .cv-details {
+  margin-top: 6pt;
+  font-size: 8.5pt;
+}
+.sb-side .cv-details dt {
+  font-weight: 600;
+  color: rgb(255 255 255 / 0.8);
+}
+.sb-block {
+  margin-top: 14pt;
+}
+.sb-block h2 {
+  font-size: 7.6pt;
+  font-weight: 700;
+  letter-spacing: 1.3pt;
+  text-transform: uppercase;
+  padding-bottom: 3pt;
+  margin-bottom: 6pt;
+  border-bottom: 0.6pt solid rgb(255 255 255 / 0.38);
+}
+.sb-skill,
+.sb-item {
+  margin-top: 6pt;
+}
+.sb-lang {
+  margin-top: 3pt;
+}
+.sb-keep > h2 + * {
+  margin-top: 0;
+}
+.sb-skill-cat {
+  font-weight: 600;
+  margin-bottom: 2.5pt;
+}
+.tpl.tpl-sidebar ul.sb-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2.5pt;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tpl.tpl-sidebar ul.sb-chips > li {
+  margin: 0;
+  padding: 0.8pt 4.5pt;
+  border-radius: 2pt;
+  background: rgb(255 255 255 / 0.13);
+  font-size: 7.6pt;
+  line-height: 1.35;
+}
+.sb-item-title {
+  font-weight: 600;
+}
+.sb-dim {
+  color: rgb(255 255 255 / 0.78);
+}
+.sb-num {
+  font-variant-numeric: tabular-nums;
+}
+.sb-lang {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6pt;
+}
+.sb-lang {
+  flex-wrap: wrap;
+  row-gap: 0;
+}
+.sb-lang > .sb-dim {
+  margin-inline-start: auto;
+  text-align: end;
+}
+
+/* ---- header and main column */
+.sb-head {
+  grid-area: head;
+  min-width: 0;
+  padding-top: 3mm;
+}
+.sb-name {
+  font-size: 23pt;
+  font-weight: 700;
+  letter-spacing: -0.4pt;
+  line-height: 1.1;
+  color: var(--sb-ink);
+}
+.sb-headline {
+  margin-top: 3pt;
+  font-size: 10.5pt;
+  font-weight: 600;
+  color: var(--sb-ac);
+}
+.sb-tagline {
+  margin-top: 2pt;
+  font-size: 8pt;
+  color: var(--sb-muted);
+}
+.sb-main {
+  grid-area: main;
+  min-width: 0;
+}
+.sb-section {
+  margin-top: 12pt;
+}
+.sb-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 6pt;
+  margin-bottom: 5pt;
+  font-size: 9.5pt;
+  font-weight: 700;
+  letter-spacing: 1.1pt;
+  text-transform: uppercase;
+  color: var(--sb-ink);
+}
+.sb-section h2::before {
+  content: "";
+  flex: none;
+  width: 11pt;
+  height: 2.2pt;
+  border-radius: 1pt;
+  background: var(--sb-ac);
+}
+.sb-entry + .sb-entry {
+  margin-top: 7.5pt;
+}
+.sb-entry-head {
+  break-inside: avoid;
+}
+.sb-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8pt;
+}
+.sb-title {
+  font-weight: 700;
+  min-width: 0;
+}
+.sb-date {
+  flex: none;
+  font-size: 8pt;
+  color: var(--sb-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.sb-org {
+  margin-top: 0.5pt;
+}
+.sb-company {
+  font-weight: 600;
+  color: var(--sb-ac);
+}
+.sb-sep,
+.sb-loc {
+  color: var(--sb-muted);
+}
+.sb-links {
+  margin-top: 0.5pt;
+  font-size: 8pt;
+  overflow-wrap: anywhere;
+}
+.tpl.tpl-sidebar .sb-links a {
+  color: var(--sb-ac);
+}
+.tpl.tpl-sidebar .sb-main ul {
+  margin: 3pt 0 0;
+  padding-inline-start: 10pt;
+  list-style: disc outside;
+}
+.tpl.tpl-sidebar .sb-main li {
+  margin: 0 0 1pt;
+  padding-inline-start: 1pt;
+}
+.tpl.tpl-sidebar .sb-main li:last-child {
+  margin-bottom: 0;
+}
+.tpl.tpl-sidebar .sb-main li::marker {
+  color: var(--sb-ac);
+}
+.tpl.tpl-sidebar .sb-stack {
+  margin-top: 2.5pt;
+  font-size: 8pt;
+  color: var(--sb-muted);
+}
+.sb-stack-label {
+  font-weight: 600;
+}
+
+/* Nastaliq has deep descenders: give the side headings' rules room. */
+.cv-doc[lang="ur"] .sb-block h2 {
+  padding-bottom: 6pt;
+  margin-bottom: 9pt;
+}
+
+/* ---- print: a full-height panel on every page */
+@media print {
+  .tpl-sidebar {
+    position: relative;
+  }
+  .tpl-sidebar::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    inset-inline-start: 0;
+    width: var(--sb-side-w);
+    border-radius: 3pt;
+    background: var(--sb-ac);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .sb-side {
+    position: relative;
+    min-height: 0;
+    background: none;
+  }
+}

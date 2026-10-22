@@ -1,0 +1,213 @@
+/* ------------------------------------------------------------------ Developer
+   Type scale: name 23pt · section heading 8.6pt mono caps · entry title and body 9pt · meta 8pt.
+   Monospace is a touch (headline, headings, dates, contact, stack), never the body text. */
+
+.tpl.tpl-tech {
+  --tc-ac: var(--cv-accent, #047857);
+  --tc-ink: #1d1f22;
+  --tc-muted: #5a5d63;
+  --tc-rule: #dfe1e5;
+  --tc-chip: #eff1f3;
+  --tc-mono: var(--font-cv-mono), ui-monospace, Menlo, Consolas, monospace;
+  font-family: var(--font-inter), "Liberation Sans", Arial, sans-serif;
+  font-size: 9pt;
+  line-height: 1.35;
+  color: var(--tc-ink);
+}
+.tpl.tpl-tech p {
+  margin: 0;
+}
+.tpl.tpl-tech a {
+  color: inherit;
+}
+.tpl.tpl-tech h2 {
+  margin: 0;
+}
+
+/* ---- header */
+.tc-head {
+  padding-bottom: 8pt;
+  border-bottom: 0.75pt solid var(--tc-rule);
+}
+.tc-name {
+  font-size: 23pt;
+  font-weight: 700;
+  letter-spacing: -0.4pt;
+  line-height: 1.1;
+}
+.tc-headline {
+  margin-top: 3pt;
+  font-family: var(--tc-mono);
+  font-size: 10pt;
+  font-weight: 600;
+  color: var(--tc-ac);
+}
+.tc-tagline {
+  margin-top: 2pt;
+  font-size: 8pt;
+  color: var(--tc-muted);
+}
+.tc-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2pt 13pt;
+  margin-top: 6pt;
+  font-family: var(--tc-mono);
+  font-size: 8pt;
+  color: var(--tc-ink);
+}
+.tc-contact > span {
+  overflow-wrap: anywhere;
+}
+
+/* ---- sections */
+.tc-section {
+  margin-top: 10pt;
+}
+/* Certificates and languages side by side when both are there. */
+.tc-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  column-gap: 8mm;
+}
+.tc-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 6pt;
+  margin-bottom: 5pt;
+  font-family: var(--tc-mono);
+  font-size: 8.6pt;
+  font-weight: 600;
+  letter-spacing: 1pt;
+  text-transform: uppercase;
+  color: var(--tc-ink);
+}
+.tc-section h2::before {
+  content: "//";
+  color: var(--tc-ac);
+  letter-spacing: 0;
+}
+.tc-section h2::after {
+  content: "";
+  flex: 1;
+  height: 0;
+  border-top: 0.6pt solid var(--tc-rule);
+}
+
+/* ---- skills: category column + quiet chips */
+.tc-skill {
+  display: grid;
+  grid-template-columns: 30mm minmax(0, 1fr);
+  column-gap: 4mm;
+  align-items: baseline;
+}
+.tc-skill + .tc-skill {
+  margin-top: 2.5pt;
+}
+.tc-skill-cat {
+  font-size: 8pt;
+  font-weight: 600;
+  color: var(--tc-ink);
+}
+.tpl.tpl-tech ul.tc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2.5pt 3pt;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tpl.tpl-tech ul.tc-chips > li {
+  margin: 0;
+  padding: 0.6pt 4.5pt;
+  border-radius: 2pt;
+  background: var(--tc-chip);
+  font-size: 8pt;
+  line-height: 1.35;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* ---- entries */
+.tc-entry + .tc-entry {
+  margin-top: 7.5pt;
+}
+.tc-entry-head {
+  break-inside: avoid;
+}
+.tc-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8pt;
+}
+.tc-title {
+  min-width: 0;
+  font-weight: 700;
+}
+.tc-date {
+  flex: none;
+  font-family: var(--tc-mono);
+  font-size: 8pt;
+  color: var(--tc-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.tc-sub {
+  margin-top: 0.5pt;
+}
+.tc-org {
+  font-weight: 600;
+  color: var(--tc-ac);
+}
+.tc-muted {
+  color: var(--tc-muted);
+}
+.tc-link {
+  margin-top: 0.5pt;
+  font-family: var(--tc-mono);
+  font-size: 8pt;
+  overflow-wrap: anywhere;
+}
+.tpl.tpl-tech .tc-link a {
+  color: var(--tc-ac);
+}
+.tpl.tpl-tech .tc-entry ul {
+  margin: 3pt 0 0;
+  padding-inline-start: 10pt;
+  list-style: disc outside;
+}
+.tpl.tpl-tech .tc-entry li {
+  margin: 0 0 1pt;
+  padding-inline-start: 1pt;
+}
+.tpl.tpl-tech .tc-entry li:last-child {
+  margin-bottom: 0;
+}
+.tpl.tpl-tech .tc-entry li::marker {
+  color: var(--tc-ac);
+}
+.tpl.tpl-tech .tc-stack {
+  margin-top: 2.5pt;
+  font-size: 8pt;
+  color: var(--tc-muted);
+}
+.tc-stack-label {
+  font-weight: 600;
+}
+.tc-edu + .tc-edu {
+  margin-top: 5pt;
+}
+.tc-lang + .tc-lang,
+.tc-cert + .tc-cert {
+  margin-top: 2pt;
+}
+.tc-cert-name,
+.tc-lang-name {
+  font-weight: 600;
+}
+
+/* Nastaliq lines are tall and sit low: drop the heading rule to the text's middle. */
+.cv-doc[lang="ur"] .tc-section h2::after {
+  transform: translateY(0.45em);
+}

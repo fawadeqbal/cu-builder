@@ -1,0 +1,83 @@
+/* ------------------------------------------------------------------ Photo, personal details, RTL */
+
+/* Header photo: the top inline-end corner of the header, which keeps clear of it. */
+[data-step="personal"]:has(> .cv-photo--head) {
+  position: relative;
+  min-height: 27mm;
+  padding-inline-end: 30mm;
+}
+.cv-photo {
+  display: block;
+  object-fit: cover;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.cv-photo--head {
+  position: absolute;
+  top: 0;
+  inset-inline-end: 0;
+  width: 26mm;
+  height: 26mm;
+}
+.cv-photo--side {
+  width: 30mm;
+  height: 30mm;
+  margin: 0 auto 4mm;
+}
+.cv-photo--circle {
+  border-radius: 50%;
+}
+.cv-photo--rounded {
+  border-radius: 3mm;
+}
+.cv-photo--square {
+  border-radius: 0;
+}
+
+.cv-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1pt 10pt;
+  margin: 4pt 0 0;
+  font-size: 8.4pt;
+  line-height: 1.35;
+}
+.cv-details > div {
+  display: flex;
+  gap: 3pt;
+}
+.cv-details dt {
+  font-weight: 600;
+}
+.cv-details dt::after {
+  content: ":";
+}
+.cv-details dd {
+  margin: 0;
+}
+/* In a narrow side column, one detail per line. */
+.bd-side .cv-details,
+.sb-side .cv-details {
+  flex-direction: column;
+}
+
+/* Right-to-left CVs (Urdu, Arabic): an Arabic-script font, no letter-spacing (it breaks joining),
+   and emails, phone numbers and links kept left-to-right inside the line. */
+.cv-doc[dir="rtl"],
+.cv-doc[dir="rtl"] * {
+  font-family: var(--font-rtl, "Noto Naskh Arabic"), "Noto Naskh Arabic", "Noto Nastaliq Urdu", "Segoe UI", Tahoma, sans-serif !important;
+  letter-spacing: 0 !important;
+}
+.cv-doc[lang="ur"],
+.cv-doc[lang="ur"] * {
+  font-family: var(--font-urdu, "Noto Nastaliq Urdu"), "Noto Nastaliq Urdu", var(--font-rtl, "Noto Naskh Arabic"), "Noto Naskh Arabic", Tahoma, sans-serif !important;
+  line-height: 1.9;
+}
+.cv-doc[dir="rtl"] a,
+.cv-doc[dir="rtl"] .cv-ltr {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.cv-doc[dir="rtl"] .cv-brand {
+  flex-direction: row;
+}

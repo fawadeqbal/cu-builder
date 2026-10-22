@@ -17,8 +17,13 @@ const M_SIDE = 12;
 const M_BOTTOM = 12;
 const PIXEL_RATIO = 3; // ~280 dpi on A4: sharp in print, still a small file
 
-/** Blocks that must not be split across pages (mirrors break-inside: avoid in the templates). */
-const KEEP_TOGETHER = ".c-entry, .m-entry, .c-skill-row, .m-side-item, .m-lang, .c-header, .m-header, h2, li";
+/**
+ * Blocks that must not be split across pages (mirrors break-inside: avoid in the templates):
+ * anything a template marks data-keep, plus headings and list items.
+ */
+const KEEP_TOGETHER = "[data-keep], .c-skill-row, .m-side-item, .m-lang, .c-header, .m-header, h2, h3, li";
+/** Headings and entry heads that must stay on the same page as the start of what follows. */
+const KEEP_WITH_NEXT = "[data-keep-next]";
 
 type Box = { top: number; bottom: number };
 type TextLine = { text: string; x: number; y: number; w: number; h: number; size: number; bold: boolean };
@@ -158,6 +163,15 @@ function pageCuts(sheet: HTMLElement, origin: DOMRect, pageH: number): number[] 
   sheet.querySelectorAll<HTMLElement>(KEEP_TOGETHER).forEach((el) => {
     const r = el.getBoundingClientRect();
     if (r.height > 0 && r.height < pageH * 0.9) blocks.push({ top: r.top - origin.top, bottom: r.bottom - origin.top });
+  });
+  // A heading (or entry head) and the first ~two lines after it count as one block, so a page
+  // never ends on a heading.
+  sheet.querySelectorAll<HTMLElement>(KEEP_WITH_NEXT).forEach((el) => {
+    const r = el.getBoundingClientRect();
+    const next = el.nextElementSibling?.getBoundingClientRect();
+    const lineH = parseFloat(getComputedStyle(el).fontSize || "12") * 2.8;
+    const bottom = next && next.height > 0 ? Math.min(next.bottom, next.top + lineH) : r.bottom;
+    if (r.height > 0 && bottom - r.top < pageH * 0.5) blocks.push({ top: r.top - origin.top, bottom: bottom - origin.top });
   });
   const lineBoxes = textLines(sheet, origin).map((l) => ({ top: l.y, bottom: l.y + l.h }));
 

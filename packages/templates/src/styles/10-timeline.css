@@ -1,0 +1,230 @@
+/* ------------------------------------------------------------------ Timeline
+   Type scale: name 25pt · headings 10.5pt caps · entry titles 10.2pt · body 9.5pt (meta 9pt).
+   Grid: date column | rail (line and dot) | content. The rail is a stretched grid cell whose
+   background draws the line, so the line continues cleanly when an entry runs onto the next page. */
+
+.tpl-timeline {
+  --ink: #1f1f1f;
+  --muted: #595959;
+  --rule: #d9d9d9;
+  --tl-date: 25mm;
+  --tl-rail: 9pt;
+  --tl-gap: 5pt;
+  --tl-line: color-mix(in srgb, var(--ac) 32%, #fff);
+  --tl-section-gap: 15pt;
+  --tl-entry-gap: 10pt;
+  --tl-dot-top: 3.2pt; /* centres the dot on the first line of the entry title */
+  font-size: 9.5pt;
+  line-height: 1.4;
+  text-align: start;
+}
+.tpl-timeline a {
+  overflow-wrap: anywhere;
+}
+:where(.tpl-timeline) h3 {
+  margin: 0;
+}
+.tpl-timeline ul {
+  margin: 3pt 0 0;
+  padding-inline-start: 11pt;
+}
+.tpl-timeline li {
+  margin-bottom: 2pt;
+  padding-inline-start: 1.5pt;
+}
+.tpl-timeline li:last-child {
+  margin-bottom: 0;
+}
+/* A page never starts with only the last bullet of an entry (the stack line, when there is one,
+   already stays with it). */
+.tl-content > ul:last-child > li:last-child:not(:first-child) {
+  break-before: avoid;
+}
+.tpl-timeline li::marker {
+  font-size: 0.85em;
+}
+
+/* Header */
+.tl-head {
+  padding-bottom: 10pt;
+  border-bottom: 0.8pt solid var(--rule);
+}
+.tl-name {
+  font-size: 25pt;
+  font-weight: 700;
+  letter-spacing: -0.4pt;
+  line-height: 1.08;
+  color: var(--ac);
+  overflow-wrap: anywhere;
+}
+.tl-headline {
+  margin-top: 4pt;
+  font-size: 11.5pt;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.tl-tagline {
+  margin-top: 1.5pt;
+  font-size: 9pt;
+  color: var(--muted);
+}
+.tl-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2pt 13pt;
+  margin-top: 7pt;
+  font-size: 9pt;
+  color: #333;
+}
+.tl-contact a {
+  color: inherit;
+}
+.tl-head .cv-details {
+  margin-top: 5pt;
+  font-size: 9pt;
+}
+.tl-head .cv-details dd {
+  color: var(--muted);
+}
+.tl-summary {
+  margin-top: 11pt;
+  line-height: 1.45;
+}
+
+/* Sections */
+.tl-section {
+  margin-top: var(--tl-section-gap);
+}
+.tl-section > h2 {
+  margin: 0 0 8pt;
+  padding-bottom: 3pt;
+  border-bottom: 0.6pt solid var(--rule);
+  font-size: 10.5pt;
+  font-weight: 700;
+  letter-spacing: 1.2pt;
+  text-transform: uppercase;
+  line-height: 1.3;
+  color: var(--ac);
+}
+
+/* Timeline entries */
+.tl-item {
+  display: grid;
+  grid-template-columns: var(--tl-date) var(--tl-rail) minmax(0, 1fr);
+  column-gap: var(--tl-gap);
+}
+.tl-date {
+  padding-top: 0.6pt;
+  font-size: 9pt;
+  line-height: 1.45;
+  color: var(--muted);
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+.tl-nowrap {
+  white-space: nowrap;
+}
+.tl-rail {
+  align-self: stretch;
+  display: flex;
+  justify-content: center;
+  background: linear-gradient(var(--tl-line), var(--tl-line)) center top / 1pt 100% no-repeat;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+/* The line starts at the first dot and stops at the last one. */
+.tl-item:first-child .tl-rail {
+  background-position: center calc(var(--tl-dot-top) + 1pt);
+}
+.tl-item:last-child .tl-rail {
+  background-size: 1pt calc(var(--tl-dot-top) + 1pt);
+}
+.tl-item:only-child .tl-rail {
+  background: none;
+}
+.tl-dot {
+  flex: none;
+  width: 7pt;
+  height: 7pt;
+  margin-top: var(--tl-dot-top);
+  border-radius: 50%;
+  border: 1.5pt solid var(--ac);
+  background: #fff;
+  box-sizing: border-box;
+}
+.tl-content {
+  min-width: 0;
+  padding-bottom: var(--tl-entry-gap);
+}
+.tl-item:last-child .tl-content {
+  padding-bottom: 0;
+}
+.tl-title {
+  font-size: 10.2pt;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.tl-org {
+  margin-top: 1pt;
+}
+.tl-company {
+  font-weight: 600;
+  color: var(--ac);
+}
+.tl-links a {
+  font-weight: 500;
+}
+.tl-muted {
+  color: var(--muted);
+}
+.tl-detail {
+  margin-top: 1pt;
+}
+.tl-stack {
+  break-before: avoid;
+  margin-top: 3pt;
+  font-size: 9pt;
+  color: var(--muted);
+}
+.tl-stack-label {
+  font-weight: 600;
+}
+
+/* Label/value rows on the same grid (skills, certificates, languages) */
+.tl-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4pt;
+}
+.tl-row {
+  display: grid;
+  grid-template-columns: var(--tl-date) minmax(0, 1fr);
+  column-gap: calc(var(--tl-rail) + var(--tl-gap) * 2);
+  align-items: baseline;
+}
+.tl-label {
+  font-weight: 600;
+  text-align: end;
+}
+.tl-num {
+  font-weight: 400;
+  font-size: 9pt;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.tl-cert {
+  font-weight: 600;
+}
+.tl-langs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2pt 13pt;
+}
+.tl-lang-name {
+  font-weight: 600;
+}
+
+/* Nastaliq sets taller lines: keep the dot on the title's first line. */
+.cv-doc[lang="ur"] .tpl-timeline {
+  --tl-dot-top: 7.5pt;
+}

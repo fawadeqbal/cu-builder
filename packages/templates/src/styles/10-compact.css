@@ -1,0 +1,170 @@
+/* ------------------------------------------------------------------ Compact
+   The densest template: small type, one-line entry heads, labels in a narrow start column.
+   Type scale (4 sizes): name 19pt · headline / entry title 9pt · body 8.2pt · small 7.6pt. */
+
+.tpl-compact {
+  --cp-ac: var(--cv-accent, #1e4b8f);
+  --cp-ink: #222;
+  --cp-muted: #555;
+  --cp-rule: #dadada;
+  --cp-label-w: 22mm;
+  --cp-gap: 4mm;
+  font-family: var(--font-inter), "Liberation Sans", Arial, sans-serif;
+  font-size: 8.2pt;
+  line-height: 1.35;
+  color: var(--cp-ink);
+}
+.tpl-compact a {
+  color: var(--cp-ac);
+  overflow-wrap: anywhere;
+}
+.tpl-compact :where(h2, h3) {
+  margin: 0;
+  font: inherit;
+}
+.tpl-compact ul {
+  list-style: disc;
+  margin: 1.5pt 0 0;
+  padding-inline-start: 9pt;
+}
+.tpl-compact li {
+  margin: 0;
+  padding-inline-start: 1pt;
+}
+.tpl-compact li + li {
+  margin-top: 0.8pt;
+}
+.tpl-compact li::marker {
+  color: var(--cp-ac);
+  font-size: 0.85em;
+}
+.cp-muted {
+  color: var(--cp-muted);
+}
+
+/* Header: name start, contact end */
+.cp-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 8mm;
+  align-items: end;
+  padding-bottom: 5pt;
+  border-bottom: 1.5pt solid var(--cp-ac);
+}
+.cp-name {
+  font-size: 19pt;
+  font-weight: 700;
+  letter-spacing: -0.3pt;
+  line-height: 1.1;
+  color: var(--cp-ac);
+}
+.cp-headline {
+  margin-top: 2pt;
+  font-size: 9pt;
+  font-weight: 600;
+}
+.cp-tagline {
+  margin-top: 0.5pt;
+  font-size: 7.6pt;
+  color: var(--cp-muted);
+}
+.cp-contact {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 0.5pt 10pt;
+  font-size: 7.6pt;
+  text-align: end;
+  color: var(--cp-muted);
+}
+.cp-head .cv-details {
+  grid-column: 1 / -1;
+  font-size: 7.6pt;
+}
+
+/* Sections: a floated label so long sections split across pages instead of jumping whole. */
+.cp-section {
+  display: flow-root;
+  padding: 5pt 0;
+  border-bottom: 0.5pt solid var(--cp-rule);
+}
+.cp-section:last-child {
+  border-bottom: 0;
+}
+.cp-section h2 {
+  float: inline-start;
+  width: var(--cp-label-w);
+  font-size: 7.6pt;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.8pt;
+  text-transform: uppercase;
+  color: var(--cp-ac);
+  padding-top: 1pt;
+}
+.cp-body {
+  margin-inline-start: calc(var(--cp-label-w) + var(--cp-gap));
+}
+.cp-body p + p {
+  margin-top: 1.5pt;
+}
+.cp-body b {
+  font-weight: 600;
+}
+
+/* Entries */
+.cp-entry + .cp-entry {
+  margin-top: 4pt;
+}
+.cp-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6pt;
+  break-inside: avoid;
+}
+.cp-title {
+  min-width: 0;
+}
+.cp-title b {
+  font-size: 9pt;
+  font-weight: 600;
+}
+.cp-org {
+  font-weight: 500;
+  color: var(--cp-ac);
+}
+.cp-date {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: 7.6pt;
+  color: var(--cp-muted);
+  font-variant-numeric: tabular-nums;
+}
+.cp-link {
+  white-space: nowrap; /* a URL moves to the next line whole rather than breaking mid-word */
+}
+.cp-stack {
+  break-before: avoid; /* never a lone stack line at the top of a page */
+  margin-top: 1pt;
+  font-size: 7.6pt;
+  color: var(--cp-muted);
+}
+.cp-stack-label {
+  font-weight: 600;
+  color: var(--cp-ink);
+}
+
+/* Skills: one row per category */
+.cp-skills {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5pt;
+}
+.cp-skill {
+  display: grid;
+  grid-template-columns: 22mm minmax(0, 1fr);
+  column-gap: 3mm;
+}
+.cp-skill > span:only-child {
+  grid-column: 1 / -1;
+}

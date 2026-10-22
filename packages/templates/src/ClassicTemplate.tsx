@@ -4,14 +4,20 @@ import { cvLabels, Photo, PersonalDetailsList } from "./shared";
 
 /**
  * Classic — a Europass-style layout: section labels in a narrow left column,
- * content on the right, one blue accent colour and justified body text.
+ * content on the right, one accent colour and start-aligned body text.
  */
 export function ClassicTemplate({ cv }: { cv: CV }) {
   const p = cv.personal;
   const tr = cvLabels(cv);
 
   const contactRow1: ReactNode[] = [
-    p.phone && <span key="phone">{p.phone}</span>,
+    p.phone && (
+      <span key="phone">
+        <span className="cv-ltr" dir="ltr">
+          {p.phone}
+        </span>
+      </span>
+    ),
     p.email && (
       <span key="email">
         <a href={`mailto:${p.email}`}>{p.email}</a>
@@ -31,7 +37,7 @@ export function ClassicTemplate({ cv }: { cv: CV }) {
 
   return (
     <div className="tpl-classic">
-      <header data-step="personal" className="c-header">
+      <header data-step="personal" className="c-header" data-keep>
         <Photo cv={cv} />
         <div className="c-name">{p.name || tr("Your Name")}</div>
         {p.headline && <div className="c-headline">{p.headline}</div>}
@@ -86,9 +92,9 @@ export function ClassicTemplate({ cv }: { cv: CV }) {
         <Section step="skills" label={tr("Skills")}>
           <div className="c-skills">
             {cv.skills.map((s) => (
-              <div key={s.id} className="c-skill-row">
-                <div className="c-skill-cat">{s.category}</div>
-                <div>{s.items}</div>
+              <div key={s.id} className="c-skill-row" data-keep>
+                {s.category && <div className="c-skill-cat">{s.category}</div>}
+                <div className="c-skill-items">{s.items}</div>
               </div>
             ))}
           </div>
@@ -150,6 +156,7 @@ export function ClassicTemplate({ cv }: { cv: CV }) {
               }
               meta={ed.date}
               sub={ed.details}
+              keep
             />
           ))}
         </Section>
@@ -170,7 +177,7 @@ export function ClassicTemplate({ cv }: { cv: CV }) {
 
       {cv.languages.length > 0 && (
         <Section step="extras" label={tr("Languages")}>
-          <p className="c-left">
+          <p className="c-langs" data-keep>
             {cv.languages.map((l, i) => (
               <span key={l.id}>
                 {i > 0 && " · "}
@@ -188,7 +195,9 @@ export function ClassicTemplate({ cv }: { cv: CV }) {
 function Section({ step, label, children }: { step: StepId; label: ReactNode; children: ReactNode }) {
   return (
     <section className="c-section" data-step={step}>
-      <div className="c-label">{label}</div>
+      <h2 className="c-label" data-keep-next>
+        {label}
+      </h2>
       <div className="c-content">{children}</div>
     </section>
   );
@@ -201,6 +210,7 @@ function Entry({
   bullets = [],
   stack,
   stackLabel = "Stack:",
+  keep = false,
 }: {
   title: ReactNode;
   meta?: string;
@@ -208,15 +218,19 @@ function Entry({
   bullets?: string[];
   stack?: string;
   stackLabel?: string;
+  /** Short atomic entries (education) stay on one page. */
+  keep?: boolean;
 }) {
   const items = clean(bullets);
   return (
-    <div className="c-entry">
-      <div className="c-entry-head">
-        <div className="c-entry-title">{title}</div>
-        {meta && <div className="c-entry-meta">{meta}</div>}
+    <div className="c-entry" data-keep={keep || undefined}>
+      <div className="c-entry-top" data-keep-next>
+        <div className="c-entry-head">
+          <h3 className="c-entry-title">{title}</h3>
+          {meta && <div className="c-entry-meta">{meta}</div>}
+        </div>
+        {sub && <div className="c-entry-sub">{sub}</div>}
       </div>
-      {sub && <div className="c-entry-sub">{sub}</div>}
       {items.length > 0 && (
         <ul>
           {items.map((b, i) => (

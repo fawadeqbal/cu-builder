@@ -1,0 +1,193 @@
+/* ------------------------------------------------------------------ Classic
+   Europass-like: section labels in a narrow start column, content beside them.
+   Type scale (4 sizes): name 22pt · headline / entry title 9.6pt · body 8.5pt · small 8pt.
+   Inter has a tall x-height: 8.5pt Inter reads like ~10pt Times, and keeps a dense CV on 2 pages. */
+
+.tpl-classic {
+  --c-blue: var(--cv-accent, #1e4b8f);
+  --c-ink: #222;
+  --c-muted: #555;
+  --c-rule: color-mix(in srgb, var(--c-blue) 22%, #fff);
+  --c-label-w: 23.5mm;
+  --c-gap: 3.5mm;
+  --c-entry-gap: 6pt;
+  font-family: var(--font-inter), "Liberation Sans", Arial, sans-serif;
+  font-size: 8.5pt;
+  line-height: 1.35;
+  color: var(--c-ink);
+}
+.tpl-classic a {
+  color: var(--c-blue);
+}
+.tpl-classic :where(h2, h3) {
+  margin: 0;
+  font: inherit;
+}
+.tpl-classic ul {
+  list-style: disc;
+  margin: 2.5pt 0 0;
+  padding-inline-start: 10pt;
+}
+.tpl-classic li {
+  margin: 0;
+  padding-inline-start: 1.5pt;
+}
+.tpl-classic li + li {
+  margin-top: 1pt;
+}
+.tpl-classic li::marker {
+  color: var(--c-blue);
+  font-size: 0.85em;
+}
+
+/* Header */
+.c-header {
+  border-bottom: 2pt solid var(--c-blue);
+  padding-bottom: 7pt;
+}
+.c-name {
+  font-size: 22pt;
+  font-weight: 700;
+  letter-spacing: -0.3pt;
+  color: var(--c-blue);
+  line-height: 1.1;
+}
+.c-headline {
+  font-size: 9.6pt;
+  font-weight: 600;
+  margin-top: 3pt;
+}
+.c-tagline {
+  font-size: 8pt;
+  color: var(--c-muted);
+  margin-top: 1pt;
+}
+.c-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1pt 0;
+  margin-top: 5pt;
+  font-size: 8pt;
+}
+.c-contact + .c-contact {
+  margin-top: 1.5pt;
+}
+.c-contact > span {
+  white-space: nowrap;
+}
+.c-contact > span + span::before {
+  content: "·";
+  color: var(--c-muted);
+  margin-inline: 6pt;
+}
+.c-header .cv-details {
+  font-size: 8pt;
+}
+
+/* Sections: label column + content column.
+   A float rather than a grid: Chromium pushes a whole grid row to the next page when it fits
+   there, which left page 1 half-empty before a long section. A floated label lets it split. */
+.c-section {
+  display: flow-root;
+  padding: 6.5pt 0;
+  border-top: 0.6pt solid var(--c-rule);
+}
+.c-header + .c-section {
+  border-top: 0;
+  padding-top: 8pt;
+}
+.c-label {
+  font-size: 8pt;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.6pt;
+  text-transform: uppercase;
+  color: var(--c-blue);
+  padding-top: 1.2pt;
+  float: inline-start;
+  width: var(--c-label-w);
+}
+.c-content {
+  margin-inline-start: calc(var(--c-label-w) + var(--c-gap));
+  overflow-wrap: break-word;
+}
+.c-content p,
+.c-content li {
+  text-align: start;
+}
+.c-content a {
+  overflow-wrap: anywhere;
+}
+
+/* Entries: the head (title, dates, place) never splits and stays with the first bullet. */
+.c-entry-top {
+  break-inside: avoid;
+}
+.c-entry + .c-entry {
+  margin-top: var(--c-entry-gap);
+}
+.c-entry-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 5mm;
+}
+.c-entry-title {
+  font-size: 9.6pt;
+  font-weight: 600;
+  line-height: 1.3;
+  min-width: 0;
+}
+.c-org {
+  font-weight: 500;
+  color: var(--c-blue);
+}
+.c-entry-meta {
+  flex-shrink: 0;
+  font-size: 8pt;
+  color: var(--c-muted);
+  white-space: nowrap;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+.c-entry-sub {
+  font-size: 8pt;
+  color: var(--c-muted);
+  margin-top: 0.5pt;
+}
+.c-stack {
+  break-before: avoid; /* never a lone tools line at the top of a page */
+  margin-top: 2pt;
+  font-size: 8pt;
+  color: var(--c-muted);
+}
+.c-stack b {
+  color: var(--c-ink);
+  font-weight: 600;
+}
+
+/* Skills: category + items, one row each */
+.c-skills {
+  display: flex;
+  flex-direction: column;
+  gap: 3pt;
+}
+.c-skill-row {
+  display: grid;
+  grid-template-columns: 21mm minmax(0, 1fr);
+  column-gap: 3mm;
+}
+.c-skill-cat {
+  font-weight: 600;
+}
+.c-skill-items:only-child {
+  grid-column: 1 / -1;
+}
+
+/* Certificates and languages */
+.tpl-classic ul.c-compact {
+  margin-top: 0;
+}
+.c-langs b {
+  font-weight: 600;
+}

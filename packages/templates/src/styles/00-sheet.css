@@ -1,0 +1,53 @@
+/* ==================================================================
+   @cvb/templates — the A4 sheet and every CV template.
+   Import once in the app: import "@cvb/templates/styles.css";
+   Each template reads its colour from --cv-accent (set by CVDocument).
+   ================================================================== */
+
+/* ------------------------------------------------------------------ A4 sheet */
+
+.paper {
+  text-align: start;
+  width: 210mm;
+  min-height: 297mm;
+  padding: 10mm 12mm 12mm;
+  background: #fff;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.06),
+    0 8px 24px rgb(0 0 0 / 0.08);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.paper[data-size="letter"] {
+  width: 215.9mm;
+  min-height: 279.4mm;
+}
+
+.paper a {
+  text-decoration: none;
+}
+
+.paper p {
+  margin: 0;
+}
+
+/* ------------------------------------------------------------------ Page breaks
+   Templates mark what must stay together:
+   data-keep       an entry or block that shouldn't split across pages (when it fits),
+   data-keep-next  a heading or entry head that must stay with what follows.
+   Printing reads these CSS rules; the PDF builder (apps/web lib/pdf.ts) reads the attributes. */
+.cv-doc [data-keep] {
+  break-inside: avoid;
+}
+.cv-doc [data-keep-next] {
+  break-after: avoid;
+}
+.cv-doc li {
+  break-inside: avoid;
+}
+.cv-doc p,
+.cv-doc li {
+  orphans: 2;
+  widows: 2;
+}
