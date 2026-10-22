@@ -67,6 +67,19 @@ export class PrismaUsersRepository implements UsersRepository {
         passes: { select: { plan: true, startsAt: true, endsAt: true } },
         jobs: { select: { title: true, company: true, location: true, url: true, description: true, source: true, createdAt: true } },
         coverLetters: { select: { title: true, data: true, templateId: true, createdAt: true, updatedAt: true } },
+        applications: {
+          select: {
+            status: true, salaryMin: true, salaryMax: true, currency: true, contacts: true, notes: true, research: true, offer: true,
+            appliedAt: true, interviewAt: true, deadlineAt: true, archivedAt: true, createdAt: true,
+            job: { select: { title: true, company: true, url: true } },
+          },
+        },
+        reminders: { select: { kind: true, title: true, dueAt: true, doneAt: true } },
+        tracker: { select: { columns: true } },
+        jobPrefs: { select: { titles: true, location: true, remote: true, salaryMin: true, alerts: true, weeklyDigest: true } },
+        interviews: { select: { role: true, seniority: true, questions: true, answers: true, completedAt: true, createdAt: true } },
+        stories: { select: { title: true, situation: true, task: true, action: true, result: true, sourceBullet: true, tags: true, createdAt: true } },
+        apiTokens: { select: { name: true, prefix: true, lastUsedAt: true, createdAt: true } },
         credits: { select: { delta: true, reason: true, createdAt: true } },
       },
     });

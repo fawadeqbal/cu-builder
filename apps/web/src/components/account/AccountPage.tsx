@@ -9,6 +9,7 @@ import { authClient } from "@/lib/auth-client";
 import { keys } from "@/lib/queries";
 import { btn, field, label } from "../ui/styles";
 import { AccountLayout, Section } from "./AccountLayout";
+import { ExtensionKeys } from "./ExtensionKeys";
 
 const LOCALES = [
   ["en", "English"],
@@ -28,6 +29,7 @@ export function AccountPage() {
           <Profile me={me} />
           <Password />
           <Sessions />
+          <ExtensionKeys />
           <DataControls me={me} />
         </>
       )}

@@ -1,0 +1,4 @@
+{
+  "extends": "@cvb/tsconfig/library.json",
+  "include": ["src"]
+}

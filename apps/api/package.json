@@ -18,6 +18,7 @@
     "@cvb/contracts": "workspace:*",
     "@cvb/db": "workspace:*",
     "@cvb/domain": "workspace:*",
+    "@cvb/jobfeed": "workspace:*",
     "@cvb/queue": "workspace:*",
     "@cvb/shared": "workspace:*",
     "@cvb/storage": "workspace:*",

@@ -68,13 +68,18 @@ Want a fully vector PDF instead? Open **⋯ → Print or save with the browser**
 ```
 apps/web/src/
 ├── app/                 # routes: / (guest builder), /app, /edit/[id], /templates, /r/[slug], /pricing,
+│                        # /jobs (find + saved), /tracker, /interview, /letters, /letters/[id], /l/[slug],
 │                        # /account, /account/billing, /admin, /sign-in, /sign-up, password pages
 ├── components/          # Builder, Wizard, SplitView, Preview, TemplateGallery, FinishStep, dialogs,
-│                        # dashboard/, auth/, billing/, account/, admin/, share/
+│                        # dashboard/, auth/, billing/, account/, admin/, share/, ai/, ats/,
+│                        # jobs/ (feed, match, tailor), tracker/ (board, drawer, calendar, offers),
+│                        # interviews/ (bank, mock interview, STAR stories), letters/
 └── lib/
     ├── document.ts      # DocumentController: guest (localStorage) and cloud (API autosave) stores
     ├── cv.ts            # guest storage; guest-migration.ts moves it into an account
     ├── api.ts, queries.ts, auth-client.ts   # API client, TanStack Query hooks, Better Auth client
+    ├── tracker.ts       # tracker, feed and interview hooks
+    ├── ai.ts            # AI calls with credits, plan gates from API errors
     ├── access.ts        # what the visitor can use (delegates to @cvb/domain)
     ├── catalog.ts       # template catalog with admin overrides
     ├── layout.ts        # workspace layout: view, pane width, side, zoom

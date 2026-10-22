@@ -1,7 +1,7 @@
 "use client";
 
-import type { ShareLinkDto, UpdateShareLinkDto } from "@cvb/contracts";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { LinkAnalyticsDto, ShareLinkDto, UpdateShareLinkDto } from "@cvb/contracts";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { CopyIcon, DownloadIcon, LockIcon, TrashIcon } from "@cvb/ui";
 import { api, isApiError } from "@/lib/api";
@@ -13,7 +13,7 @@ import { btn, field, label } from "./ui/styles";
 
 type Props = { resumeId: string; open: boolean; onClose: () => void; onUpgrade: (gate: Gate) => void };
 
-/** Create and control the public link to a CV: on/off, address, password, expiry, QR code. */
+/** Create and control the public links to a CV: on/off, address, password, expiry, QR code, who opened it. */
 export function ShareDialog({ resumeId, open, onClose, onUpgrade }: Props) {
   const qc = useQueryClient();
   const links = useShareLinks(resumeId, open);
@@ -34,14 +34,34 @@ export function ShareDialog({ resumeId, open, onClose, onUpgrade }: Props) {
     },
   });
 
-  const link = links.data?.[0];
+  const [chosenId, setChosenId] = useState<string | null>(null);
+  const list = links.data ?? [];
+  const link = list.find((l) => l.id === chosenId) ?? list[0];
 
   return (
-    <Dialog open={open} onClose={onClose} title="Share your CV" description="Anyone with the link can view and download it. No account needed." size="md">
+    <Dialog open={open} onClose={onClose} title="Share your CV" description="Anyone with the link can view and download it. No account needed." size="lg">
       {links.isLoading ? (
         <p className="py-6 text-center text-sm text-stone-500">Loading…</p>
       ) : link ? (
-        <LinkEditor link={link} onChanged={refresh} />
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {list.map((l) => (
+              <button
+                key={l.id}
+                type="button"
+                onClick={() => setChosenId(l.id)}
+                className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 transition ${l.id === link.id ? "bg-stone-900 text-white ring-stone-900" : "bg-white text-stone-700 ring-stone-200 hover:ring-stone-300"}`}
+              >
+                {l.label || `/r/${l.slug}`} · {l.viewCount}
+              </button>
+            ))}
+            <button type="button" className="rounded-full px-3 py-1 text-xs font-semibold text-brand hover:bg-brand/10" disabled={create.isPending} onClick={() => create.mutate()}>
+              + New link
+            </button>
+          </div>
+          <p className="-mt-2 text-xs text-stone-500">Make a separate link for each employer to see who opened your CV.</p>
+          <LinkEditor key={link.id} link={link} onChanged={refresh} onUpgrade={onUpgrade} />
+        </div>
       ) : (
         <div className="flex flex-col items-center gap-3 py-6 text-center">
           <p className="max-w-sm text-sm text-stone-600">
@@ -57,13 +77,14 @@ export function ShareDialog({ resumeId, open, onClose, onUpgrade }: Props) {
   );
 }
 
-function LinkEditor({ link, onChanged }: { link: ShareLinkDto; onChanged: () => void }) {
+function LinkEditor({ link, onChanged, onUpgrade }: { link: ShareLinkDto; onChanged: () => void; onUpgrade: (gate: Gate) => void }) {
   const url = typeof window === "undefined" ? `/r/${link.slug}` : `${window.location.origin}/r/${link.slug}`;
   const [qr, setQr] = useState("");
   const [copied, setCopied] = useState(false);
   const [slug, setSlug] = useState(link.slug);
   const [password, setPassword] = useState("");
   const [expires, setExpires] = useState(link.expiresAt?.slice(0, 10) ?? "");
+  const [linkLabel, setLinkLabel] = useState(link.label ?? "");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -144,12 +165,25 @@ function LinkEditor({ link, onChanged }: { link: ShareLinkDto; onChanged: () => 
           const patch: UpdateShareLinkDto = {};
           if (slug.trim() && slug.trim() !== link.slug) patch.slug = slug.trim();
           if (password) patch.password = password;
+          if (linkLabel.trim() !== (link.label ?? "")) patch.label = linkLabel.trim() || null;
           if (expires !== (link.expiresAt?.slice(0, 10) ?? "")) {
             patch.expiresAt = expires ? new Date(`${expires}T23:59:59`).toISOString() : null;
           }
           if (Object.keys(patch).length) save.mutate(patch);
         }}
       >
+        <div>
+          <label className={label} htmlFor="share-label">
+            Who it&apos;s for (optional)
+          </label>
+          <input id="share-label" className={field} value={linkLabel} maxLength={80} placeholder="e.g. Acme application" onChange={(e) => setLinkLabel(e.target.value)} />
+        </div>
+        <div className="flex items-end">
+          <label className="flex cursor-pointer items-center gap-2 pb-2 text-sm text-stone-700">
+            <input type="checkbox" className="size-4 accent-brand" checked={link.notifyOnView} onChange={(e) => save.mutate({ notifyOnView: e.target.checked })} />
+            Email me when it&apos;s opened
+          </label>
+        </div>
         <div className="sm:col-span-2">
           <label className={label} htmlFor="share-slug">
             Link address
@@ -199,6 +233,65 @@ function LinkEditor({ link, onChanged }: { link: ShareLinkDto; onChanged: () => 
           </button>
         </div>
       </form>
+      <LinkAnalytics linkId={link.id} views={link.viewCount} onUpgrade={onUpgrade} />
     </div>
+  );
+}
+
+type Analytics = LinkAnalyticsDto & { complete: boolean };
+
+/** Views per day, viewers, time on page, downloads, referrers and devices (full report on Premium). */
+function LinkAnalytics({ linkId, views, onUpgrade }: { linkId: string; views: number; onUpgrade: (gate: Gate) => void }) {
+  const data = useQuery({ queryKey: ["share-links", linkId, "analytics", views], queryFn: () => api.get<Analytics>(`/share-links/${linkId}/analytics`) });
+  const a = data.data;
+  if (!a) return null;
+  const max = Math.max(1, ...a.daily.map((d) => d.views));
+  const row = (title: string, items: { name: string; views: number }[]) =>
+    items.length > 0 && (
+      <div>
+        <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-stone-500">{title}</h4>
+        <ul className="text-sm text-stone-700">
+          {items.slice(0, 5).map((i) => (
+            <li key={i.name} className="flex justify-between gap-2">
+              <span className="truncate">{i.name}</span>
+              <span className="tabular-nums text-stone-500">{i.views}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  return (
+    <section className="border-t border-stone-100 pt-4" aria-label="Link analytics">
+      <h3 className="text-sm font-semibold text-stone-900">Last 30 days</h3>
+      <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {[
+          ["Views", a.views],
+          ["Viewers", a.uniqueViewers],
+          ["Avg. time", a.complete ? `${a.avgSeconds}s` : "—"],
+          ["Downloads", a.complete ? a.downloads : "—"],
+        ].map(([k, v]) => (
+          <div key={k} className="rounded-lg bg-stone-50 px-3 py-2 ring-1 ring-stone-200">
+            <div className="text-[11px] font-medium text-stone-500">{k}</div>
+            <div className="text-lg font-semibold tabular-nums text-stone-900">{v}</div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 flex h-16 items-end gap-[2px]" role="img" aria-label={`Views per day: ${a.daily.map((d) => d.views).join(", ")}`}>
+        {a.daily.map((d) => (
+          <div key={d.date} title={`${d.date}: ${d.views}`} className="flex-1 rounded-t-sm bg-brand/70" style={{ height: `${Math.max(4, (d.views / max) * 100)}%`, opacity: d.views ? 1 : 0.2 }} />
+        ))}
+      </div>
+      {a.complete ? (
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          {row("Referrers", a.referrers.map((r) => ({ name: r.referrer, views: r.views })))}
+          {row("Countries", a.countries.map((r) => ({ name: r.country, views: r.views })))}
+          {row("Devices", a.devices.map((r) => ({ name: r.device, views: r.views })))}
+        </div>
+      ) : (
+        <button type="button" className="mt-3 text-sm font-medium text-brand hover:underline" onClick={() => onUpgrade({ kind: "feature", feature: "share.analytics" })}>
+          See time on page, downloads, referrers and devices with Premium →
+        </button>
+      )}
+    </section>
   );
 }

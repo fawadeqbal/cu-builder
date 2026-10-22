@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>CV Builder extension settings</title>
+    <link rel="stylesheet" href="common.css" />
+    <style>
+      body { background: #f5f5f4; padding: 40px 16px; }
+      main { max-width: 520px; margin: 0 auto; background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 24px; }
+      p { color: #57534e; }
+      form button { margin-top: 16px; }
+      #status { min-height: 1.2em; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1><span class="badge">CV</span> CV Builder extension</h1>
+      <p>Connect the extension to your account to save jobs to your tracker, check your match and fill application forms.</p>
+      <form id="form">
+        <label for="appUrl">Your CV Builder address</label>
+        <input id="appUrl" type="url" placeholder="https://cv.example.com" required />
+        <label for="token">Extension key</label>
+        <input id="token" type="password" placeholder="cvb_…" autocomplete="off" required />
+        <p class="muted">Create a key in <a id="keysLink" target="_blank" rel="noopener">Account → Browser extension</a>. It is stored only in this browser; delete it there to disconnect.</p>
+        <button type="submit" class="primary">Save and test connection</button>
+      </form>
+      <p id="status" role="status"></p>
+      <p class="muted">The extension reads a job page only when you open it on that page, and it never submits forms for you.</p>
+    </main>
+    <script src="options.js"></script>
+  </body>
+</html>

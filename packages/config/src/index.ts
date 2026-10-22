@@ -42,11 +42,20 @@ export const AiEnvSchema = z.object({
   AI_MODEL_SMART: z.string().default("claude-sonnet-5-5"),
 });
 
+/** Job feed providers. Remotive needs no key; Jooble and Adzuna switch on when their keys are set. */
+export const JobFeedEnvSchema = z.object({
+  JOOBLE_API_KEY: optional,
+  ADZUNA_APP_ID: optional,
+  ADZUNA_APP_KEY: optional,
+  ADZUNA_COUNTRY: z.string().length(2).default("gb"),
+});
+
 export const ApiEnvSchema = BaseEnvSchema.extend(DatabaseEnvSchema.shape)
   .extend(RedisEnvSchema.shape)
   .extend(StorageEnvSchema.shape)
   .extend(AppUrlEnvSchema.shape)
   .extend(AiEnvSchema.shape)
+  .extend(JobFeedEnvSchema.shape)
   .extend({
     BETTER_AUTH_SECRET: z.string().min(32, "BETTER_AUTH_SECRET must be at least 32 characters"),
     GOOGLE_CLIENT_ID: optional,
@@ -73,6 +82,7 @@ export const WorkerEnvSchema = BaseEnvSchema.extend(DatabaseEnvSchema.shape)
   .extend(RedisEnvSchema.shape)
   .extend(StorageEnvSchema.shape)
   .extend(AppUrlEnvSchema.shape)
+  .extend(JobFeedEnvSchema.shape)
   .extend({
     /** smtp://user:pass@host:587 — without it, emails are logged instead of sent. */
     SMTP_URL: optional,

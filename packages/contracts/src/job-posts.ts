@@ -10,10 +10,14 @@ export const CreateJobSchema = z.object({
   url: z.url().max(2000).optional(),
   description: z.string().max(30_000).default(""),
   source: JobSourceSchema.default("manual"),
+  salary: z.string().trim().max(120).default(""),
+  remote: z.boolean().default(false),
+  /** The job board's id (feed jobs), so the same posting isn't saved twice. */
+  externalId: z.string().max(200).optional(),
 });
 export type CreateJobDto = z.output<typeof CreateJobSchema>;
 
-export const UpdateJobSchema = CreateJobSchema.omit({ source: true }).partial();
+export const UpdateJobSchema = CreateJobSchema.omit({ source: true, externalId: true }).partial();
 export type UpdateJobDto = z.output<typeof UpdateJobSchema>;
 
 export const ImportJobUrlSchema = z.object({ url: z.url().max(2000) });
@@ -26,6 +30,8 @@ export const JobSchema = z.object({
   url: z.string().nullable(),
   description: z.string(),
   source: JobSourceSchema,
+  salary: z.string(),
+  remote: z.boolean(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });

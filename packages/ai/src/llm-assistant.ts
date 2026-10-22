@@ -90,6 +90,7 @@ const Feedback = z.object({
   scores: z.object({ structure: z.number(), relevance: z.number(), clarity: z.number() }),
   feedback: z.string(),
   improved: z.string(),
+  followUp: z.string().nullable().optional(),
 });
 const Star = z.object({ situation: z.string(), task: z.string(), action: z.string(), result: z.string() });
 const Brief = z.object({ questionsToAsk: z.array(z.string()).min(1), themes: z.array(z.string()) });
@@ -236,9 +237,10 @@ Return {"questions": [{"question": "...", "competency": "...", "tip": "..."}]}.`
       Feedback,
       `You are an interviewer for a ${role} role. Score this answer from 1 to 5 on structure (situation, task, action, result), relevance to the question, and clarity.
 Give 2-3 sentences of specific feedback, then a stronger version of the answer that uses only facts from the candidate's answer (placeholders in [brackets] for anything missing).
+If something important is missing or vague (their own actions, the result, a number), add one short follow-up question a real interviewer would ask next; otherwise null.
 Question: """${question}"""
 Answer: """${answer.slice(0, 4000)}"""
-Return {"scores": {"structure": 1-5, "relevance": 1-5, "clarity": 1-5}, "feedback": "...", "improved": "..."}.`,
+Return {"scores": {"structure": 1-5, "relevance": 1-5, "clarity": 1-5}, "feedback": "...", "improved": "...", "followUp": "..." or null}.`,
       "smart",
       1200,
     );
@@ -246,6 +248,7 @@ Return {"scores": {"structure": 1-5, "relevance": 1-5, "clarity": 1-5}, "feedbac
       scores: { structure: clamp(out.scores.structure), relevance: clamp(out.scores.relevance), clarity: clamp(out.scores.clarity) },
       feedback: out.feedback.trim(),
       improved: guardNumbers(out.improved.trim(), answer),
+      followUp: out.followUp?.trim() ? out.followUp.trim().slice(0, 300) : null,
     };
   }
 

@@ -93,10 +93,60 @@ export function renderEmail(message: EmailJob, appUrl: string): RenderedEmail {
         text: text([`${what} "${message.resumeTitle}".`, `See your share links: ${appUrl}/app`]),
         html: layout({
           heading: message.views === 1 ? "Your CV was viewed" : `${message.views} views and counting`,
-          paragraphs: [`${what} “${message.resumeTitle}”.`],
+          paragraphs: [`${what} “${message.resumeTitle}”.${message.label ? ` (Link: ${message.label})` : ""}`],
           cta: { label: "Open my CVs", url: `${appUrl}/app` },
         }),
       };
     }
+    case "reminders": {
+      const lines = message.items.map((i) => `${when(i.dueAt)}: ${i.title}`);
+      const url = `${appUrl}/tracker`;
+      return {
+        subject: message.items.length === 1 ? `Reminder: ${message.items[0]!.title}` : `${message.items.length} job search reminders`,
+        text: text([`Hi ${message.name || "there"},`, ...lines, `Open your tracker: ${url}`]),
+        html: layout({ heading: "Your reminders", paragraphs: lines, cta: { label: "Open tracker", url } }),
+      };
+    }
+    case "weekly-digest": {
+      const { stats } = message;
+      const url = `${appUrl}/tracker`;
+      const summary = `This week: ${stats.added} saved, ${stats.applied} applied, ${stats.interviews} interviews, ${stats.offers} offers. ${stats.total} active applications in total.`;
+      const upcoming = message.upcoming.map((u) => `Coming up ${when(u.dueAt)}: ${u.title}`);
+      return {
+        subject: "Your week in job search",
+        text: text([`Hi ${message.name || "there"},`, summary, ...upcoming, `Open your tracker: ${url}`]),
+        html: layout({
+          heading: "Your week in job search",
+          paragraphs: [summary, ...upcoming],
+          cta: { label: "Open tracker", url },
+          footnote: "You get this weekly while you have active applications. Turn it off in Account → Notifications.",
+        }),
+      };
+    }
+    case "job-alert": {
+      const lines = message.jobs.map((j) => `${j.title} at ${j.company || "a company"}${j.location ? `, ${j.location}` : ""}${j.score !== null ? ` (${j.score}% match)` : ""}`);
+      const url = `${appUrl}/jobs?tab=feed`;
+      return {
+        subject: message.jobs.length === 1 ? `New job: ${message.jobs[0]!.title}` : `${message.jobs.length} new jobs for you`,
+        text: text([`Hi ${message.name || "there"},`, ...message.jobs.map((j, i) => `${lines[i]}\n${j.url}`), `See all: ${url}`]),
+        html: layout({
+          heading: "New jobs that match your preferences",
+          paragraphs: lines,
+          cta: { label: "See jobs", url },
+          footnote: "Change or stop alerts in Jobs → Find jobs → Preferences.",
+        }),
+      };
+    }
+    case "notice":
+      return {
+        subject: message.subject,
+        text: text([`Hi ${message.name || "there"},`, ...message.lines, message.action ? `${message.action.label}: ${message.action.url}` : undefined]),
+        html: layout({ heading: message.subject, paragraphs: message.lines, cta: message.action }),
+      };
   }
+}
+
+function when(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) + " UTC";
 }

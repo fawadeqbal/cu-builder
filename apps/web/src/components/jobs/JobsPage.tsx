@@ -14,21 +14,24 @@ import { RequireAuth } from "../RequireAuth";
 import { UpgradeDialog } from "../UpgradeDialog";
 import { Dialog } from "../ui/Dialog";
 import { btn, card, field } from "../ui/styles";
+import { FeedTab } from "./FeedTab";
 import { JobForm } from "./JobForm";
 import { MatchResult } from "./MatchResult";
 import { TailorReview } from "./TailorReview";
 
 export type JobsTab = { id: string; label: string; render: (ctx: { onGate: (g: Gate) => void }) => ReactNode };
 
-/** Extra tabs (tracker board, job feed) register here, so this page grows without rewrites. */
-export const EXTRA_TABS: JobsTab[] = [];
+const TABS: JobsTab[] = [
+  { id: "feed", label: "Find jobs", render: ({ onGate }) => <FeedTab onGate={onGate} /> },
+  { id: "saved", label: "Saved jobs", render: ({ onGate }) => <SavedJobs onGate={onGate} /> },
+];
 
-/** Jobs: saved postings, match against a CV, tailor, and start a cover letter. */
+/** Jobs: find postings, saved postings, match against a CV, tailor, and start a cover letter. */
 export function JobsPage() {
   const params = useSearchParams();
   const router = useRouter();
   const [gate, setGate] = useState<Gate | null>(null);
-  const tabs: JobsTab[] = [...EXTRA_TABS, { id: "saved", label: "Saved jobs", render: ({ onGate }) => <SavedJobs onGate={onGate} /> }];
+  const tabs = TABS;
   const tab = tabs.find((t) => t.id === params.get("tab")) ?? tabs[0]!;
   return (
     <RequireAuth>
@@ -64,7 +67,8 @@ function SavedJobs({ onGate }: { onGate: (g: Gate) => void }) {
   const qc = useQueryClient();
   const jobs = useJobs();
   const [adding, setAdding] = useState(false);
-  const [selected, setSelected] = useState<string | null>(null);
+  const params = useSearchParams();
+  const [selected, setSelected] = useState<string | null>(params.get("job"));
   const list = jobs.data ?? [];
   const job = list.find((j) => j.id === selected) ?? list[0];
 
@@ -129,6 +133,16 @@ function JobDetail({ job, onGate }: { job: JobDto; onGate: (g: Gate) => void }) 
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.jobs }),
   });
 
+  const track = useMutation({
+    mutationFn: () => api.post<{ id: string }>("/applications", { jobId: job.id, ...(chosen ? { resumeId: chosen } : {}) }),
+    onSuccess: (app) => router.push(`/tracker?app=${app.id}`),
+    onError: (e) => {
+      const gate = gateForError(e);
+      if (gate) onGate(gate.kind === "feature" ? { kind: "feature", feature: "tracker.unlimited" } : gate);
+      else setError(e.message);
+    },
+  });
+
   async function act(kind: "match" | "tailor" | "letter") {
     if (!chosen) return;
     setBusy(kind);
@@ -165,6 +179,9 @@ function JobDetail({ job, onGate }: { job: JobDto; onGate: (g: Gate) => void }) 
             </a>
           )}
         </div>
+        <button type="button" className={btn.secondary} disabled={track.isPending} onClick={() => track.mutate()}>
+          Track application
+        </button>
         <button type="button" className={btn.ghost} aria-label="Delete job" onClick={() => window.confirm("Delete this job?") && remove.mutate()}>
           <TrashIcon className="size-4" />
         </button>

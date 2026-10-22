@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "CV Builder: save jobs and apply faster",
+  "short_name": "CV Builder",
+  "version": "0.1.0",
+  "description": "Save job postings to your CV Builder tracker, see how well your CV matches, and fill application forms after you review them.",
+  "action": { "default_popup": "popup.html", "default_title": "Save this job to CV Builder", "default_icon": { "16": "icon-16.png", "48": "icon-48.png", "128": "icon-128.png" } },
+  "icons": { "16": "icon-16.png", "48": "icon-48.png", "128": "icon-128.png" },
+  "options_ui": { "page": "options.html", "open_in_tab": true },
+  "background": { "service_worker": "background.js" },
+  "permissions": ["activeTab", "scripting", "storage"],
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "minimum_chrome_version": "120"
+}

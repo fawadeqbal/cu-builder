@@ -176,6 +176,7 @@ export class OfflineAssistant implements Assistant {
         words > 350 ? "It's long; aim for about two minutes." : words < 40 ? "Add the situation and task so the story makes sense." : "Length is about right.",
       ].join(" "),
       improved: `Situation: [where and when]. Task: [what you had to achieve]. Action: ${answer.trim().slice(0, 240)}${answer.length > 240 ? "…" : ""} Result: [the outcome, with a number].`,
+      followUp: !hasResult ? "What was the result, and how did you measure it?" : !hasAction ? "What did you do yourself, as opposed to the team?" : null,
     };
   }
 

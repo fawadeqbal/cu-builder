@@ -13,6 +13,9 @@ const toRecord = (j: Job): JobRecord => ({
   url: j.url,
   description: j.description,
   source: (SOURCES.has(j.source) ? j.source : "manual") as JobRecord["source"],
+  salary: j.salary,
+  remote: j.remote,
+  externalId: j.externalId,
   createdAt: j.createdAt,
   updatedAt: j.updatedAt,
 });
@@ -32,6 +35,11 @@ export class PrismaJobsRepository implements JobsRepository {
 
   async findByUrl(userId: string, url: string) {
     const j = await this.db.job.findFirst({ where: { userId, url, deletedAt: null } });
+    return j && toRecord(j);
+  }
+
+  async findByExternalId(userId: string, externalId: string) {
+    const j = await this.db.job.findFirst({ where: { userId, externalId, deletedAt: null } });
     return j && toRecord(j);
   }
 

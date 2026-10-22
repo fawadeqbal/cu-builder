@@ -58,7 +58,7 @@ function Letters() {
         <p className="py-16 text-center text-sm text-stone-500">Loading…</p>
       ) : list.length === 0 ? (
         <div className="mt-8 rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-14 text-center text-sm text-stone-600">
-          No letters yet. Open <Link href="/jobs" className="font-semibold text-brand hover:underline">Jobs</Link>, pick a job and choose “Cover letter”, or start a blank one.
+          No letters yet. Open <Link href="/jobs?tab=saved" className="font-semibold text-brand hover:underline">Jobs</Link>, pick a job and choose “Cover letter”, or start a blank one.
         </div>
       ) : (
         <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

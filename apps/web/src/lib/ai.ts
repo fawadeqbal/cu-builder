@@ -25,6 +25,9 @@ export function gateForError(e: unknown): Gate | null {
       "AI cover letter drafts": "coverLetter.ai",
       "Share links": "share.link",
       "More than one CV": "resume.multiple",
+      "Mock interviews": "interviewPrep",
+      "STAR stories": "interviewPrep",
+      "Unlimited application tracking": "tracker.unlimited",
     };
     return { kind: "feature", feature: map[feature] ?? "jobMatch" };
   }

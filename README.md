@@ -8,14 +8,17 @@ This is a **pnpm + Turborepo monorepo**: a Next.js web app, a NestJS API and a N
 
 | Path | What |
 | --- | --- |
-| `apps/web` | Next.js: builder, My CVs, sharing, pricing, account and admin ([README](apps/web/README.md)) |
+| `apps/web` | Next.js: builder, My CVs, jobs and job feed, application tracker, interview prep, letters, sharing, pricing, account and admin ([README](apps/web/README.md)) |
 | `apps/api` | NestJS HTTP API at `/api/v1`, Better Auth at `/api/auth` |
-| `apps/worker` | NestJS BullMQ worker (email, CV import, daily clean-up) |
+| `apps/worker` | NestJS BullMQ worker (email, CV import, reminders, digests, job alerts, daily clean-up) |
+| `apps/extension` | Chrome extension: save jobs, match score, form autofill ([README](apps/extension/README.md)) |
 | `packages/domain` | Business rules: resume model, CV checks, plans and entitlements |
 | `packages/contracts` | zod schemas for HTTP and queue payloads |
 | `packages/templates` | The 12 CV templates, their catalog and print styles |
 | `packages/db` | Prisma schema, migrations, client and Nest module |
 | `packages/queue` | Job producer port, BullMQ adapter and Nest module |
+| `packages/ai` | AI assistant port, Claude adapter and offline assistant |
+| `packages/jobfeed` | Job board adapters (Remotive, Jooble, Adzuna) |
 | `packages/storage` | File storage port (local disk now, S3-compatible later) |
 | `packages/shared`, `config`, `ui` | Helpers, env validation, shared React UI |
 | `packages/config-typescript`, `config-eslint` | Shared TS and ESLint configs |

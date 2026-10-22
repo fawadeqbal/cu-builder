@@ -4,9 +4,10 @@ import { Module } from "@nestjs/common";
 import { WORKER_CONFIG, WorkerConfigModule, type WorkerConfig } from "./config/worker-config.js";
 import { EmailModule } from "./email/email.module.js";
 import { MaintenanceModule } from "./maintenance/maintenance.module.js";
+import { NotificationsModule } from "./notifications/notifications.module.js";
 import { ResumeImportModule } from "./resume-import/resume-import.module.js";
 
-/** One module per queue. Add AI, export and notification queues the same way. */
+/** One module per queue. */
 @Module({
   imports: [
     WorkerConfigModule,
@@ -21,6 +22,7 @@ import { ResumeImportModule } from "./resume-import/resume-import.module.js";
     EmailModule,
     ResumeImportModule,
     MaintenanceModule,
+    NotificationsModule,
   ],
 })
 export class WorkerModule {}

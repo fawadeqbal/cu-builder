@@ -14,10 +14,14 @@ import { AnalyticsModule } from "./modules/analytics/analytics.module.js";
 import { AuthModule } from "./modules/auth/auth.module.js";
 import { BillingModule } from "./modules/billing/billing.module.js";
 import { HealthModule } from "./modules/health/health.module.js";
+import { TrackerModule } from "./modules/tracker/tracker.module.js";
+import { FeedModule } from "./modules/feed/feed.module.js";
+import { InterviewsModule } from "./modules/interviews/interviews.module.js";
 import { CoverLettersModule } from "./modules/cover-letters/cover-letters.module.js";
 import { JobsModule } from "./modules/jobs/jobs.module.js";
 import { ImportsModule } from "./modules/imports/imports.module.js";
 import { ResumesModule } from "./modules/resumes/resumes.module.js";
+import { ApiTokensModule } from "./modules/tokens/api-tokens.module.js";
 import { TemplatesModule } from "./modules/templates/templates.module.js";
 import { ShareLinksModule } from "./modules/share-links/share-links.module.js";
 import { UsersModule } from "./modules/users/users.module.js";
@@ -43,6 +47,7 @@ import { UsersModule } from "./modules/users/users.module.js";
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 300 }]),
     StorageModule,
     TemplatesModule,
+    ApiTokensModule,
     AiModule,
     AuthModule,
     BillingModule,
@@ -53,6 +58,9 @@ import { UsersModule } from "./modules/users/users.module.js";
     ImportsModule,
     JobsModule,
     CoverLettersModule,
+    TrackerModule,
+    FeedModule,
+    InterviewsModule,
     AdminModule,
     AnalyticsModule,
   ],

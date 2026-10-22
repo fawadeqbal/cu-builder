@@ -1,0 +1,34 @@
+{
+  "name": "@cvb/jobfeed",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Job feed behind a port: Remotive (no key), Jooble and Adzuna adapters, merged and de-duplicated; Adzuna salary ranges.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "clean": "rm -rf dist .turbo"
+  },
+  "devDependencies": {
+    "@cvb/eslint-config": "workspace:*",
+    "@cvb/tsconfig": "workspace:*",
+    "@types/node": "22.20.5",
+    "eslint": "9.39.5",
+    "tsup": "8.5.1",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}

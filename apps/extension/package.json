@@ -1,0 +1,27 @@
+{
+  "name": "@cvb/extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Chrome (MV3) extension: save job postings to the tracker, check the match against a CV, and fill application forms after review.",
+  "scripts": {
+    "build": "node build.mjs",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@cvb/domain": "workspace:*"
+  },
+  "devDependencies": {
+    "@cvb/eslint-config": "workspace:*",
+    "@cvb/tsconfig": "workspace:*",
+    "@types/chrome": "0.3.4",
+    "esbuild": "0.28.2",
+    "eslint": "9.39.5",
+    "happy-dom": "20.14.5",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}

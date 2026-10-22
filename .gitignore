@@ -33,3 +33,4 @@ packages/db/src/generated
 # production secrets and backups on the server
 infra/.env.production
 infra/backups/
+dump.rdb

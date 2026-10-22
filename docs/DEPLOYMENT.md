@@ -110,6 +110,10 @@ GitHub Pages is no longer used (the app now needs a server). Disable it under **
 | LinkedIn app (Sign In with LinkedIn using OpenID Connect) | Redirect URL `https://<domain>/api/auth/callback/linkedin` |
 | Stripe | Webhook endpoint `https://<domain>/api/v1/billing/webhooks/stripe` with events `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated` and `customer.subscription.deleted`; copy its signing secret to `STRIPE_WEBHOOK_SECRET`. Enable the Customer Portal (Settings → Billing → Customer portal). |
 | Email | SPF, DKIM and DMARC records for the sending domain, as your SMTP provider describes |
+| Anthropic (optional) | `ANTHROPIC_API_KEY` for AI writing, interviews and research; without it a built-in offline assistant answers |
+| Job boards (optional) | Remotive works without a key (credit it and link to postings, as the feed does). Jooble: request a key at jooble.org/api/about → `JOOBLE_API_KEY`. Adzuna: create an app at developer.adzuna.com → `ADZUNA_APP_ID`, `ADZUNA_APP_KEY`, `ADZUNA_COUNTRY` (two letters, e.g. `gb`); Adzuna also powers the salary ranges |
+| Link analytics | Put Cloudflare (or any proxy that sends `CF-IPCountry` / `X-Country-Code`) in front of Caddy to see viewer countries; without it countries are blank |
+| Browser extension | Build with `pnpm --filter @cvb/extension build` and publish `apps/extension/dist` to the Chrome Web Store; people point it at `https://<domain>` and paste a key from Account → Browser extension |
 
 ## 7. Backups and upkeep
 

@@ -2,7 +2,7 @@ import { DB } from "@cvb/db/nest";
 import type { DbClient, ShareLink } from "@cvb/db";
 import { normalizeCV } from "@cvb/domain";
 import { Inject, Injectable } from "@nestjs/common";
-import type { ShareLinkRecord, ShareLinksRepository, SharedResume } from "./share-links.repository.js";
+import type { ShareLinkRecord, ShareLinksRepository, SharedResume, ViewInput } from "./share-links.repository.js";
 
 type Row = ShareLink & { resume: { userId: string } };
 
@@ -16,6 +16,9 @@ const toRecord = (l: Row): ShareLinkRecord => ({
   expiresAt: l.expiresAt,
   viewCount: l.viewCount,
   lastViewedAt: l.lastViewedAt,
+  label: l.label,
+  notifyOnView: l.notifyOnView,
+  lastNotifiedAt: l.lastNotifiedAt,
   createdAt: l.createdAt,
 });
 
@@ -60,7 +63,7 @@ export class PrismaShareLinksRepository implements ShareLinksRepository {
     return (await this.db.shareLink.count({ where: { slug } })) > 0;
   }
 
-  async create(input: { resumeId: string; slug: string; passwordHash: string | null; expiresAt: Date | null }) {
+  async create(input: { resumeId: string; slug: string; passwordHash: string | null; expiresAt: Date | null; label: string | null }) {
     return toRecord(await this.db.shareLink.create({ data: input, include: withOwner }));
   }
 
@@ -72,12 +75,27 @@ export class PrismaShareLinksRepository implements ShareLinksRepository {
     await this.db.shareLink.delete({ where: { id } });
   }
 
-  async recordView(id: string) {
-    const row = await this.db.shareLink.update({
-      where: { id },
-      data: { viewCount: { increment: 1 }, lastViewedAt: new Date() },
-      select: { viewCount: true },
+  async recordView(id: string, view: ViewInput) {
+    const [row, created] = await this.db.$transaction([
+      this.db.shareLink.update({ where: { id }, data: { viewCount: { increment: 1 }, lastViewedAt: new Date() }, select: { viewCount: true } }),
+      this.db.linkView.create({ data: { shareLinkId: id, ...view }, select: { id: true } }),
+    ]);
+    return { views: row.viewCount, viewId: created.id };
+  }
+
+  async pingView(slug: string, viewId: string, patch: { durationMs?: number; downloaded?: boolean }) {
+    await this.db.linkView.updateMany({
+      where: { id: viewId, shareLink: { slug } },
+      data: { ...(patch.durationMs !== undefined ? { durationMs: patch.durationMs } : {}), ...(patch.downloaded ? { downloaded: true } : {}) },
     });
-    return row.viewCount;
+  }
+
+  async views(linkId: string, since: Date) {
+    return this.db.linkView.findMany({
+      where: { shareLinkId: linkId, viewedAt: { gte: since } },
+      orderBy: { viewedAt: "desc" },
+      take: 5000,
+      select: { viewedAt: true, visitor: true, durationMs: true, downloaded: true, referrer: true, country: true, device: true },
+    });
   }
 }

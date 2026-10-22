@@ -18,6 +18,8 @@ export const toJobDto = (j: JobRecord): JobDto => ({
   url: j.url,
   description: j.description,
   source: j.source,
+  salary: j.salary,
+  remote: j.remote,
   createdAt: j.createdAt.toISOString(),
   updatedAt: j.updatedAt.toISOString(),
 });
@@ -52,11 +54,15 @@ export class JobsService {
   }
 
   async create(user: AuthUser, dto: CreateJobDto): Promise<JobDto> {
+    if (dto.externalId) {
+      const existing = await this.jobs.findByExternalId(user.id, dto.externalId);
+      if (existing) return toJobDto(existing);
+    }
     if (dto.url) {
       const existing = await this.jobs.findByUrl(user.id, dto.url);
       if (existing) return toJobDto(existing);
     }
-    return toJobDto(await this.jobs.create({ ...dto, url: dto.url ?? null, userId: user.id }));
+    return toJobDto(await this.jobs.create({ ...dto, url: dto.url ?? null, externalId: dto.externalId ?? null, userId: user.id }));
   }
 
   /** Reads a posting from its link and saves it. */

@@ -24,6 +24,8 @@ export type AnswerFeedback = {
   scores: { structure: number; relevance: number; clarity: number };
   feedback: string;
   improved: string;
+  /** A probing follow-up the interviewer would ask next, or null when the answer was complete. */
+  followUp: string | null;
 };
 
 export type StarStory = { situation: string; task: string; action: string; result: string };

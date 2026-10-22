@@ -22,7 +22,7 @@ export function JobForm({ onSaved, allowLink = true, local }: { onSaved: (job: J
     try {
       if (local) {
         const now = new Date().toISOString();
-        onSaved({ id: "local", title, company, location: "", url: null, description, source: "manual", createdAt: now, updatedAt: now });
+        onSaved({ id: "local", title, company, location: "", url: null, description, source: "manual", salary: "", remote: false, createdAt: now, updatedAt: now });
       } else if (mode === "link") {
         onSaved(await api.post<JobDto>("/jobs/import", { url: url.trim() }));
       } else {

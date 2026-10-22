@@ -1,10 +1,10 @@
-import type { CreateShareLinkDto, PublicResumeDto, ShareLinkDto, UpdateShareLinkDto } from "@cvb/contracts";
+import type { CreateShareLinkDto, LinkAnalyticsDto, PublicResumeDto, ShareLinkDto, UpdateShareLinkDto } from "@cvb/contracts";
 import { QUEUES } from "@cvb/contracts";
-import { can, requiredPlanFor } from "@cvb/domain";
+import { can, deviceFromUserAgent, referrerHost, requiredPlanFor, summariseViews } from "@cvb/domain";
 import { JOB_PRODUCER, type JobProducer } from "@cvb/queue";
 import { ConflictError, NotFoundError, PasswordRequiredError, PlanRequiredError, slugify } from "@cvb/shared";
 import { Inject, Injectable } from "@nestjs/common";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import type { AuthUser } from "../../common/auth/auth.types.js";
 import { hashPassword, verifyPassword } from "../../common/crypto/password.js";
 import { ResumesService } from "../resumes/resumes.service.js";
@@ -19,11 +19,16 @@ const toDto = (l: ShareLinkRecord): ShareLinkDto => ({
   expiresAt: l.expiresAt?.toISOString() ?? null,
   viewCount: l.viewCount,
   lastViewedAt: l.lastViewedAt?.toISOString() ?? null,
+  label: l.label,
+  notifyOnView: l.notifyOnView,
   createdAt: l.createdAt.toISOString(),
 });
 
-/** Owners are emailed when a link reaches these view counts. */
-const NOTIFY_AT = new Set([1, 10, 25, 50, 100, 250, 500, 1000]);
+/** At most one "your CV was viewed" email per link per hour. */
+const NOTIFY_EVERY_MS = 3600_000;
+
+/** Who is looking, as far as we keep it: no IPs, only a hash that changes daily. */
+export type Visit = { ip: string; userAgent?: string; referrer?: string; country?: string; host?: string };
 
 @Injectable()
 export class ShareLinksService {
@@ -48,6 +53,7 @@ export class ShareLinksService {
       slug,
       passwordHash: dto.password ? await hashPassword(dto.password) : null,
       expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
+      label: dto.label || null,
     });
     return toDto(link);
   }
@@ -62,6 +68,8 @@ export class ShareLinksService {
     if (dto.slug !== undefined) patch.slug = dto.slug;
     if (dto.password !== undefined) patch.passwordHash = dto.password ? await hashPassword(dto.password) : null;
     if (dto.expiresAt !== undefined) patch.expiresAt = dto.expiresAt ? new Date(dto.expiresAt) : null;
+    if (dto.label !== undefined) patch.label = dto.label || null;
+    if (dto.notifyOnView !== undefined) patch.notifyOnView = dto.notifyOnView;
     return toDto(await this.links.update(id, patch));
   }
 
@@ -71,7 +79,7 @@ export class ShareLinksService {
   }
 
   /** What a visitor sees. Disabled, expired or deleted links look the same as missing ones. */
-  async view(slug: string, password?: string): Promise<PublicResumeDto> {
+  async view(slug: string, visit: Visit, password?: string): Promise<PublicResumeDto> {
     const found = await this.links.findBySlug(slug.toLowerCase());
     const now = new Date();
     if (!found || !found.link.enabled || found.resume.deleted || (found.link.expiresAt && found.link.expiresAt <= now)) {
@@ -82,18 +90,50 @@ export class ShareLinksService {
       if (!(await verifyPassword(password, found.link.passwordHash))) throw new PasswordRequiredError("That password is not right");
     }
 
-    const views = await this.links.recordView(found.link.id);
-    if (NOTIFY_AT.has(views)) {
+    const device = deviceFromUserAgent(visit.userAgent);
+    const day = now.toISOString().slice(0, 10);
+    const visitor = createHash("sha256").update(`${found.link.id}|${visit.ip}|${visit.userAgent ?? ""}|${day}`).digest("hex").slice(0, 32);
+    const { views, viewId } = await this.links.recordView(found.link.id, {
+      visitor,
+      referrer: referrerHost(visit.referrer, visit.host),
+      country: visit.country && /^[A-Z]{2}$/.test(visit.country) ? visit.country : null,
+      device,
+    });
+
+    const link = found.link;
+    const quiet = link.lastNotifiedAt && now.getTime() - link.lastNotifiedAt.getTime() < NOTIFY_EVERY_MS;
+    if (link.notifyOnView && !quiet && device !== "bot") {
+      await this.links.update(link.id, { lastNotifiedAt: now });
       await this.jobs.enqueue(
         QUEUES.email,
         "send",
-        { template: "resume-viewed", to: found.owner.email, resumeTitle: found.resume.title, views },
-        { jobId: `viewed-${found.link.id}-${views}` },
+        { template: "resume-viewed", to: found.owner.email, resumeTitle: found.resume.title, views, ...(link.label ? { label: link.label } : {}) },
+        { jobId: `viewed-${link.id}-${views}` },
       );
     }
 
     const { title, templateId, accent, pageSize, data } = found.resume;
-    return { title, ownerName: found.owner.name, templateId, accent, pageSize, data };
+    return { viewId, title, ownerName: found.owner.name, templateId, accent, pageSize, data };
+  }
+
+  /** Time on page and downloads, sent by the public page. */
+  async ping(slug: string, viewId: string, patch: { durationMs?: number; downloaded?: boolean }): Promise<void> {
+    await this.links.pingView(slug.toLowerCase(), viewId, patch);
+  }
+
+  /** Views, unique viewers, time, downloads, referrers and places; details need share analytics. */
+  async analytics(user: AuthUser, id: string): Promise<LinkAnalyticsDto & { complete: boolean }> {
+    const link = await this.owned(user, id);
+    const since = new Date(Date.now() - 30 * 86_400_000);
+    const rows = await this.links.views(id, since);
+    const summary = summariseViews(rows);
+    const complete = can(user.plan, "share.analytics");
+    const recent = rows
+      .filter((r) => r.device !== "bot")
+      .slice(0, 50)
+      .map((r) => ({ viewedAt: r.viewedAt.toISOString(), seconds: Math.round(r.durationMs / 1000), downloaded: r.downloaded, referrer: r.referrer, country: r.country, device: r.device }));
+    if (complete) return { linkId: link.id, ...summary, recent, complete };
+    return { linkId: link.id, ...summary, referrers: [], countries: [], devices: [], recent: [], avgSeconds: 0, downloads: 0, complete };
   }
 
   private async owned(user: AuthUser, id: string): Promise<ShareLinkRecord> {

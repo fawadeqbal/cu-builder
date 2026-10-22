@@ -75,6 +75,13 @@ model User {
   jobs          Job[]
   matches       Match[]
   coverLetters  CoverLetter[]
+  applications  Application[]
+  reminders     Reminder[]
+  tracker       TrackerBoard?
+  jobPrefs      JobPreferences?
+  interviews    InterviewSession[]
+  stories       StarStory[]
+  apiTokens     ApiToken[]
 
   @@map("users")
 }
@@ -182,18 +189,25 @@ model ResumeVersion {
 }
 
 model ShareLink {
-  id           String    @id @default(cuid())
-  resumeId     String    @map("resume_id")
-  slug         String    @unique
-  enabled      Boolean   @default(true)
-  passwordHash String?   @map("password_hash")
-  expiresAt    DateTime? @map("expires_at")
-  viewCount    Int       @default(0) @map("view_count")
-  lastViewedAt DateTime? @map("last_viewed_at")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+  id             String    @id @default(cuid())
+  resumeId       String    @map("resume_id")
+  slug           String    @unique
+  enabled        Boolean   @default(true)
+  passwordHash   String?   @map("password_hash")
+  expiresAt      DateTime? @map("expires_at")
+  viewCount      Int       @default(0) @map("view_count")
+  lastViewedAt   DateTime? @map("last_viewed_at")
+  /// Who the link was made for ("Acme application"), so the owner sees which employer opened it.
+  label          String?
+  /// Email the owner when someone opens it (at most once an hour).
+  notifyOnView   Boolean   @default(true) @map("notify_on_view")
+  lastNotifiedAt DateTime? @map("last_notified_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
-  resume Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  resume       Resume        @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  views        LinkView[]
+  applications Application[]
 
   @@index([resumeId])
   @@map("share_links")
@@ -327,6 +341,10 @@ model Job {
   description String    @default("")
   /// manual | link | extension | feed
   source      String    @default("manual")
+  /// The provider's id for feed jobs, to avoid saving the same posting twice.
+  externalId  String?   @map("external_id")
+  salary      String    @default("")
+  remote      Boolean   @default(false)
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
   deletedAt   DateTime? @map("deleted_at")
@@ -335,6 +353,7 @@ model Job {
   matches      Match[]
   tailored     Resume[]
   coverLetters CoverLetter[]
+  applications Application[]
 
   @@index([userId, createdAt(sort: Desc)])
   @@map("jobs")
@@ -382,4 +401,171 @@ model CoverLetter {
 
   @@index([userId, updatedAt(sort: Desc)])
   @@map("cover_letters")
+}
+
+// ---------------------------------------------------------------- Phase 3: job search tools
+
+/// One job in the tracker: where it is in the process and everything used for it.
+model Application {
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id")
+  jobId         String    @map("job_id")
+  /// Column key on the board (customisable per user, see TrackerBoard).
+  status        String    @default("saved")
+  /// Order inside a column (fractional so a move updates one row).
+  position      Float     @default(0)
+  resumeId      String?   @map("resume_id")
+  coverLetterId String?   @map("cover_letter_id")
+  shareLinkId   String?   @map("share_link_id")
+  salaryMin     Int?      @map("salary_min")
+  salaryMax     Int?      @map("salary_max")
+  currency      String?
+  /// [{ name, role, email, phone }]
+  contacts      Json      @default("[]")
+  notes         String    @default("")
+  /// { values, links[], questionsToAsk[], notes }
+  research      Json      @default("{}")
+  /// { baseSalary, currency, bonus, equity, benefits, location, remote, growth, deadline, notes }
+  offer         Json?
+  appliedAt     DateTime? @map("applied_at")
+  interviewAt   DateTime? @map("interview_at")
+  deadlineAt    DateTime? @map("deadline_at")
+  /// Remind to follow up this many days after applying.
+  followUpDays  Int?      @map("follow_up_days")
+  archivedAt    DateTime? @map("archived_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job       Job        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  shareLink ShareLink? @relation(fields: [shareLinkId], references: [id], onDelete: SetNull)
+  reminders Reminder[]
+
+  @@index([userId, status, position])
+  @@map("applications")
+}
+
+/// The user's board columns, in order: [{ key, label }].
+model TrackerBoard {
+  userId    String   @id @map("user_id")
+  columns   Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("tracker_boards")
+}
+
+model Reminder {
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id")
+  applicationId String?   @map("application_id")
+  /// follow_up | interview | deadline | custom
+  kind          String
+  title         String
+  dueAt         DateTime  @map("due_at")
+  doneAt        DateTime? @map("done_at")
+  notifiedAt    DateTime? @map("notified_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  application Application? @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([dueAt, notifiedAt])
+  @@index([userId, dueAt])
+  @@map("reminders")
+}
+
+/// What the job feed looks for, and how often to email new matches.
+model JobPreferences {
+  userId      String    @id @map("user_id")
+  titles      String[]
+  location    String    @default("")
+  remote      Boolean   @default(false)
+  salaryMin   Int?      @map("salary_min")
+  /// off | daily | weekly
+  alerts      String    @default("off")
+  lastAlertAt DateTime? @map("last_alert_at")
+  /// The Monday progress email (on by default while there are active applications).
+  weeklyDigest Boolean  @default(true) @map("weekly_digest")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("job_preferences")
+}
+
+/// A mock interview: questions, answers and AI feedback per answer.
+model InterviewSession {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  role        String
+  seniority   String    @default("")
+  jobId       String?   @map("job_id")
+  /// [{ question, competency, tip }]
+  questions   Json
+  /// [{ index, answer, scores, feedback, improved }]
+  answers     Json      @default("[]")
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("interview_sessions")
+}
+
+/// A Situation-Task-Action-Result story, saved for reuse in interviews.
+model StarStory {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  title        String
+  situation    String   @default("")
+  task         String   @default("")
+  action       String   @default("")
+  result       String   @default("")
+  sourceBullet String   @default("") @map("source_bullet")
+  tags         String[]
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, updatedAt(sort: Desc)])
+  @@map("star_stories")
+}
+
+/// One open of a share link: for view analytics (no raw IPs stored).
+model LinkView {
+  id          String   @id @default(cuid())
+  shareLinkId String   @map("share_link_id")
+  /// Hash of IP + user agent + day, to count unique viewers without storing who they are.
+  visitor     String
+  referrer    String?
+  country     String?
+  device      String?
+  durationMs  Int      @default(0) @map("duration_ms")
+  downloaded  Boolean  @default(false)
+  viewedAt    DateTime @default(now()) @map("viewed_at")
+
+  shareLink ShareLink @relation(fields: [shareLinkId], references: [id], onDelete: Cascade)
+
+  @@index([shareLinkId, viewedAt(sort: Desc)])
+  @@map("link_views")
+}
+
+/// Personal access tokens (the browser extension). Only a hash is stored.
+model ApiToken {
+  id         String    @id @default(cuid())
+  userId     String    @map("user_id")
+  name       String
+  prefix     String
+  tokenHash  String    @unique @map("token_hash")
+  lastUsedAt DateTime? @map("last_used_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("api_tokens")
 }

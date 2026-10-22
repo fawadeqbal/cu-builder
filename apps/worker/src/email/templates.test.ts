@@ -15,4 +15,26 @@ describe("renderEmail", () => {
     );
     expect(receipt.text).toContain("$9.00");
   });
+
+  it("renders the job search emails", () => {
+    const r = renderEmail(
+      { template: "reminders", to: "a@b.co", name: "Sara", items: [{ title: "Follow up: Acme", dueAt: "2026-10-22T09:00:00.000Z" }] },
+      "https://app.test",
+    );
+    expect(r.subject).toBe("Reminder: Follow up: Acme");
+    expect(r.text).toContain("https://app.test/tracker");
+
+    const d = renderEmail(
+      { template: "weekly-digest", to: "a@b.co", name: "Sara", stats: { added: 3, applied: 2, interviews: 1, offers: 0, total: 6 }, upcoming: [] },
+      "https://app.test",
+    );
+    expect(d.text).toContain("3 saved, 2 applied, 1 interviews");
+
+    const a = renderEmail(
+      { template: "job-alert", to: "a@b.co", name: "Sara", jobs: [{ title: "React dev", company: "Acme", location: "Remote", url: "https://j.test/1", score: 82 }] },
+      "https://app.test",
+    );
+    expect(a.html).toContain("82% match");
+  });
 });
+

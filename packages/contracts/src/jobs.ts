@@ -8,6 +8,8 @@ export const QUEUES = {
   email: "email",
   resumeImport: "resume-import",
   maintenance: "maintenance",
+  /** Reminders, weekly progress digests and job alerts (scheduled). */
+  notifications: "notifications",
 } as const;
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
 
@@ -24,7 +26,44 @@ export const EmailJobSchema = z.discriminatedUnion("template", [
     amountCents: z.number().int().nonnegative(),
     currency: z.string().length(3),
   }),
-  z.object({ template: z.literal("resume-viewed"), to: z.email(), resumeTitle: z.string(), views: z.number().int() }),
+  z.object({
+    template: z.literal("resume-viewed"),
+    to: z.email(),
+    resumeTitle: z.string(),
+    views: z.number().int(),
+    /** Who the link was made for ("Acme application"). */
+    label: z.string().max(80).optional(),
+  }),
+  z.object({
+    template: z.literal("reminders"),
+    to: z.email(),
+    name: z.string().max(120),
+    items: z.array(z.object({ title: z.string().max(240), dueAt: z.string() })).min(1).max(30),
+  }),
+  z.object({
+    template: z.literal("weekly-digest"),
+    to: z.email(),
+    name: z.string().max(120),
+    stats: z.object({ added: z.number(), applied: z.number(), interviews: z.number(), offers: z.number(), total: z.number() }),
+    upcoming: z.array(z.object({ title: z.string().max(240), dueAt: z.string() })).max(10),
+  }),
+  z.object({
+    template: z.literal("job-alert"),
+    to: z.email(),
+    name: z.string().max(120),
+    jobs: z
+      .array(z.object({ title: z.string().max(240), company: z.string().max(200), location: z.string().max(200), url: z.string().max(2000), score: z.number().nullable() }))
+      .min(1)
+      .max(10),
+  }),
+  z.object({
+    template: z.literal("notice"),
+    to: z.email(),
+    name: z.string().max(120),
+    subject: z.string().max(200),
+    lines: z.array(z.string().max(1000)).min(1).max(12),
+    action: z.object({ label: z.string().max(60), url: z.url() }).optional(),
+  }),
 ]);
 export type EmailJob = z.output<typeof EmailJobSchema>;
 
@@ -50,6 +89,7 @@ export const JOBS = {
   [QUEUES.email]: { send: EmailJobSchema },
   [QUEUES.resumeImport]: { parse: ResumeImportJobSchema },
   [QUEUES.maintenance]: { purge: MaintenanceJobSchema },
+  [QUEUES.notifications]: { reminders: MaintenanceJobSchema, digest: MaintenanceJobSchema, alerts: MaintenanceJobSchema },
 } as const;
 
 export type JobMap = typeof JOBS;

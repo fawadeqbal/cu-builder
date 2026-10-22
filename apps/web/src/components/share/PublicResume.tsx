@@ -8,7 +8,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { DownloadIcon, LockIcon } from "@cvb/ui";
-import { api, isApiError } from "@/lib/api";
+import { ApiError, isApiError } from "@/lib/api";
 import { fileSlug } from "@/lib/cv";
 import { paperSizeAttr } from "@/lib/page";
 import { downloadCvPdf } from "@/lib/pdf";
@@ -20,14 +20,14 @@ export default function PublicResume({ slug }: { slug: string }) {
   const [unlocked, setUnlocked] = useState<PublicResumeDto | null>(null);
   const view = useQuery({
     queryKey: ["public", slug],
-    queryFn: () => api.get<PublicResumeDto>(`/public/r/${encodeURIComponent(slug)}`),
+    queryFn: () => publicRequest<PublicResumeDto>(`/public/r/${encodeURIComponent(slug)}`),
     retry: false,
     staleTime: Infinity,
   });
 
-  if (unlocked) return <Sheet resume={unlocked} />;
+  if (unlocked) return <Sheet resume={unlocked} slug={slug} />;
   if (view.isLoading) return <FullPageMessage>Loading CV…</FullPageMessage>;
-  if (view.data) return <Sheet resume={view.data} />;
+  if (view.data) return <Sheet resume={view.data} slug={slug} />;
   if (isApiError(view.error, "PASSWORD_REQUIRED")) return <PasswordGate slug={slug} onUnlocked={setUnlocked} />;
   return (
     <FullPageMessage>
@@ -45,7 +45,7 @@ export default function PublicResume({ slug }: { slug: string }) {
 function PasswordGate({ slug, onUnlocked }: { slug: string; onUnlocked: (r: PublicResumeDto) => void }) {
   const [password, setPassword] = useState("");
   const unlock = useMutation({
-    mutationFn: () => api.post<PublicResumeDto>(`/public/r/${encodeURIComponent(slug)}/unlock`, { password }),
+    mutationFn: () => publicRequest<PublicResumeDto>(`/public/r/${encodeURIComponent(slug)}/unlock`, { password }),
     onSuccess: onUnlocked,
   });
   const submit = (e: FormEvent) => {
@@ -72,7 +72,53 @@ function PasswordGate({ slug, onUnlocked }: { slug: string; onUnlocked: (r: Publ
   );
 }
 
-function Sheet({ resume }: { resume: PublicResumeDto }) {
+/** Where the visitor came from (LinkedIn, an email…) goes along, for the owner's link analytics. */
+async function publicRequest<T>(path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`/api/v1${path}`, {
+    method: body === undefined ? "GET" : "POST",
+    headers: { "content-type": "application/json", "x-page-referrer": document.referrer.slice(0, 500) },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const json = (await res.json().catch(() => null)) as ({ error?: { code: string; message: string } } & T) | null;
+  if (!res.ok) throw new ApiError(res.status, json?.error?.code ?? "HTTP_ERROR", json?.error?.message ?? `Request failed (${res.status})`);
+  return json as T;
+}
+
+/** Time on page (every 15 s while visible, and on leaving) and downloads. Best effort. */
+function useViewPings(slug: string, viewId: string | null) {
+  useEffect(() => {
+    if (!viewId) return;
+    const started = Date.now();
+    let visibleMs = 0;
+    let since = document.visibilityState === "visible" ? Date.now() : 0;
+    const elapsed = () => visibleMs + (since ? Date.now() - since : 0);
+    const send = () =>
+      void fetch(`/api/v1/public/r/${encodeURIComponent(slug)}/ping`, {
+        method: "POST",
+        keepalive: true,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ viewId, durationMs: Math.min(elapsed(), 6 * 3600 * 1000) }),
+      }).catch(() => undefined);
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        if (since) visibleMs += Date.now() - since;
+        since = 0;
+        send();
+      } else since = Date.now();
+    };
+    const timer = window.setInterval(() => document.visibilityState === "visible" && Date.now() - started < 30 * 60_000 && send(), 15_000);
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", send);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", send);
+    };
+  }, [slug, viewId]);
+}
+
+function Sheet({ resume, slug }: { resume: PublicResumeDto; slug: string }) {
+  useViewPings(slug, resume.viewId);
   const cv = normalizeCV(resume.data);
   const template = isTemplateId(resume.templateId) ? resume.templateId : "classic";
   const wrap = useRef<HTMLDivElement>(null);
@@ -104,6 +150,7 @@ function Sheet({ resume }: { resume: PublicResumeDto }) {
     setBusy(true);
     try {
       await downloadCvPdf(sheet, { fileName: `${fileSlug(cv)}-cv.pdf`, title: resume.title, author: resume.ownerName, pageSize: resume.pageSize });
+      if (resume.viewId) void publicRequest(`/public/r/${encodeURIComponent(slug)}/ping`, { viewId: resume.viewId, downloaded: true }).catch(() => undefined);
     } finally {
       setBusy(false);
     }

@@ -9,5 +9,6 @@ import { ShareLinksService } from "./share-links.service.js";
   imports: [ResumesModule],
   controllers: [ShareLinksController],
   providers: [ShareLinksService, { provide: SHARE_LINKS_REPOSITORY, useClass: PrismaShareLinksRepository }],
+  exports: [ShareLinksService],
 })
 export class ShareLinksModule {}

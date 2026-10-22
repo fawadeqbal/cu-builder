@@ -6,6 +6,7 @@ import type { Request } from "express";
 import { APP_CONFIG, type AppConfig } from "../../config/app-config.js";
 import { AUTH, type BetterAuth } from "../../modules/auth/better-auth.js";
 import { EntitlementsService } from "../../modules/billing/entitlements.service.js";
+import { ApiTokensService } from "../../modules/tokens/api-tokens.service.js";
 import { UsersService } from "../../modules/users/users.service.js";
 import type { AuthUser, Role } from "./auth.types.js";
 import { IS_PUBLIC, ROLES } from "./decorators.js";
@@ -14,6 +15,8 @@ import { IS_PUBLIC, ROLES } from "./decorators.js";
  * Global guard. Resolves the signed-in user from the Better Auth session cookie, adds their
  * effective plan, and enforces @Roles(). On @Public() routes it still attaches the user when
  * there is one, so public endpoints can personalise.
+ *
+ * Browser extension: a personal access token in `Authorization: Bearer cvb_…`.
  *
  * Development only: with DEV_AUTH=true (never in production) an `x-dev-user: <email>` header
  * signs in as that user, which keeps API testing with curl simple.
@@ -26,6 +29,7 @@ export class AuthGuard implements CanActivate {
     @Inject(AUTH) private readonly auth: BetterAuth,
     private readonly users: UsersService,
     private readonly entitlements: EntitlementsService,
+    private readonly tokens: ApiTokensService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -46,6 +50,14 @@ export class AuthGuard implements CanActivate {
     if (devEmail && this.config.DEV_AUTH && this.config.NODE_ENV !== "production") {
       const base = await this.users.findOrCreateByEmail(devEmail);
       return this.withPlan(base);
+    }
+
+    // Personal access tokens (the browser extension): "Authorization: Bearer cvb_…".
+    const bearer = req.header("authorization")?.match(/^Bearer (cvb_[\w-]+)$/)?.[1];
+    if (bearer) {
+      const userId = await this.tokens.resolve(bearer);
+      const u = userId ? await this.users.get(userId).catch(() => null) : null;
+      return u ? this.withPlan({ id: u.id, email: u.email, name: u.name, emailVerified: u.emailVerified, role: u.role }) : undefined;
     }
 
     const session = await this.auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
