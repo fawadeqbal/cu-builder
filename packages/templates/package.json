@@ -22,8 +22,8 @@
     "*.css"
   ],
   "scripts": {
-    "build": "tsup && cp src/styles.css dist/styles.css",
-    "dev": "tsup --watch --onSuccess \"cp src/styles.css dist/styles.css\"",
+    "build": "tsup",
+    "dev": "tsup --watch",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",

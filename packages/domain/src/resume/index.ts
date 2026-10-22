@@ -4,3 +4,6 @@ export * from "./types";
 export * from "./sample";
 export * from "./import";
 export * from "./text";
+export * from "./ats";
+export * from "./match";
+export * from "./diff";

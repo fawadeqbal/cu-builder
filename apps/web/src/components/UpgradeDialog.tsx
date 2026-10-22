@@ -12,14 +12,20 @@ export function UpgradeDialog({ gate, onClose }: { gate: Gate | null; onClose: (
   const { signedIn } = usePlan();
   if (!gate) return null;
   const plan = planForGate(gate);
-  const pricing = `/pricing?plan=${plan}`;
+  const pricing = gate.kind === "credits" ? "/pricing#credits" : `/pricing?plan=${plan}`;
   return (
     <Dialog
       open
       onClose={onClose}
       size="sm"
       title={gateTitle(gate)}
-      description={signedIn ? `Upgrade to ${PLAN_LABEL[plan]}, or get a Job-Hunt Pass for a week or a month.` : "Create a free account first; your CV comes with you."}
+      description={
+        gate.kind === "credits"
+          ? "Credits reset on the 1st of each month. Buy a pack of 100, or upgrade for more every month."
+          : signedIn
+            ? `Upgrade to ${PLAN_LABEL[plan]}, or get a Job-Hunt Pass for a week or a month.`
+            : "It's free and takes a minute; the CV you started here comes with you."
+      }
       footer={
         <>
           <button type="button" className={btn.ghost} onClick={onClose}>
@@ -27,10 +33,10 @@ export function UpgradeDialog({ gate, onClose }: { gate: Gate | null; onClose: (
           </button>
           {signedIn ? (
             <Link href={pricing} className={btn.primary}>
-              See plans
+              {gate.kind === "credits" ? "Get more credits" : "See plans"}
             </Link>
           ) : (
-            <Link href={`/sign-up?next=${encodeURIComponent(pricing)}`} className={btn.primary}>
+            <Link href={`/sign-up?next=${encodeURIComponent(gate.kind === "account" ? "/app" : pricing)}`} className={btn.primary}>
               Create free account
             </Link>
           )}

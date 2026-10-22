@@ -78,4 +78,9 @@ export class InMemoryResumesRepository implements ResumesRepository {
     this.rows.set(resumeId, row);
     return row;
   }
+
+  readonly jobs = new Set<string>();
+  async jobOwned(jobId: string, userId: string): Promise<boolean> {
+    return this.jobs.has(`${userId}:${jobId}`);
+  }
 }

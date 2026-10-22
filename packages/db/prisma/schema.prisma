@@ -72,6 +72,9 @@ model User {
   subscriptions Subscription[]
   passes        Pass[]
   credits       CreditLedger[]
+  jobs          Job[]
+  matches       Match[]
+  coverLetters  CoverLetter[]
 
   @@map("users")
 }
@@ -132,23 +135,33 @@ model Verification {
 // ---------------------------------------------------------------- Resumes
 
 model Resume {
-  id         String    @id @default(cuid())
-  userId     String    @map("user_id")
-  title      String
-  templateId String    @default("classic") @map("template_id")
-  accent     String?
-  pageSize   PageSize  @default(A4) @map("page_size")
+  id           String    @id @default(cuid())
+  userId       String    @map("user_id")
+  title        String
+  templateId   String    @default("classic") @map("template_id")
+  accent       String?
+  pageSize     PageSize  @default(A4) @map("page_size")
   /// The CV document; shape validated by @cvb/contracts ResumeDataSchema.
-  data       Json
-  archivedAt DateTime? @map("archived_at")
-  deletedAt  DateTime? @map("deleted_at")
-  createdAt  DateTime  @default(now()) @map("created_at")
-  updatedAt  DateTime  @updatedAt @map("updated_at")
+  data         Json
+  /// Presentation settings that aren't content, e.g. { fontScale } from "Fit to one page".
+  style        Json?
+  /// Set on tailored copies: the CV it was made from and the job it targets.
+  baseResumeId String?   @map("base_resume_id")
+  jobId        String?   @map("job_id")
+  archivedAt   DateTime? @map("archived_at")
+  deletedAt    DateTime? @map("deleted_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
 
   user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   versions     ResumeVersion[]
   shareLinks   ShareLink[]
   importedFrom ResumeImport?
+  base         Resume?         @relation("Tailored", fields: [baseResumeId], references: [id], onDelete: SetNull)
+  tailored     Resume[]        @relation("Tailored")
+  job          Job?            @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  matches      Match[]
+  coverLetters CoverLetter[]
 
   @@index([userId, updatedAt(sort: Desc)])
   @@map("resumes")
@@ -299,4 +312,74 @@ model AnalyticsEvent {
 
   @@index([name, createdAt])
   @@map("analytics_events")
+}
+
+// ---------------------------------------------------------------- Phase 2: resume intelligence
+
+/// A job the user is targeting: pasted, read from a link, saved by the extension or the feed.
+model Job {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  title       String
+  company     String    @default("")
+  location    String    @default("")
+  url         String?
+  description String    @default("")
+  /// manual | link | extension | feed
+  source      String    @default("manual")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  matches      Match[]
+  tailored     Resume[]
+  coverLetters CoverLetter[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("jobs")
+}
+
+/// The latest match result of a CV against a job (keywords, score, seniority).
+model Match {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  resumeId  String   @map("resume_id")
+  jobId     String   @map("job_id")
+  score     Int
+  result    Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resume Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  job    Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([resumeId, jobId])
+  @@map("matches")
+}
+
+model CoverLetter {
+  id           String    @id @default(cuid())
+  userId       String    @map("user_id")
+  resumeId     String?   @map("resume_id")
+  jobId        String?   @map("job_id")
+  title        String
+  templateId   String    @default("classic") @map("template_id")
+  accent       String?
+  pageSize     PageSize  @default(A4) @map("page_size")
+  /// { recipient, company, date, greeting, paragraphs[], closing, signature }
+  data         Json
+  shareSlug    String?   @unique @map("share_slug")
+  shareEnabled Boolean   @default(false) @map("share_enabled")
+  viewCount    Int       @default(0) @map("view_count")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resume Resume? @relation(fields: [resumeId], references: [id], onDelete: SetNull)
+  job    Job?    @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
+  @@index([userId, updatedAt(sort: Desc)])
+  @@map("cover_letters")
 }

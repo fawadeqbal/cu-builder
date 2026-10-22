@@ -1,6 +1,7 @@
 import type { CV } from "@cvb/domain";
 
 export type PageSize = "A4" | "LETTER";
+export type ResumeStyle = { fontScale: number };
 
 export type ResumeRecord = {
   id: string;
@@ -9,13 +10,16 @@ export type ResumeRecord = {
   templateId: string;
   accent: string | null;
   pageSize: PageSize;
+  style: ResumeStyle;
   data: CV;
+  baseResumeId: string | null;
+  jobId: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
 
 export type NewResume = Omit<ResumeRecord, "id" | "createdAt" | "updatedAt">;
-export type ResumePatch = Partial<Pick<ResumeRecord, "title" | "templateId" | "accent" | "pageSize" | "data">>;
+export type ResumePatch = Partial<Pick<ResumeRecord, "title" | "templateId" | "accent" | "pageSize" | "style" | "data">>;
 
 /** Persistence port for resumes. Swappable (Prisma today, an in-memory fake in tests). */
 export interface ResumesRepository {
@@ -37,6 +41,8 @@ export interface ResumesRepository {
   snapshot(resumeId: string, reason: string): Promise<VersionRecord>;
   /** Saves the current content as "before-restore", then copies the version back. */
   restoreVersion(resumeId: string, versionId: string): Promise<ResumeRecord | null>;
+  /** True when the job exists and belongs to the user (tailored copies link to a job). */
+  jobOwned(jobId: string, userId: string): Promise<boolean>;
 }
 
 export type VersionRecord = { id: string; resumeId: string; reason: string; templateId: string; createdAt: Date };

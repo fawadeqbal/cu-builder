@@ -7,9 +7,9 @@
   },
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev",
+    "dev": "turbo run dev --concurrency=20",
     "dev:web": "turbo run dev --filter=@cvb/web...",
-    "dev:api": "turbo run dev --filter=@cvb/api... --filter=@cvb/worker...",
+    "dev:api": "turbo run dev --filter=@cvb/api... --filter=@cvb/worker... --concurrency=20",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",

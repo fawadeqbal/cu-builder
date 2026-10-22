@@ -14,8 +14,10 @@ export type RedirectDto = z.output<typeof RedirectSchema>;
 
 export const OfferSchema = z.object({
   id: z.enum(OFFER_IDS),
-  kind: z.enum(["subscription", "pass"]),
-  plan: PlanSchema,
+  kind: z.enum(["subscription", "pass", "credits"]),
+  /** Absent for credit packs. */
+  plan: PlanSchema.optional(),
+  credits: z.number().optional(),
   interval: z.enum(["month", "year"]).optional(),
   days: z.number().optional(),
   priceCents: z.number(),

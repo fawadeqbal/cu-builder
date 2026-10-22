@@ -27,6 +27,8 @@ export interface BillingRepository {
     cancelAtPeriodEnd: boolean;
   }): Promise<void>;
   addPass(input: { userId: string; plan: Plan; startsAt: Date; endsAt: Date; providerRef: string; offer: OfferId }): Promise<void>;
+  /** A purchased AI credit pack (an append-only ledger row). */
+  addCredits(input: { userId: string; credits: number; providerRef: string }): Promise<void>;
   /** Records a provider event id; returns false if it was already processed. */
   markEventProcessed(id: string, type: string): Promise<boolean>;
 }

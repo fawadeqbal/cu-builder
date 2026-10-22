@@ -11,6 +11,8 @@ import { useMe } from "@/lib/queries";
 
 const NAV = [
   { href: "/app", label: "My CVs", auth: true },
+  { href: "/jobs", label: "Jobs", auth: true },
+  { href: "/letters", label: "Letters", auth: true },
   { href: "/templates", label: "Templates", auth: false },
   { href: "/pricing", label: "Pricing", auth: false },
 ];

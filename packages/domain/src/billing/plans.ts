@@ -36,7 +36,8 @@ const MINIMUM_PLAN: Record<Feature, Plan> = {
   "share.link": "standard",
   "share.analytics": "premium",
   "ats.fullReport": "standard",
-  "ai.writing": "standard",
+  // Free gets a few AI credits a month (see LIMITS); credits are the real limit.
+  "ai.writing": "free",
   "ai.tailor": "premium",
   jobMatch: "premium",
   coverLetter: "standard",

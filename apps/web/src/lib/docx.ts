@@ -136,3 +136,41 @@ export async function buildCvDocx(cv: CV, { accent, pageSize }: { accent: string
   });
   return Packer.toBlob(doc);
 }
+
+export type LetterForDocx = {
+  sender: { name: string; headline: string; email: string; phone: string; location: string };
+  letter: { recipient: string; company: string; address: string; date: string; subject: string; greeting: string; paragraphs: string[]; closing: string; signature: string };
+};
+
+/** A cover letter as a Word document, matching the CV's accent colour. */
+export async function buildLetterDocx({ sender, letter }: LetterForDocx, { accent, pageSize }: { accent: string; pageSize: PageSize }): Promise<Blob> {
+  const { BorderStyle, Document, Packer, Paragraph, TextRun } = await import("docx");
+  const color = accent.replace("#", "").toUpperCase();
+  const line = (text: string, opts: { bold?: boolean; color?: string; size?: number; after?: number } = {}) =>
+    new Paragraph({ spacing: { after: opts.after ?? 160 }, children: [new TextRun({ text, bold: opts.bold, color: opts.color, size: opts.size ?? 21 })] });
+  const contact = [sender.email, sender.phone, sender.location].filter((v) => v.trim()).join("  ·  ");
+  const children = [
+    new Paragraph({ children: [new TextRun({ text: sender.name, bold: true, size: 36, color })] }),
+    ...(sender.headline ? [line(sender.headline, { bold: true, after: 40 })] : []),
+    new Paragraph({
+      spacing: { after: 360 },
+      border: { bottom: { style: BorderStyle.SINGLE, size: 6, color, space: 4 } },
+      children: [new TextRun({ text: contact, size: 18, color: "5B6673" })],
+    }),
+    ...(letter.date ? [line(letter.date, { color: "5B6673" })] : []),
+    ...[letter.recipient, letter.company, letter.address].filter((v) => v.trim()).map((v, i, all) => line(v, { after: i === all.length - 1 ? 240 : 0 })),
+    ...(letter.subject ? [line(letter.subject, { bold: true })] : []),
+    ...(letter.greeting ? [line(letter.greeting)] : []),
+    ...letter.paragraphs.filter((p) => p.trim()).map((p) => line(p.trim())),
+    line(letter.closing, { after: 480 }),
+    line(letter.signature, { bold: true }),
+  ];
+  const size = pageSize === "LETTER" ? { width: 12240, height: 15840 } : { width: 11906, height: 16838 };
+  const doc = new Document({
+    creator: "CV Builder",
+    title: letter.subject || "Cover letter",
+    styles: { default: { document: { run: { font: "Calibri", size: 21 } } } },
+    sections: [{ properties: { page: { size, margin: { top: 1000, bottom: 1000, left: 1100, right: 1100 } } }, children }],
+  });
+  return Packer.toBlob(doc);
+}

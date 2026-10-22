@@ -6,6 +6,11 @@ import type { NewResume, ResumePatch, ResumeRecord, ResumesRepository, VersionRe
 
 const TRASH_DAYS = 30;
 
+const toStyle = (v: unknown): { fontScale: number } => {
+  const n = (v as { fontScale?: unknown } | null)?.fontScale;
+  return { fontScale: typeof n === "number" && n >= 0.7 && n <= 1.15 ? n : 1 };
+};
+
 /** Rows are normalised on the way out, so old or hand-edited JSON can never crash a template. */
 const toRecord = (r: Resume): ResumeRecord => ({
   id: r.id,
@@ -14,7 +19,10 @@ const toRecord = (r: Resume): ResumeRecord => ({
   templateId: r.templateId,
   accent: r.accent,
   pageSize: r.pageSize,
+  style: toStyle(r.style),
   data: normalizeCV(r.data),
+  baseResumeId: r.baseResumeId,
+  jobId: r.jobId,
   createdAt: r.createdAt,
   updatedAt: r.updatedAt,
 });
@@ -47,11 +55,11 @@ export class PrismaResumesRepository implements ResumesRepository {
   }
 
   async create(input: NewResume): Promise<ResumeRecord> {
-    return toRecord(await this.db.resume.create({ data: { ...input, data: json(input.data) } }));
+    return toRecord(await this.db.resume.create({ data: { ...input, data: json(input.data), style: json(input.style) } }));
   }
 
   async update(id: string, patch: ResumePatch, snapshotReason?: string): Promise<ResumeRecord> {
-    const data = { ...patch, ...(patch.data ? { data: json(patch.data) } : {}) };
+    const data = { ...patch, ...(patch.data ? { data: json(patch.data) } : {}), ...(patch.style ? { style: json(patch.style) } : {}) };
     return this.db.$transaction(async (tx) => {
       if (snapshotReason) {
         const prev = await tx.resume.findUniqueOrThrow({ where: { id } });
@@ -119,5 +127,9 @@ export class PrismaResumesRepository implements ResumesRepository {
         await tx.resume.update({ where: { id: resumeId }, data: { data: json(version.data), templateId: version.templateId } }),
       );
     });
+  }
+
+  async jobOwned(jobId: string, userId: string): Promise<boolean> {
+    return (await this.db.job.count({ where: { id: jobId, userId, deletedAt: null } })) > 0;
   }
 }

@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { cvToText, emptyCV, normalizeCV, sampleCV, type CV } from "@cvb/domain";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { atsReport, can, cvToText, emptyCV, normalizeCV, sampleCV, type CV } from "@cvb/domain";
 import type { TemplateId } from "@cvb/templates/catalog";
 import { CVDocument } from "@cvb/templates";
-import { CloudIcon, DownloadIcon, EditorIcon, HistoryIcon, LockIcon, MoreIcon, PreviewIcon, ShareIcon, TemplatesIcon } from "@cvb/ui";
+import { BriefcaseIcon, CloudIcon, DownloadIcon, EditorIcon, HistoryIcon, LockIcon, MoreIcon, PreviewIcon, ShareIcon, SparkIcon, TemplatesIcon } from "@cvb/ui";
 import { hasFeature, isUnlocked, usePlan } from "@/lib/access";
+import { AiAssistContext, useCredits, type AiAssist } from "@/lib/ai";
 import { track } from "@/lib/analytics";
 import { api } from "@/lib/api";
 import { useCatalog } from "@/lib/catalog";
@@ -20,7 +21,11 @@ import { downloadCvPdf } from "@/lib/pdf";
 import type { Gate } from "@/lib/plans";
 import { PLAN_LABEL, planForGate } from "@/lib/plans";
 import { STEPS, type StepId } from "@/lib/steps";
+import { AtsPanel } from "./ats/AtsPanel";
+import { ScoreRing } from "./ats/ScoreRing";
 import { HistoryDialog } from "./HistoryDialog";
+import { MatchDialog } from "./jobs/MatchDialog";
+import { Dialog } from "./ui/Dialog";
 import { MiniPreview, Preview } from "./Preview";
 import { ShareDialog } from "./ShareDialog";
 import { SplitView } from "./SplitView";
@@ -61,7 +66,13 @@ export default function Builder({ doc, cloud, banner }: Props) {
   const catalog = useCatalog();
   const [layout, setLayout] = useState<Layout>(loadLayout);
   const [busy, setBusy] = useState<ExportFormat | null>(null);
-  const [notice, setNotice] = useState("");
+  const [toastState, setToast] = useState<{ text: string; undo?: () => void } | null>(null);
+  const setNotice = useCallback((text: string, undo?: () => void) => setToast(text ? { text, undo } : null), []);
+  const notice = toastState?.text ?? "";
+  const [matching, setMatching] = useState(false);
+  const [atsOpen, setAtsOpen] = useState(false);
+  const [pages, setPages] = useState(1);
+  const credits = useCredits(signedIn);
   const [gate, setGate] = useState<Gate | null>(null);
   const [sharing, setSharing] = useState(false);
   const [history, setHistory] = useState(false);
@@ -76,6 +87,9 @@ export default function Builder({ doc, cloud, banner }: Props) {
   const template = trying ?? state.template;
   const templateMeta = catalog.meta(template);
   const templateLocked = !isUnlocked(plan, templateMeta.tier);
+  const report = useMemo(() => atsReport(state.cv, { templateAts: templateMeta.ats, pages }), [state.cv, templateMeta.ats, pages]);
+  const fullReport = can(plan, "ats.fullReport");
+  const assist = useMemo<AiAssist>(() => ({ enabled: signedIn, onGate: setGate, notify: setNotice }), [signedIn, setNotice]);
 
   useEffect(() => {
     saveLayout(layout);
@@ -83,9 +97,9 @@ export default function Builder({ doc, cloud, banner }: Props) {
 
   useEffect(() => {
     if (!notice) return;
-    const t = setTimeout(() => setNotice(""), 2800);
+    const t = setTimeout(() => setToast(null), toastState?.undo ? 6000 : 2800);
     return () => clearTimeout(t);
-  }, [notice]);
+  }, [notice, toastState]);
 
   useEffect(() => {
     if (trial && trial !== state.template && isUnlocked(plan, catalog.meta(trial).tier)) update({ template: trial });
@@ -259,9 +273,21 @@ export default function Builder({ doc, cloud, banner }: Props) {
     />
   );
 
-  const toast = notice && (
-    <div role="status" className="no-print fixed bottom-20 left-1/2 z-50 -translate-x-1/2 rounded-md bg-stone-900 px-4 py-2 text-sm text-white shadow-lg lg:bottom-6">
-      {notice}
+  const toast = toastState && (
+    <div role="status" className="no-print fixed bottom-20 left-1/2 z-[70] flex -translate-x-1/2 items-center gap-3 rounded-md bg-stone-900 px-4 py-2 text-sm text-white shadow-lg lg:bottom-6">
+      {toastState.text}
+      {toastState.undo && (
+        <button
+          type="button"
+          className="font-semibold text-sky-300 hover:underline"
+          onClick={() => {
+            toastState.undo?.();
+            setToast(null);
+          }}
+        >
+          Undo
+        </button>
+      )}
     </div>
   );
 
@@ -288,7 +314,7 @@ export default function Builder({ doc, cloud, banner }: Props) {
   const share = () => (cloud && hasFeature(plan, "share.link") ? setSharing(true) : setGate({ kind: "feature", feature: "share.link" }));
 
   return (
-    <>
+    <AiAssistContext.Provider value={assist}>
       <div className="no-print flex h-dvh flex-col bg-stone-100">
         <header className="relative z-40 grid h-14 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-stone-200 bg-white px-3 sm:px-4">
           <div className="flex min-w-0 items-center gap-2.5">
@@ -310,10 +336,25 @@ export default function Builder({ doc, cloud, banner }: Props) {
           <div className="flex items-center justify-end gap-1">
             <Link
               href={actions.templatesHref}
-              className="hidden items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-stone-600 transition hover:bg-stone-100 hover:text-stone-900 xl:flex"
+              className="hidden items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-stone-600 transition hover:bg-stone-100 hover:text-stone-900 2xl:flex"
             >
               <TemplatesIcon className="size-4" /> Templates
             </Link>
+            <button
+              type="button"
+              onClick={() => setAtsOpen(true)}
+              title="ATS score: how well tracking systems read your CV"
+              className="hidden items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-stone-600 transition hover:bg-stone-100 hover:text-stone-900 lg:flex"
+            >
+              <ScoreRing score={report.score} size={26} label="ATS score" /> ATS
+            </button>
+            <button
+              type="button"
+              onClick={() => setMatching(true)}
+              className="hidden items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-stone-600 transition hover:bg-stone-100 hover:text-stone-900 xl:flex"
+            >
+              <BriefcaseIcon className="size-4" /> Match job
+            </button>
             <button
               type="button"
               onClick={share}
@@ -321,6 +362,15 @@ export default function Builder({ doc, cloud, banner }: Props) {
             >
               <ShareIcon className="size-4" /> Share
             </button>
+            {signedIn && credits.data && (
+              <Link
+                href="/pricing#credits"
+                title={`${credits.data.remaining} AI credits left · resets ${new Date(credits.data.resetsAt).toLocaleDateString()}`}
+                className="hidden items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700 ring-1 ring-inset ring-violet-200 2xl:flex"
+              >
+                <SparkIcon className="size-3.5" /> {credits.data.remaining}
+              </Link>
+            )}
             {!signedIn && (
               <Link
                 href="/sign-up?next=/app"
@@ -335,7 +385,7 @@ export default function Builder({ doc, cloud, banner }: Props) {
                 onClick={() => void exportAs("pdf")}
                 disabled={busy === "pdf"}
                 aria-busy={busy === "pdf"}
-                className="hidden items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-dark disabled:cursor-wait disabled:opacity-80 sm:flex"
+                className="hidden items-center gap-1.5 whitespace-nowrap rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-dark disabled:cursor-wait disabled:opacity-80 sm:flex"
               >
                 {busy === "pdf" ? <Spinner /> : templateLocked ? <LockIcon className="size-4" /> : <DownloadIcon className="size-4" />}
                 <span className="hidden xl:inline">{busy === "pdf" ? "Preparing PDF…" : "Download PDF"}</span>
@@ -382,6 +432,15 @@ export default function Builder({ doc, cloud, banner }: Props) {
                 <MenuLabel>CV</MenuLabel>
                 <button type="button" className={`${menuItem} md:hidden`} onClick={() => { closeMenu(); share(); }}>
                   <ShareIcon className="size-4" /> Share link
+                </button>
+                <button type="button" className={`${menuItem} xl:hidden`} onClick={() => { closeMenu(); setMatching(true); }}>
+                  <BriefcaseIcon className="size-4" /> Match to a job
+                </button>
+                <Link href={actions.templatesHref} className={`${menuItem} 2xl:hidden`} onClick={closeMenu}>
+                  <TemplatesIcon className="size-4" /> All templates
+                </Link>
+                <button type="button" className={`${menuItem} lg:hidden`} onClick={() => { closeMenu(); setAtsOpen(true); }}>
+                  ATS score: {report.score}
                 </button>
                 {cloud && (
                   <button type="button" className={menuItem} onClick={() => { closeMenu(); setHistory(true); }}>
@@ -469,6 +528,7 @@ export default function Builder({ doc, cloud, banner }: Props) {
               accent={state.accent}
               onAccent={setAccent}
               actions={actions}
+              ats={{ report, full: fullReport, onUnlock: () => setGate({ kind: "feature", feature: "ats.fullReport" }) }}
             />
           }
           preview={
@@ -479,6 +539,10 @@ export default function Builder({ doc, cloud, banner }: Props) {
               accent={state.accent}
               onAccent={setAccent}
               pageSize={state.pageSize}
+              fontScale={state.fontScale}
+              onFontScale={(fontScale) => update({ fontScale })}
+              onPages={setPages}
+              onNotice={setNotice}
               templatesHref={actions.templatesHref}
               zoom={layout.zoom}
               onZoom={setZoom}
@@ -489,7 +553,7 @@ export default function Builder({ doc, cloud, banner }: Props) {
           }
         />
 
-        {isDesktop && mode === "editor" && <MiniPreview cv={state.cv} template={template} accent={state.accent} onOpen={() => setMode("split")} />}
+        {isDesktop && mode === "editor" && <MiniPreview cv={state.cv} template={template} accent={state.accent} scale={state.fontScale} onOpen={() => setMode("split")} />}
 
         {!isDesktop && (
           <button
@@ -517,11 +581,41 @@ export default function Builder({ doc, cloud, banner }: Props) {
       <div className="print-only">
         {state.pageSize === "LETTER" && <style>{"@page{size:letter}"}</style>}
         <div className="paper" data-size={paperSizeAttr(state.pageSize)}>
-          <CVDocument cv={state.cv} template={template} accent={state.accent} />
+          <CVDocument cv={state.cv} template={template} accent={state.accent} scale={state.fontScale} />
         </div>
       </div>
 
       <UpgradeDialog gate={gate} onClose={() => setGate(null)} />
+      <MatchDialog
+        open={matching}
+        onClose={() => setMatching(false)}
+        cv={state.cv}
+        resumeId={cloud?.resumeId}
+        flush={doc.flush}
+        onCv={(cv) => {
+          const before = state.cv;
+          setCV(cv);
+          setNotice("Keyword added to your skills", () => setCV(before));
+        }}
+        onGate={(g) => {
+          setMatching(false);
+          setGate(g);
+        }}
+      />
+      <Dialog open={atsOpen} onClose={() => setAtsOpen(false)} title="ATS score and report" size="lg">
+        <AtsPanel
+          report={report}
+          full={fullReport}
+          onFix={(step) => {
+            setAtsOpen(false);
+            editSection(step);
+          }}
+          onUnlock={() => {
+            setAtsOpen(false);
+            setGate({ kind: "feature", feature: "ats.fullReport" });
+          }}
+        />
+      </Dialog>
       {cloud && (
         <>
           <ShareDialog resumeId={cloud.resumeId} open={sharing} onClose={() => setSharing(false)} onUpgrade={setGate} />
@@ -539,7 +633,7 @@ export default function Builder({ doc, cloud, banner }: Props) {
       )}
       {fileInput}
       {toast}
-    </>
+    </AiAssistContext.Provider>
   );
 }
 

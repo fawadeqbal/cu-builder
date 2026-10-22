@@ -48,6 +48,7 @@ const fromResume = (r: ResumeDto): Saved => ({
   template: isTemplateId(r.templateId) ? r.templateId : "classic",
   accent: r.accent,
   pageSize: r.pageSize,
+  fontScale: r.style.fontScale,
   step: 0,
   started: true,
 });

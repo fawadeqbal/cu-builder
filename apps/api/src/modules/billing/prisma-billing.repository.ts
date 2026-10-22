@@ -66,6 +66,10 @@ export class PrismaBillingRepository implements BillingRepository {
     });
   }
 
+  async addCredits({ userId, credits, providerRef }: { userId: string; credits: number; providerRef: string }): Promise<void> {
+    await this.db.creditLedger.create({ data: { userId, delta: credits, reason: `purchase:${providerRef}` } });
+  }
+
   async addPass(input: Parameters<BillingRepository["addPass"]>[0]): Promise<void> {
     await this.db.pass.upsert({
       where: { providerRef: input.providerRef },

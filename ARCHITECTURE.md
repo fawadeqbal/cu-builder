@@ -41,6 +41,7 @@ cu-builder/
 │   ├── db/             Prisma schema, migrations, client factory, Nest DatabaseModule
 │   ├── queue/          JobProducer port, BullMQ adapter, Nest QueueModule
 │   ├── storage/        FileStorage port: local disk adapter (S3-compatible later), in-memory double
+│   ├── ai/             Assistant port: task prompts, JSON parsing, no-invention guard, Claude adapter, offline fallback
 │   ├── templates/      CV templates (React), template catalog, print stylesheet
 │   ├── ui/             Shared React icons and small components
 │   ├── config-typescript/  @cvb/tsconfig: base, library, react-library, nestjs, nextjs
@@ -93,11 +94,12 @@ Arrows mean "may import". Anything not drawn is forbidden.
 | Package | Responsibility | Key exports | Built with |
 | --- | --- | --- | --- |
 | `@cvb/shared` | Generic building blocks | `Result`, `ok`/`err`, `AppError` family (`NotFoundError`, `PlanRequiredError`…), `assertNever`, `slugify`, `wordCount` | tsup (ESM) |
-| `@cvb/domain` | Business rules | `CV` types, `emptyCV`, `normalizeCV`, `sampleCV`, `cvChecks`, `cvStrength`, `stepState`, `parseResumeText` (import), `cvToText` (TXT export), `PLANS`, `FEATURES`, `can`, `LIMITS`, `canUseTemplateTier`, `OFFERS`, `effectivePlan` | tsup |
+| `@cvb/domain` | Business rules | `CV` types, `emptyCV`, `normalizeCV`, `sampleCV`, `cvChecks`, `cvStrength`, `stepState`, `parseResumeText` (import), `cvToText` (TXT export), `atsReport` (ATS score), `matchJob`/`addKeyword` (job match), `diffCV`/`applyChanges` (reviewable edits), `guardNumbers`/`creditBalance`/`AI_TASKS` (AI rules), `PLANS`, `FEATURES`, `can`, `LIMITS`, `canUseTemplateTier`, `OFFERS`, `effectivePlan` | tsup |
 | `@cvb/contracts` | Boundary shapes | Resume, version, share-link, import, billing, account, admin and analytics schemas; `ApiErrorSchema`, `PaginationQuerySchema`, `QUEUES`, `JOBS`, job payload schemas | tsup |
 | `@cvb/config` | Environment | `ApiEnvSchema`, `WorkerEnvSchema`, `loadEnv` | tsup |
 | `@cvb/db` | Persistence | `createDbClient`, Prisma model types and enums, `planToDomain`/`planToDb`; `@cvb/db/nest`: `DatabaseModule`, `DB` token | Prisma generate + tsc |
 | `@cvb/queue` | Background jobs | `JobProducer`, `JOB_PRODUCER`, `BullMqJobProducer`, `InMemoryJobProducer`, `parseJob`; `@cvb/queue/nest`: `QueueModule` | tsup |
+| `@cvb/ai` | AI writing | `Assistant` (improve bullet, summary, rewrite, skills, tailor, cover letter, interview, STAR, company brief), `LlmAssistant` over a `TextModel` port, `OfflineAssistant`, `ASSISTANT`; `@cvb/ai/anthropic`: `AnthropicTextModel` | tsup |
 | `@cvb/storage` | Files | `FileStorage`, `FILE_STORAGE`, `LocalDiskStorage`, `InMemoryStorage` | tsup |
 | `@cvb/templates` | CV rendering | `CVDocument`, all templates; `@cvb/templates/catalog`: `TEMPLATES`, `TIERS`, `ACCENTS`, `templateMeta`, `applyOverrides`; `@cvb/templates/styles.css` (A4 and US Letter sheets) | tsup + CSS copy |
 | `@cvb/ui` | Shared React UI | Icons, `TierBadge` | tsup |
@@ -167,6 +169,9 @@ All under `/api/v1` except Better Auth (`/api/auth/*`).
 | Resumes | `GET resumes`, `POST resumes`, `GET/PATCH/DELETE resumes/:id`, `POST resumes/:id/duplicate`, `GET resumes/trash`, `POST resumes/:id/restore`, `GET/POST resumes/:id/versions`, `POST resumes/:id/versions/:versionId/restore` |
 | Sharing | `GET/POST resumes/:id/share-links`, `PATCH/DELETE share-links/:id`, `GET public/r/:slug` and `POST public/r/:slug/unlock` (public) |
 | Import | `POST imports` (multipart, PDF/DOCX ≤ 5 MB), `GET imports`, `GET imports/:id` |
+| AI | `GET ai/credits`, `POST ai/improve-bullet`, `POST ai/write-summary`, `POST ai/rewrite`, `POST ai/suggest-skills` (metered by credits, throttled) |
+| Jobs | `GET/POST jobs`, `POST jobs/import` (read a posting from a link, SSRF-safe), `GET/PATCH/DELETE jobs/:id`, `POST jobs/:id/match`, `POST jobs/:id/tailor` |
+| Cover letters | `GET/POST cover-letters`, `POST cover-letters/draft`, `GET/PATCH/DELETE cover-letters/:id`, `GET public/l/:slug` (public) |
 | Billing | `GET billing/offers` (public), `GET billing/status`, `POST billing/checkout`, `POST billing/portal`, `POST billing/webhooks/:provider` (public, raw body, signature-checked, idempotent) |
 | Templates | `GET templates/settings` (public: admin overrides) |
 | Analytics | `POST events` (public, batched, throttled) |
@@ -362,5 +367,8 @@ curl -H "x-dev-user: dev@cvbuilder.local" http://localhost:4000/api/v1/resumes
 | 10 | Own VPS: Docker Compose + Caddy | One server runs everything (web, api, worker, Postgres, Redis); automatic HTTPS; images from GHCR. See docs/DEPLOYMENT.md |
 | 11 | PDF and Word built in the browser | The preview is the PDF (same DOM), no headless browser to host; the API gates what's saved, the client gates downloads |
 | 12 | Locked templates are previewable, not savable | Scope promise ("people should always see what they would get") without a loophole in stored data |
+| 13 | ATS score and job match are deterministic domain code; AI only writes | Instant, free and testable scoring; AI cost goes where it adds value, and every AI edit is reviewed (diffs, pick-one suggestions) |
+| 14 | AI behind an `Assistant` port with an offline implementation | Works without a key (development, tests, demos); Claude models chosen per task tier (fast vs smart) by config |
+| 15 | Credits charged only on success, allowance before purchased packs | Fair metering; append-only ledger with the pool in the reason |
 
 New significant decisions get a short ADR in `docs/adr/NNN-title.md` and a row here.

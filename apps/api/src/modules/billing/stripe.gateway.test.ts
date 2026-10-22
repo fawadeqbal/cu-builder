@@ -53,7 +53,7 @@ describe("StripeGateway.parseWebhook", () => {
         },
       },
     });
-    expect(await gateway.parseWebhook(body, header)).toMatchObject({ kind: "pass.purchased", offer: "pass_7d", amountCents: 900 });
+    expect(await gateway.parseWebhook(body, header)).toMatchObject({ kind: "payment.completed", offer: "pass_7d", amountCents: 900 });
   });
 
   it("rejects bad signatures", async () => {

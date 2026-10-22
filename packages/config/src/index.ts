@@ -35,10 +35,18 @@ export const AppUrlEnvSchema = z.object({
   APP_URL: z.url().default("http://localhost:3000"),
 });
 
+/** Claude for AI writing. Without a key the app uses a deterministic offline assistant. */
+export const AiEnvSchema = z.object({
+  ANTHROPIC_API_KEY: optional,
+  AI_MODEL_FAST: z.string().default("claude-haiku-5-5"),
+  AI_MODEL_SMART: z.string().default("claude-sonnet-5-5"),
+});
+
 export const ApiEnvSchema = BaseEnvSchema.extend(DatabaseEnvSchema.shape)
   .extend(RedisEnvSchema.shape)
   .extend(StorageEnvSchema.shape)
   .extend(AppUrlEnvSchema.shape)
+  .extend(AiEnvSchema.shape)
   .extend({
     BETTER_AUTH_SECRET: z.string().min(32, "BETTER_AUTH_SECRET must be at least 32 characters"),
     GOOGLE_CLIENT_ID: optional,

@@ -13,6 +13,7 @@ import { FitPageIcon, FitWidthIcon, MinusIcon, PlusIcon, SwapIcon } from "@cvb/u
 const PRINT_MARGIN_MM = 10 + 12; // top + bottom @page margin in globals.css
 const PAD = 24; // space around the sheet inside the pane
 const MIN_SCALE = 0.3;
+const MIN_FONT_SCALE = 0.8;
 const MAX_SCALE = 2;
 
 type Props = {
@@ -22,6 +23,12 @@ type Props = {
   accent: string | null;
   onAccent: (a: string | null) => void;
   pageSize: PageSize;
+  /** "Fit to one page" type scale (1 = template size). */
+  fontScale: number;
+  onFontScale: (scale: number) => void;
+  /** Reports the page count whenever it changes. */
+  onPages?: (pages: number) => void;
+  onNotice?: (text: string, undo?: () => void) => void;
   templatesHref: string;
   zoom: Zoom;
   onZoom: (z: Zoom) => void;
@@ -37,7 +44,24 @@ type Metrics = { paperW: number; paperH: number; fitWidth: number; fitPage: numb
 const clampScale = (s: number) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, s));
 
 /** The live A4 preview with its toolbar: template, zoom and page count. */
-export function Preview({ cv, template, onTemplate, accent, onAccent, pageSize, templatesHref, zoom, onZoom, activeStep, onEditSection, onSwap }: Props) {
+export function Preview({
+  cv,
+  template,
+  onTemplate,
+  accent,
+  onAccent,
+  pageSize,
+  fontScale,
+  onFontScale,
+  onPages,
+  onNotice,
+  templatesHref,
+  zoom,
+  onZoom,
+  activeStep,
+  onEditSection,
+  onSwap,
+}: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const paperRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
@@ -45,6 +69,10 @@ export function Preview({ cv, template, onTemplate, accent, onAccent, pageSize, 
 
   const scale = zoom === "width" ? m.fitWidth : zoom === "page" ? m.fitPage : zoom;
   const scaleRef = useRef(scale);
+  const onPagesRef = useRef(onPages);
+  useEffect(() => {
+    onPagesRef.current = onPages;
+  }, [onPages]);
   useEffect(() => {
     scaleRef.current = scale;
   }, [scale]);
@@ -63,13 +91,15 @@ export function Preview({ cv, template, onTemplate, accent, onAccent, pageSize, 
       const { w, h } = PAGE_SIZES[pageSize];
       const pxPerMm = paperW / w;
       const contentMm = paperH / pxPerMm - PRINT_MARGIN_MM;
+      const pages = Math.max(1, Math.ceil(contentMm / (h - PRINT_MARGIN_MM) - 0.02));
       setM({
         paperW,
         paperH,
         fitWidth: Math.min(1, availW / paperW),
         fitPage: Math.min(1, availW / paperW, availH / (h * pxPerMm)),
-        pages: Math.max(1, Math.ceil(contentMm / (h - PRINT_MARGIN_MM) - 0.02)),
+        pages,
       });
+      onPagesRef.current?.(pages);
     };
 
     measure();
@@ -107,6 +137,36 @@ export function Preview({ cv, template, onTemplate, accent, onAccent, pageSize, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeStep, m.paperW > 0]);
 
+  /**
+   * "Fit to one page": tries type sizes from 100% down to 80% on the live sheet (no re-render
+   * per step) and keeps the largest that fits on one page.
+   */
+  function fitToPage() {
+    const paper = paperRef.current;
+    const doc = paper?.querySelector<HTMLElement>(".cv-doc");
+    if (!paper || !doc) return;
+    const { w, h } = PAGE_SIZES[pageSize];
+    const previous = doc.style.zoom;
+    // The sheet has a minimum height of one page, so it fits when it hasn't grown past it.
+    const fits = () => paper.offsetHeight / (paper.offsetWidth / w) <= h + 0.3;
+    let best: number | null = null;
+    for (let s = 1; s >= MIN_FONT_SCALE - 0.001; s = Math.round((s - 0.02) * 100) / 100) {
+      doc.style.zoom = String(s);
+      if (fits()) {
+        best = s;
+        break;
+      }
+    }
+    doc.style.zoom = previous;
+    const before = fontScale;
+    if (best === null) {
+      onNotice?.("Still longer than one page at the smallest size. Shorten older entries or the summary.");
+      return;
+    }
+    onFontScale(best);
+    onNotice?.(best === 1 ? "It already fits on one page" : `Fits on one page at ${Math.round(best * 100)}% text size`, best === before ? undefined : () => onFontScale(before));
+  }
+
   function onPaperClick(e: MouseEvent<HTMLDivElement>) {
     if (!onEditSection) return;
     const el = e.target as HTMLElement;
@@ -126,8 +186,18 @@ export function Preview({ cv, template, onTemplate, accent, onAccent, pageSize, 
       <div className="@container flex h-12 shrink-0 items-center gap-2 border-b border-stone-200 bg-white/85 px-3 backdrop-blur">
         <span className="hidden shrink-0 items-center gap-1.5 rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-600 @md:flex">
           <span className="tabular-nums">{m.pages}</span> {m.pages === 1 ? "page" : "pages"}
-          <span className="text-stone-400">· A4</span>
+          <span className="text-stone-400">· {PAGE_SIZES[pageSize].label}</span>
         </span>
+        {(m.pages > 1 || fontScale !== 1) && (
+          <button
+            type="button"
+            onClick={fontScale !== 1 && m.pages === 1 ? () => onFontScale(1) : fitToPage}
+            title={fontScale !== 1 ? `Text at ${Math.round(fontScale * 100)}%` : "Shrink spacing and text slightly so the CV fits on one page"}
+            className="hidden shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold text-brand ring-1 ring-inset ring-brand/30 hover:bg-brand/5 @md:block"
+          >
+            {fontScale !== 1 && m.pages === 1 ? `Reset size (${Math.round(fontScale * 100)}%)` : "Fit to one page"}
+          </button>
+        )}
 
         <div className="@md:ml-auto">
           <TemplatePicker template={template} accent={accent} onTemplate={onTemplate} onAccent={onAccent} templatesHref={templatesHref} />
@@ -186,8 +256,19 @@ export function Preview({ cv, template, onTemplate, accent, onAccent, pageSize, 
               data-size={paperSizeAttr(pageSize)}
               onClick={onPaperClick}
             >
-              <CVDocument cv={cv} template={template} accent={accent} />
+              <CVDocument cv={cv} template={template} accent={accent} scale={fontScale} />
             </div>
+            {/* Where pages break, roughly: printing and the PDF cut at the nearest clean gap above. */}
+            {m.paperW > 0 &&
+              Array.from({ length: m.pages - 1 }, (_, i) => {
+                const pxPerMm = m.paperW / PAGE_SIZES[pageSize].w;
+                const top = (10 + (i + 1) * (PAGE_SIZES[pageSize].h - PRINT_MARGIN_MM)) * pxPerMm;
+                return (
+                  <div key={i} aria-hidden="true" className="pointer-events-none absolute inset-x-0 border-t-2 border-dashed border-rose-300/80" style={{ top }}>
+                    <span className="absolute -top-2.5 right-2 rounded bg-rose-50 px-1.5 text-[10px] font-semibold text-rose-500">Page {i + 2}</span>
+                  </div>
+                );
+              })}
           </div>
         </div>
         {onEditSection && (
@@ -199,7 +280,7 @@ export function Preview({ cv, template, onTemplate, accent, onAccent, pageSize, 
 }
 
 /** A small live thumbnail of the first page, used as a shortcut back to the preview. */
-export function MiniPreview({ cv, template, accent, onOpen }: { cv: CV; template: TemplateId; accent: string | null; onOpen: () => void }) {
+export function MiniPreview({ cv, template, accent, scale = 1, onOpen }: { cv: CV; template: TemplateId; accent: string | null; scale?: number; onOpen: () => void }) {
   return (
     <button
       type="button"
@@ -210,7 +291,7 @@ export function MiniPreview({ cv, template, accent, onOpen }: { cv: CV; template
       <div aria-hidden="true" className="relative h-[176px] overflow-hidden bg-stone-100">
         <div className="absolute left-2 top-2 w-[210mm] origin-top-left scale-[0.168]">
           <div className="paper">
-            <CVDocument cv={cv} template={template} accent={accent} />
+            <CVDocument cv={cv} template={template} accent={accent} scale={scale} />
           </div>
         </div>
       </div>

@@ -46,12 +46,13 @@ export function PricingPage() {
   const subFor = (plan: Plan) => list.find((o) => o.kind === "subscription" && o.plan === plan && o.interval === interval);
   const monthly = (plan: Plan) => list.find((o) => o.kind === "subscription" && o.plan === plan && o.interval === "month");
   const passes = list.filter((o) => o.kind === "pass");
+  const packs = list.filter((o) => o.kind === "credits");
   const current = me.data?.plan ?? "free";
   const hasSubscription = Boolean(billing.data?.subscription);
   const localAvailable = false; // the local gateway is not connected yet (see BillingModule)
 
   function buy(offer: OfferDto) {
-    if (!me.data) return router.push(`/sign-up?next=${encodeURIComponent(`/pricing?plan=${offer.plan}`)}`);
+    if (!me.data) return router.push(`/sign-up?next=${encodeURIComponent(`/pricing?plan=${offer.plan ?? "premium"}`)}`);
     if (offer.kind === "subscription" && hasSubscription && billing.data?.canManage) return portal.mutate();
     checkout.mutate(offer.id);
   }
@@ -153,6 +154,28 @@ export function PricingPage() {
             ))}
           </div>
         </section>
+
+        {packs.length > 0 && (
+          <section id="credits" className={`${card} mt-4 grid scroll-mt-20 gap-6 p-6 md:grid-cols-[1.2fr_2fr] md:items-center`}>
+            <div>
+              <h2 className="text-lg font-semibold text-stone-900">AI credit packs</h2>
+              <p className="mt-1 text-sm text-stone-600">Extra credits on top of your monthly allowance. They never expire and are used after the monthly ones.</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {packs.map((p) => (
+                <div key={p.id} className="flex items-center justify-between gap-3 rounded-xl bg-stone-50 p-4 ring-1 ring-stone-200">
+                  <div>
+                    <div className="text-sm font-semibold text-stone-900">{p.credits} credits</div>
+                    <div className="text-xs text-stone-500">{formatPrice(p.priceCents, p.currency)} once</div>
+                  </div>
+                  <button type="button" className={btn.secondary} disabled={!p.available || checkout.isPending} onClick={() => buy(p)}>
+                    {p.available ? "Buy" : "Soon"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         <p className="mt-8 text-center text-xs text-stone-500">
           Prices in US dollars. Cancel any time; you keep your plan until the end of the period you paid for. Every template stays free to preview.

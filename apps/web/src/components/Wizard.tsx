@@ -6,7 +6,7 @@ import { STEPS, type StepId } from "@/lib/steps";
 import type { CV } from "@cvb/domain";
 import type { TemplateId } from "@cvb/templates/catalog";
 import type { ExportActions } from "@/lib/exports";
-import { FinishStep } from "./FinishStep";
+import { FinishStep, type FinishAts } from "./FinishStep";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
@@ -43,6 +43,7 @@ type Props = {
   accent: string | null;
   onAccent: (a: string | null) => void;
   actions: ExportActions;
+  ats: FinishAts;
 };
 
 export const STEP_ICONS: Record<StepId, (p: { className?: string }) => ReactNode> = {
@@ -81,7 +82,7 @@ function isEmptyStep(cv: CV, id: string): boolean {
  * The step-by-step editor: a step rail on the left (icons only when the pane is narrow,
  * a compact dropdown on phones) and the current step's form on the right.
  */
-export function Wizard({ cv, onChange, step, onStep, template, onTemplate, accent, onAccent, actions }: Props) {
+export function Wizard({ cv, onChange, step, onStep, template, onTemplate, accent, onAccent, actions, ats }: Props) {
   const index = Math.min(Math.max(step, 0), STEPS.length - 1);
   const current = STEPS[index];
   const [showErrors, setShowErrors] = useState(false);
@@ -146,7 +147,7 @@ export function Wizard({ cv, onChange, step, onStep, template, onTemplate, accen
             {current.id === "projects" && <ProjectsSection cv={cv} onChange={onChange} />}
             {current.id === "extras" && <ExtrasSection cv={cv} onChange={onChange} />}
             {current.id === "finish" && (
-              <FinishStep cv={cv} template={template} onTemplate={onTemplate} accent={accent} onAccent={onAccent} onGoTo={goTo} actions={actions} />
+              <FinishStep cv={cv} template={template} onTemplate={onTemplate} accent={accent} onAccent={onAccent} onGoTo={goTo} actions={actions} ats={ats} />
             )}
 
             {current.tips.length > 0 && <Tips tips={current.tips} />}

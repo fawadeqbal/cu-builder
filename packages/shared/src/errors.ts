@@ -10,6 +10,8 @@ export type ErrorCode =
   | "FORBIDDEN"
   | "PLAN_REQUIRED"
   | "PASSWORD_REQUIRED"
+  | "CREDITS_EXHAUSTED"
+  | "UPSTREAM_FAILED"
   | "RATE_LIMITED"
   | "INTERNAL";
 
@@ -65,6 +67,18 @@ export class PasswordRequiredError extends AppError {
   constructor(message = "This CV is protected with a password") {
     super(message);
   }
+}
+
+export class CreditsExhaustedError extends AppError {
+  readonly code = "CREDITS_EXHAUSTED" as const;
+  constructor(needed: number, remaining: number) {
+    super(`This needs ${needed} AI credit${needed === 1 ? "" : "s"} and you have ${remaining} left this month`, { needed, remaining });
+  }
+}
+
+/** A provider we depend on (AI, job feeds, payments) failed or returned something unusable. */
+export class UpstreamError extends AppError {
+  readonly code = "UPSTREAM_FAILED" as const;
 }
 
 export const isAppError = (e: unknown): e is AppError => e instanceof AppError;

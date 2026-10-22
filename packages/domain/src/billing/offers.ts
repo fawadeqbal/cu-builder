@@ -12,11 +12,14 @@ export type OfferId =
   | "executive_monthly"
   | "executive_yearly"
   | "pass_7d"
-  | "pass_30d";
+  | "pass_30d"
+  | "credits_100";
 
 export type Offer =
   | { id: OfferId; kind: "subscription"; plan: Exclude<Plan, "free">; interval: "month" | "year"; priceCents: number }
-  | { id: OfferId; kind: "pass"; plan: Exclude<Plan, "free">; days: number; priceCents: number };
+  | { id: OfferId; kind: "pass"; plan: Exclude<Plan, "free">; days: number; priceCents: number }
+  /** An AI credit pack: credits that don't expire, on top of the monthly allowance. */
+  | { id: OfferId; kind: "credits"; credits: number; priceCents: number };
 
 export const CURRENCY = "usd";
 
@@ -29,6 +32,7 @@ export const OFFERS: readonly Offer[] = [
   { id: "executive_yearly", kind: "subscription", plan: "executive", interval: "year", priceCents: 34_900 },
   { id: "pass_7d", kind: "pass", plan: "premium", days: 7, priceCents: 900 },
   { id: "pass_30d", kind: "pass", plan: "premium", days: 30, priceCents: 1_900 },
+  { id: "credits_100", kind: "credits", credits: 100, priceCents: 500 },
 ];
 
 export const OFFER_IDS = OFFERS.map((o) => o.id) as [OfferId, ...OfferId[]];

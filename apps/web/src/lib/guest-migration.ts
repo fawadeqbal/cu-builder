@@ -28,6 +28,7 @@ export function migrateGuestCv(): Promise<MigrationResult> {
         templateId: saved.template,
         accent: saved.accent,
         pageSize: saved.pageSize,
+        style: { fontScale: saved.fontScale },
         data: saved.cv,
       });
       clearSaved();

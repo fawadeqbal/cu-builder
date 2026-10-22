@@ -37,7 +37,7 @@ export function useGuestDocument(): DocumentController {
   return { state, update, status: "local", conflict: false, resolveConflict: () => {}, flush: async () => {}, applyServer: () => {} };
 }
 
-type CloudFields = Pick<Saved, "cv" | "template" | "accent" | "pageSize">;
+type CloudFields = Pick<Saved, "cv" | "template" | "accent" | "pageSize" | "fontScale">;
 /** Unsaved edits kept in the browser, with the server version they were made on. */
 type Pending = CloudFields & { base?: string };
 
@@ -68,9 +68,16 @@ const fromResume = (r: ResumeDto): CloudFields => ({
   template: isTemplateId(r.templateId) ? r.templateId : "classic",
   accent: r.accent,
   pageSize: r.pageSize,
+  fontScale: r.style?.fontScale ?? 1,
 });
 
-const toPatch = (f: CloudFields): UpdateResumeDto => ({ data: f.cv, templateId: f.template, accent: f.accent, pageSize: f.pageSize });
+const toPatch = (f: CloudFields): UpdateResumeDto => ({
+  data: f.cv,
+  templateId: f.template,
+  accent: f.accent,
+  pageSize: f.pageSize,
+  style: { fontScale: f.fontScale },
+});
 
 /**
  * A CV stored in the user's account. Edits save automatically shortly after typing stops.
@@ -174,11 +181,11 @@ export function useCloudDocument(resume: ResumeDto): DocumentController {
       stateRef.current = next;
       setState(next);
       if ("step" in patch) writeLocal(stepKey(id), next.step);
-      const contentChanged = (["cv", "template", "accent", "pageSize"] as const).some((k) => k in patch && patch[k] !== s[k]);
+      const contentChanged = (["cv", "template", "accent", "pageSize", "fontScale"] as const).some((k) => k in patch && patch[k] !== s[k]);
       if (!contentChanged) return;
       dirty.current = true;
       seq.current++;
-      const pending: Pending = { cv: next.cv, template: next.template, accent: next.accent, pageSize: next.pageSize, base: serverAt.current };
+      const pending: Pending = { cv: next.cv, template: next.template, accent: next.accent, pageSize: next.pageSize, fontScale: next.fontScale, base: serverAt.current };
       writeLocal(pendingKey(id), pending);
       clearTimeout(timer.current);
       timer.current = setTimeout(() => void flush(), SAVE_DELAY);

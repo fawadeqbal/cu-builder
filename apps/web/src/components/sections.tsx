@@ -2,6 +2,9 @@
 
 import { newId } from "@cvb/domain";
 import type { CV, ListKey, Personal } from "@cvb/domain";
+import { BulletsAssist } from "./ai/BulletsAssist";
+import { SkillsAssist } from "./ai/SkillsAssist";
+import { SummaryAssist } from "./ai/SummaryAssist";
 import { AddButton, ItemCard, LinesField, Panel, TextArea, TextField } from "./fields";
 
 export type SectionProps = { cv: CV; onChange: (cv: CV) => void };
@@ -128,6 +131,7 @@ export function SummarySection({ cv, onChange }: SectionProps) {
           placeholder="Who you are, what you build or do, and what you are best at."
           onChange={(v) => onChange({ ...cv, summary: v })}
         />
+        <SummaryAssist cv={cv} onChange={(summary) => onChange({ ...cv, summary })} />
         <div className="flex items-center gap-3 text-xs">
           <span className={`font-medium ${tone}`}>{label}</span>
           <span className="h-1 flex-1 overflow-hidden rounded-full bg-stone-100" aria-hidden="true">
@@ -189,6 +193,9 @@ export function ExperienceSection({ cv, onChange }: SectionProps) {
             placeholder={"Built a booking dashboard used by 120 clinics\nCut page load time from 4 s to 1 s"}
             onChange={(v) => set("experience", e.id, { bullets: v })}
           />
+          <div className="-mt-2">
+            <BulletsAssist bullets={e.bullets} role={e.role} company={e.company} onChange={(v) => set("experience", e.id, { bullets: v })} />
+          </div>
           <TextField
             label="Tools used (optional)"
             value={e.stack}
@@ -237,6 +244,7 @@ export function SkillsSection({ cv, onChange }: SectionProps) {
 
   return (
     <div className="flex flex-col gap-3">
+      <SkillsAssist cv={cv} onChange={onChange} />
       {suggestions.length > 0 && (
         <div className="flex flex-col gap-2">
           <span className="text-xs font-medium text-stone-500">Quick add a group:</span>
@@ -301,6 +309,9 @@ export function ProjectsSection({ cv, onChange }: SectionProps) {
             placeholder={"Kanban board with drag and drop\nJWT login and REST API"}
             onChange={(v) => set("projects", p.id, { bullets: v })}
           />
+          <div className="-mt-2">
+            <BulletsAssist bullets={p.bullets} role={p.name} onChange={(v) => set("projects", p.id, { bullets: v })} />
+          </div>
           <TextField label="Tools used (optional)" value={p.stack} placeholder="React, Express, MongoDB" onChange={(v) => set("projects", p.id, { stack: v })} />
         </ItemCard>
       ))}

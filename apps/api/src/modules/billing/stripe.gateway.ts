@@ -34,9 +34,13 @@ export class StripeGateway implements PaymentGateway {
       });
       customerRef = created.id;
     }
-    const metadata = { userId: customer.userId, offer: offer.id, plan: offer.plan };
+    const metadata = { userId: customer.userId, offer: offer.id, ...(offer.kind === "credits" ? {} : { plan: offer.plan }) };
     const productName =
-      offer.kind === "pass" ? `${PLAN_NAMES[offer.plan]} pass — ${offer.days} days` : `CV Builder ${PLAN_NAMES[offer.plan]}`;
+      offer.kind === "pass"
+        ? `${PLAN_NAMES[offer.plan]} pass — ${offer.days} days`
+        : offer.kind === "credits"
+          ? `${offer.credits} AI credits`
+          : `CV Builder ${PLAN_NAMES[offer.plan]}`;
 
     const session = await this.stripe.checkout.sessions.create({
       customer: customerRef,
@@ -83,6 +87,7 @@ export class StripeGateway implements PaymentGateway {
       case "customer.subscription.deleted": {
         const sub = event.data.object;
         const offer = offerById(sub.metadata["offer"] as OfferId);
+        if (offer.kind !== "subscription") return { kind: "ignored", id: event.id, type: event.type };
         const periodEnd = sub.items.data[0]?.current_period_end ?? Math.floor(Date.now() / 1000);
         return {
           kind: "subscription.changed",
@@ -100,7 +105,7 @@ export class StripeGateway implements PaymentGateway {
         const session = event.data.object;
         if (session.mode !== "payment" || session.payment_status !== "paid") return { kind: "ignored", id: event.id, type: event.type };
         return {
-          kind: "pass.purchased",
+          kind: "payment.completed",
           id: event.id,
           userId: session.metadata?.["userId"] ?? session.client_reference_id ?? "",
           offer: session.metadata?.["offer"] as OfferId,

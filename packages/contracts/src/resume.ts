@@ -75,12 +75,20 @@ export const AccentSchema = z
 export const PageSizeSchema = z.enum(["A4", "LETTER"]);
 export type PageSize = z.output<typeof PageSizeSchema>;
 
+/** Presentation settings that aren't content ("Fit to one page" shrinks the type a little). */
+export const ResumeStyleSchema = z.object({ fontScale: z.number().min(0.7).max(1.15).default(1) });
+export type ResumeStyle = z.output<typeof ResumeStyleSchema>;
+
 export const CreateResumeSchema = z.object({
   title: z.string().trim().min(1).max(120).default("Untitled CV"),
   templateId: TemplateIdSchema.default("classic"),
   accent: AccentSchema.default(null),
   pageSize: PageSizeSchema.default("A4"),
+  style: ResumeStyleSchema.optional(),
   data: ResumeDataSchema.optional(),
+  /** A tailored copy: the CV it comes from and the job it targets. */
+  baseResumeId: z.string().min(1).max(64).optional(),
+  jobId: z.string().min(1).max(64).optional(),
 });
 export type CreateResumeInput = z.input<typeof CreateResumeSchema>;
 export type CreateResumeDto = z.output<typeof CreateResumeSchema>;
@@ -91,6 +99,7 @@ export const UpdateResumeSchema = z
     templateId: TemplateIdSchema,
     accent: AccentSchema,
     pageSize: PageSizeSchema,
+    style: ResumeStyleSchema,
     data: ResumeDataSchema,
     /** Keep a restorable copy of the previous version. */
     snapshot: z.boolean(),
@@ -105,6 +114,9 @@ export const ResumeSummarySchema = z.object({
   templateId: z.string(),
   accent: z.string().nullable(),
   pageSize: PageSizeSchema,
+  style: ResumeStyleSchema,
+  baseResumeId: z.string().nullable(),
+  jobId: z.string().nullable(),
   updatedAt: z.string(),
   createdAt: z.string(),
 });

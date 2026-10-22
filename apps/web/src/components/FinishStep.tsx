@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { cvChecks } from "@cvb/domain";
+import type { AtsReport } from "@cvb/domain";
 import { STEPS } from "@/lib/steps";
 import type { CV } from "@cvb/domain";
 import type { TemplateId } from "@cvb/templates/catalog";
@@ -11,6 +11,9 @@ import { isUnlocked, usePlan } from "@/lib/access";
 import { useCatalog } from "@/lib/catalog";
 import { EXPORT_LABEL, type ExportActions } from "@/lib/exports";
 import { PAGE_SIZES, paperSizeAttr, type PageSize } from "@/lib/page";
+import { AtsPanel } from "./ats/AtsPanel";
+
+export type FinishAts = { report: AtsReport; full: boolean; onUnlock: () => void };
 
 type Props = {
   cv: CV;
@@ -20,14 +23,13 @@ type Props = {
   onAccent: (a: string | null) => void;
   onGoTo: (step: number) => void;
   actions: ExportActions;
+  ats: FinishAts;
 };
 
-export function FinishStep({ cv, template, onTemplate, accent, onAccent, onGoTo, actions }: Props) {
+export function FinishStep({ cv, template, onTemplate, accent, onAccent, onGoTo, actions, ats }: Props) {
   const { templates, meta: metaOf } = useCatalog();
   const { plan } = usePlan();
   const meta = metaOf(template);
-  const list = cvChecks(cv);
-  const done = list.filter((c) => c.ok).length;
 
   return (
     <div className="flex flex-col gap-7">
@@ -127,41 +129,7 @@ export function FinishStep({ cv, template, onTemplate, accent, onAccent, onGoTo,
         </div>
       </section>
 
-      <section className="flex flex-col gap-3">
-        <div className="flex items-baseline justify-between">
-          <h3 className="text-sm font-semibold text-stone-800">CV check</h3>
-          <span className="text-xs text-stone-500">
-            {done} of {list.length} complete
-          </span>
-        </div>
-        <ul className="divide-y divide-stone-100 rounded-2xl border border-stone-200 bg-white shadow-xs">
-          {list.map((c) => (
-            <li key={c.label} className="flex items-center gap-3 px-3 py-2.5 text-sm">
-              <span
-                className={`grid size-5 shrink-0 place-items-center rounded-full text-[11px] font-bold ${
-                  c.ok ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
-                }`}
-                aria-hidden="true"
-              >
-                {c.ok ? "✓" : "!"}
-              </span>
-              <span className="flex-1 text-stone-700">
-                {c.label}
-                {!c.ok && <span className="block text-xs text-stone-500">{c.hint}</span>}
-              </span>
-              {!c.ok && (
-                <button
-                  type="button"
-                  onClick={() => onGoTo(STEPS.findIndex((s) => s.id === c.step))}
-                  className="text-xs font-semibold text-brand hover:underline"
-                >
-                  Fix
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
-      </section>
+      <AtsPanel report={ats.report} full={ats.full} onUnlock={ats.onUnlock} onFix={(step) => onGoTo(STEPS.findIndex((s) => s.id === step))} />
 
       <section className="flex flex-col gap-4 rounded-2xl bg-brand/5 p-5 ring-1 ring-brand/15">
         <div className="flex items-center justify-between gap-3">

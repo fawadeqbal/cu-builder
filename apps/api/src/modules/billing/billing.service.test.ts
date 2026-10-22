@@ -30,6 +30,10 @@ class FakeBillingRepo implements BillingRepository {
     this.profileData.subscriptions = this.profileData.subscriptions.filter((s) => s.providerRef !== input.providerRef);
     this.profileData.subscriptions.push({ ...input });
   }
+  credits: { userId: string; credits: number }[] = [];
+  async addCredits(input: { userId: string; credits: number; providerRef: string }) {
+    this.credits.push(input);
+  }
   async addPass(input: Parameters<BillingRepository["addPass"]>[0]) {
     this.profileData.passes.push({ plan: input.plan, startsAt: input.startsAt, endsAt: input.endsAt });
   }
@@ -70,13 +74,13 @@ describe("BillingService", () => {
 
   it("grants a pass and emails a receipt", async () => {
     const { service, jobs } = setup();
-    await service.apply({ kind: "pass.purchased", id: "evt_2", userId: "u1", offer: "pass_7d", paymentRef: "cs_1", amountCents: 900, currency: "usd" });
+    await service.apply({ kind: "payment.completed", id: "evt_2", userId: "u1", offer: "pass_7d", paymentRef: "cs_1", amountCents: 900, currency: "usd" });
     expect((await service.status({ ...user })).plan).toBe("premium");
     expect(jobs.jobs[0]?.payload).toMatchObject({ template: "receipt", amountCents: 900, currency: "USD" });
   });
 
   it("applies each webhook event once", async () => {
-    const event: BillingEvent = { kind: "pass.purchased", id: "evt_3", userId: "u1", offer: "pass_30d", paymentRef: "cs_2", amountCents: 1900, currency: "usd" };
+    const event: BillingEvent = { kind: "payment.completed", id: "evt_3", userId: "u1", offer: "pass_30d", paymentRef: "cs_2", amountCents: 1900, currency: "usd" };
     const gateway: PaymentGateway = {
       id: "stripe",
       available: true,

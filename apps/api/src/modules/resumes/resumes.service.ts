@@ -22,6 +22,9 @@ export const toSummary = (r: ResumeRecord): ResumeSummary => ({
   templateId: r.templateId,
   accent: r.accent,
   pageSize: r.pageSize,
+  style: r.style,
+  baseResumeId: r.baseResumeId,
+  jobId: r.jobId,
   createdAt: r.createdAt.toISOString(),
   updatedAt: r.updatedAt.toISOString(),
 });
@@ -45,6 +48,13 @@ export class ResumesService {
     return toDto(await this.owned(user, id));
   }
 
+  /** A resume by owner id, for features that act for the owner (e.g. a public cover letter's sender). */
+  async getForOwner(userId: string, id: string): Promise<ResumeDto> {
+    const resume = await this.resumes.findOwned(id, userId);
+    if (!resume) throw new NotFoundError("Resume", id);
+    return toDto(resume);
+  }
+
   async create(user: AuthUser, dto: CreateResumeDto): Promise<ResumeDto> {
     await this.assertCanAddResume(user);
     await this.assertTemplateAllowed(user, dto.templateId);
@@ -54,7 +64,10 @@ export class ResumesService {
       templateId: dto.templateId,
       accent: dto.accent,
       pageSize: dto.pageSize,
+      style: dto.style ?? { fontScale: 1 },
       data: dto.data ?? emptyCV,
+      baseResumeId: dto.baseResumeId ? (await this.owned(user, dto.baseResumeId)).id : null,
+      jobId: dto.jobId && (await this.resumes.jobOwned(dto.jobId, user.id)) ? dto.jobId : null,
     });
     return toDto(created);
   }

@@ -167,9 +167,18 @@ export function Dashboard({ me }: { me: MeDto }) {
         <EmptyState onCreate={() => create.mutate()} onUpload={() => fileRef.current?.click()} highlightUpload={wantsImport} onDrop={pickFile} />
       ) : (
         <ul className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {list.map((r) => (
-            <ResumeCard key={r.id} resume={r} onChanged={refresh} onError={onPlanError} onNotice={setNotice} />
-          ))}
+          {list
+            .filter((r) => !r.baseResumeId || !list.some((b) => b.id === r.baseResumeId))
+            .map((r) => (
+              <ResumeCard
+                key={r.id}
+                resume={r}
+                copies={list.filter((c) => c.baseResumeId === r.id)}
+                onChanged={refresh}
+                onError={onPlanError}
+                onNotice={setNotice}
+              />
+            ))}
           {wantsImport && <DropZone onFile={pickFile} />}
         </ul>
       )}
@@ -210,11 +219,14 @@ function VerifyBanner({ email }: { email: string }) {
 
 function ResumeCard({
   resume,
+  copies = [],
   onChanged,
   onError,
   onNotice,
 }: {
   resume: ResumeSummary;
+  /** Tailored copies made from this CV, shown under it. */
+  copies?: ResumeSummary[];
   onChanged: () => void;
   onError: (e: Error) => void;
   onNotice: (s: string) => void;
@@ -309,6 +321,20 @@ function ResumeCard({
           </div>
         </details>
       </div>
+      {copies.length > 0 && (
+        <div className="border-t border-stone-100 px-4 py-3">
+          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-stone-400">Tailored copies</div>
+          <ul className="flex flex-col gap-1">
+            {copies.map((c) => (
+              <li key={c.id}>
+                <Link href={`/edit/${c.id}`} className="block truncate text-sm text-stone-700 hover:text-brand">
+                  ↳ {c.title}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </li>
   );
 }

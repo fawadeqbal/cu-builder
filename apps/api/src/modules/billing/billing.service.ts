@@ -27,7 +27,8 @@ export class BillingService {
     return OFFERS.map((o) => ({
       id: o.id,
       kind: o.kind,
-      plan: o.plan,
+      plan: o.kind === "credits" ? undefined : o.plan,
+      credits: o.kind === "credits" ? o.credits : undefined,
       interval: o.kind === "subscription" ? o.interval : undefined,
       days: o.kind === "pass" ? o.days : undefined,
       priceCents: o.priceCents,
@@ -106,23 +107,31 @@ export class BillingService {
     }
 
     const offer = offerById(event.offer);
-    if (offer.kind !== "pass") throw new ValidationError(`Offer ${offer.id} is not a pass`);
-    const startsAt = new Date();
-    await this.billing.addPass({
-      userId: event.userId,
-      plan: offer.plan,
-      startsAt,
-      endsAt: new Date(startsAt.getTime() + offer.days * DAY),
-      providerRef: event.paymentRef,
-      offer: offer.id,
-    });
+    let description: string;
+    if (offer.kind === "pass") {
+      const startsAt = new Date();
+      await this.billing.addPass({
+        userId: event.userId,
+        plan: offer.plan,
+        startsAt,
+        endsAt: new Date(startsAt.getTime() + offer.days * DAY),
+        providerRef: event.paymentRef,
+        offer: offer.id,
+      });
+      description = `${offer.plan[0]!.toUpperCase()}${offer.plan.slice(1)} pass, ${offer.days} days`;
+    } else if (offer.kind === "credits") {
+      await this.billing.addCredits({ userId: event.userId, credits: offer.credits, providerRef: event.paymentRef });
+      description = `${offer.credits} AI credits`;
+    } else {
+      throw new ValidationError(`Offer ${offer.id} is a subscription, not a one-off payment`);
+    }
     const profile = await this.billing.profile(event.userId);
     if (profile) {
       await this.jobs.enqueue(QUEUES.email, "send", {
         template: "receipt",
         to: profile.email,
         name: profile.name,
-        description: `${offer.plan[0]!.toUpperCase()}${offer.plan.slice(1)} pass, ${offer.days} days`,
+        description,
         amountCents: event.amountCents,
         currency: event.currency.toUpperCase().slice(0, 3),
       });

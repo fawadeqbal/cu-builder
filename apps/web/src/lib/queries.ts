@@ -2,6 +2,8 @@
 
 import type {
   AuthProvidersDto,
+  CoverLetterDto,
+  JobDto,
   BillingStatusDto,
   MeDto,
   OfferDto,
@@ -30,6 +32,10 @@ export const keys = {
   offers: ["billing", "offers"] as const,
   billing: ["billing", "status"] as const,
   templateSettings: ["templates", "settings"] as const,
+  jobs: ["jobs"] as const,
+  job: (id: string) => ["jobs", id] as const,
+  letters: ["cover-letters"] as const,
+  letter: (id: string) => ["cover-letters", id] as const,
 };
 
 /** The signed-in user, or null when signed out. */
@@ -80,3 +86,11 @@ export const useTemplateSettings = () =>
     queryFn: () => api.get<TemplateSettingDto[]>("/templates/settings").catch(() => [] as TemplateSettingDto[]),
     staleTime: 300_000,
   });
+
+export const useJobs = (enabled = true) => useQuery({ queryKey: keys.jobs, queryFn: () => api.get<JobDto[]>("/jobs"), enabled });
+
+export const useLetters = (enabled = true) =>
+  useQuery({ queryKey: keys.letters, queryFn: () => api.get<CoverLetterDto[]>("/cover-letters"), enabled });
+
+export const useLetter = (id: string) =>
+  useQuery({ queryKey: keys.letter(id), queryFn: () => api.get<CoverLetterDto>(`/cover-letters/${id}`), staleTime: Infinity, retry: false });

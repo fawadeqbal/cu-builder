@@ -14,13 +14,15 @@ export type Saved = {
   /** Accent colour chosen for the CV, or null for the template's own. */
   accent: string | null;
   pageSize: PageSize;
+  /** Type size multiplier set by "Fit to one page" (1 = the template's own size). */
+  fontScale: number;
   /** Index of the wizard step the user is on. */
   step: number;
   /** False until the user leaves the welcome screen. */
   started: boolean;
 };
 
-export const FRESH: Saved = { cv: emptyCV, template: "classic", accent: null, pageSize: "A4", step: 0, started: false };
+export const FRESH: Saved = { cv: emptyCV, template: "classic", accent: null, pageSize: "A4", fontScale: 1, step: 0, started: false };
 
 export function loadSaved(): Saved | null {
   try {
@@ -30,10 +32,11 @@ export function loadSaved(): Saved | null {
     const template: TemplateId = isTemplateId(parsed.template) ? parsed.template : "classic";
     const accent = isAccent(parsed.accent) ? parsed.accent : null;
     const pageSize = isPageSize(parsed.pageSize) ? parsed.pageSize : "A4";
+    const fontScale = typeof parsed.fontScale === "number" && parsed.fontScale >= 0.7 && parsed.fontScale <= 1.15 ? parsed.fontScale : 1;
     const step = typeof parsed.step === "number" && parsed.step >= 0 ? Math.floor(parsed.step) : 0;
     // Data saved before the wizard existed has no "started" flag: treat it as started.
     const started = parsed.started === undefined ? true : parsed.started === true;
-    return { cv: normalizeCV(parsed.cv), template, accent, pageSize, step, started };
+    return { cv: normalizeCV(parsed.cv), template, accent, pageSize, fontScale, step, started };
   } catch {
     return null;
   }

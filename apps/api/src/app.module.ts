@@ -8,11 +8,14 @@ import { AppExceptionFilter } from "./common/errors/app-exception.filter.js";
 import { RequestIdMiddleware } from "./common/http/request-id.middleware.js";
 import { APP_CONFIG, AppConfigModule, type AppConfig } from "./config/app-config.js";
 import { StorageModule } from "./infrastructure/storage.module.js";
+import { AiModule } from "./modules/ai/ai.module.js";
 import { AdminModule } from "./modules/admin/admin.module.js";
 import { AnalyticsModule } from "./modules/analytics/analytics.module.js";
 import { AuthModule } from "./modules/auth/auth.module.js";
 import { BillingModule } from "./modules/billing/billing.module.js";
 import { HealthModule } from "./modules/health/health.module.js";
+import { CoverLettersModule } from "./modules/cover-letters/cover-letters.module.js";
+import { JobsModule } from "./modules/jobs/jobs.module.js";
 import { ImportsModule } from "./modules/imports/imports.module.js";
 import { ResumesModule } from "./modules/resumes/resumes.module.js";
 import { TemplatesModule } from "./modules/templates/templates.module.js";
@@ -40,6 +43,7 @@ import { UsersModule } from "./modules/users/users.module.js";
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 300 }]),
     StorageModule,
     TemplatesModule,
+    AiModule,
     AuthModule,
     BillingModule,
     HealthModule,
@@ -47,6 +51,8 @@ import { UsersModule } from "./modules/users/users.module.js";
     ResumesModule,
     ShareLinksModule,
     ImportsModule,
+    JobsModule,
+    CoverLettersModule,
     AdminModule,
     AnalyticsModule,
   ],

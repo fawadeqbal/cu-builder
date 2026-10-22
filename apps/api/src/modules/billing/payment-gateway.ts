@@ -21,7 +21,8 @@ export type BillingEvent =
       cancelAtPeriodEnd: boolean;
     }
   | {
-      kind: "pass.purchased";
+      /** A one-off payment (a pass or a credit pack); what it buys comes from the offer. */
+      kind: "payment.completed";
       id: string;
       userId: string;
       offer: OfferId;

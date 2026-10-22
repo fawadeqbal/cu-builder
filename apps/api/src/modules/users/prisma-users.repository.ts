@@ -65,6 +65,9 @@ export class PrismaUsersRepository implements UsersRepository {
         },
         subscriptions: { select: { plan: true, status: true, currentPeriodEnd: true, createdAt: true } },
         passes: { select: { plan: true, startsAt: true, endsAt: true } },
+        jobs: { select: { title: true, company: true, location: true, url: true, description: true, source: true, createdAt: true } },
+        coverLetters: { select: { title: true, data: true, templateId: true, createdAt: true, updatedAt: true } },
+        credits: { select: { delta: true, reason: true, createdAt: true } },
       },
     });
     return { exportedAt: new Date().toISOString(), ...user };
