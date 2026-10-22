@@ -69,7 +69,7 @@ export function Welcome({ onStart, onExample, onImport }: Props) {
             onClick={onImport}
             className="self-start text-sm font-medium text-stone-500 underline-offset-4 hover:text-brand hover:underline"
           >
-            Already have a saved CV file? Import it
+            Already have a CV? Import it from PDF or Word
           </button>
         </div>
 

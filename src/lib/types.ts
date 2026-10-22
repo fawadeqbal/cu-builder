@@ -77,4 +77,4 @@ export type ListKey =
   | "certificates"
   | "languages";
 
-export type TemplateId = "classic" | "modern";
+export type TemplateId = "classic" | "modern" | "ats";

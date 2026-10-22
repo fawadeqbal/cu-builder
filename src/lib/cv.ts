@@ -114,9 +114,10 @@ export function normalizeCV(input: unknown): CV {
   };
 }
 
-export const TEMPLATES: { id: TemplateId; name: string; description: string }[] = [
-  { id: "classic", name: "Classic", description: "Europass-style, label column on the left" },
-  { id: "modern", name: "Modern", description: "Serif name, two columns with a side panel" },
+export const TEMPLATES: { id: TemplateId; name: string; description: string; atsFriendly: boolean }[] = [
+  { id: "classic", name: "Classic", description: "Europass style with a label column", atsFriendly: true },
+  { id: "modern", name: "Modern", description: "Two columns with a side panel", atsFriendly: false },
+  { id: "ats", name: "ATS", description: "Plain single column for online forms", atsFriendly: true },
 ];
 
 const STORAGE_KEY = "cv-builder:v1";
@@ -128,18 +129,21 @@ export type Saved = {
   step: number;
   /** False until the user leaves the welcome screen. */
   started: boolean;
+  /** Job advert pasted in the ATS step, kept for keyword matching. */
+  jobAd: string;
 };
 
 export function loadSaved(): Saved | null {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as { cv?: unknown; template?: unknown; step?: unknown; started?: unknown };
-    const template: TemplateId = parsed.template === "modern" ? "modern" : "classic";
+    const parsed = JSON.parse(raw) as { cv?: unknown; template?: unknown; step?: unknown; started?: unknown; jobAd?: unknown };
+    const template: TemplateId = parsed.template === "modern" || parsed.template === "ats" ? parsed.template : "classic";
+    const jobAd = typeof parsed.jobAd === "string" ? parsed.jobAd : "";
     const step = typeof parsed.step === "number" && parsed.step >= 0 ? Math.floor(parsed.step) : 0;
     // Data saved before the wizard existed has no "started" flag: treat it as started.
     const started = parsed.started === undefined ? true : parsed.started === true;
-    return { cv: normalizeCV(parsed.cv), template, step, started };
+    return { cv: normalizeCV(parsed.cv), template, step, started, jobAd };
   } catch {
     return null;
   }

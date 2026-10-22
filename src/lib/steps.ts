@@ -6,6 +6,7 @@ export type StepId =
   | "skills"
   | "projects"
   | "extras"
+  | "ats"
   | "finish";
 
 export type Step = {
@@ -85,6 +86,19 @@ export const STEPS: Step[] = [
     intro: "Optional extras that can make the difference.",
     optional: true,
     tips: ["List the languages you speak and your level.", "Add certificates that are relevant to the job."],
+  },
+  {
+    id: "ats",
+    short: "ATS check",
+    title: "Get past the ATS",
+    intro:
+      "Many companies scan CVs with software (an ATS) before a person reads them. Paste the job advert to see which keywords you cover.",
+    optional: true,
+    tips: [
+      "Use the exact words from the advert for skills you really have (e.g. “Next.js”, not just “React framework”).",
+      "Send a PDF made with the ATS or Classic template for online applications.",
+      "Tailor your summary for each job you apply to.",
+    ],
   },
   {
     id: "finish",

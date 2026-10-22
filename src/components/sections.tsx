@@ -1,7 +1,10 @@
 "use client";
 
+import { toLines } from "@/lib/ai";
 import { newId } from "@/lib/cv";
+import { bulletsPrompt, summaryPrompt } from "@/lib/prompts";
 import type { CV, ListKey, Personal } from "@/lib/types";
+import { AiAssist } from "./ai/AiAssist";
 import { AddButton, ItemCard, LinesField, TextArea, TextField } from "./fields";
 
 export type SectionProps = { cv: CV; onChange: (cv: CV) => void };
@@ -130,6 +133,11 @@ export function SummarySection({ cv, onChange }: SectionProps) {
         <span className={tone}>{label}</span>
         <span className="text-stone-400">{words} words</span>
       </div>
+      <AiAssist
+        label={cv.summary.trim() ? "Improve with AI" : "Write it with AI"}
+        build={() => summaryPrompt(cv)}
+        onAccept={(text) => onChange({ ...cv, summary: text })}
+      />
       {!cv.summary.trim() && (
         <div className="flex flex-col gap-2">
           <span className="text-xs font-medium text-stone-500">Need a start? Tap one and edit it:</span>
@@ -179,6 +187,12 @@ export function ExperienceSection({ cv, onChange }: SectionProps) {
             value={e.bullets}
             placeholder={"Built a booking dashboard used by 120 clinics\nCut page load time from 4 s to 1 s"}
             onChange={(v) => set("experience", e.id, { bullets: v })}
+          />
+          <AiAssist
+            asList
+            label={e.bullets.some((b) => b.trim()) ? "Improve these lines with AI" : "Suggest lines with AI"}
+            build={() => bulletsPrompt(e, cv)}
+            onAccept={(text) => set("experience", e.id, { bullets: toLines(text) })}
           />
           <TextField
             label="Tools used (optional)"
@@ -291,6 +305,12 @@ export function ProjectsSection({ cv, onChange }: SectionProps) {
             value={p.bullets}
             placeholder={"Kanban board with drag and drop\nJWT login and REST API"}
             onChange={(v) => set("projects", p.id, { bullets: v })}
+          />
+          <AiAssist
+            asList
+            label={p.bullets.some((b) => b.trim()) ? "Improve these lines with AI" : "Suggest lines with AI"}
+            build={() => bulletsPrompt(p, cv)}
+            onAccept={(text) => set("projects", p.id, { bullets: toLines(text) })}
           />
           <TextField label="Tools used (optional)" value={p.stack} placeholder="React, Express, MongoDB" onChange={(v) => set("projects", p.id, { stack: v })} />
         </ItemCard>

@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { emptyCV, loadSaved, normalizeCV, save, type Saved } from "@/lib/cv";
+import { emptyCV, loadSaved, save, type Saved } from "@/lib/cv";
 import { sampleCV } from "@/lib/sample";
 import { STEPS } from "@/lib/steps";
 import type { CV, TemplateId } from "@/lib/types";
 import { CVDocument } from "@/templates";
+import { AiProvider, AiStatusButton } from "./ai/AiProvider";
+import { ImportDialog } from "./ImportDialog";
 import { Preview } from "./Preview";
 import { Welcome } from "./Welcome";
 import { Wizard } from "./Wizard";
@@ -24,14 +26,22 @@ function useIsDesktop() {
   );
 }
 
-const FRESH: Saved = { cv: emptyCV, template: "classic", step: 0, started: false };
+const FRESH: Saved = { cv: emptyCV, template: "classic", step: 0, started: false, jobAd: "" };
 
 export default function Builder() {
+  return (
+    <AiProvider>
+      <BuilderApp />
+    </AiProvider>
+  );
+}
+
+function BuilderApp() {
   // Rendered on the client only (see BuilderLoader), so reading localStorage here is safe.
   const [state, setState] = useState<Saved>(() => loadSaved() ?? FRESH);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [notice, setNotice] = useState("");
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const menuRef = useRef<HTMLDetailsElement>(null);
   const isDesktop = useIsDesktop();
 
@@ -69,14 +79,10 @@ export default function Builder() {
     setNotice("Backup saved");
   }
 
-  async function importJson(file: File) {
-    try {
-      const cv = normalizeCV(JSON.parse(await file.text()));
-      update({ cv, started: true, step: 0 });
-      setNotice("CV imported. Check each step, then download");
-    } catch {
-      setNotice("That file isn't a valid CV backup");
-    }
+  function importCV(cv: CV) {
+    update({ cv, started: true, step: 0 });
+    setImportOpen(false);
+    setNotice("CV imported. Check each step, then download");
   }
 
   function startOver() {
@@ -89,19 +95,7 @@ export default function Builder() {
     update({ cv: sampleCV, started: true, step: 0 });
   }
 
-  const fileInput = (
-    <input
-      ref={fileRef}
-      type="file"
-      accept="application/json,.json"
-      className="hidden"
-      onChange={(e) => {
-        const file = e.target.files?.[0];
-        if (file) void importJson(file);
-        e.target.value = "";
-      }}
-    />
-  );
+  const importDialog = importOpen && <ImportDialog onClose={() => setImportOpen(false)} onImport={importCV} />;
 
   const toast = notice && (
     <div
@@ -118,9 +112,9 @@ export default function Builder() {
         <Welcome
           onStart={() => update({ cv: emptyCV, started: true, step: 0 })}
           onExample={loadExample}
-          onImport={() => fileRef.current?.click()}
+          onImport={() => setImportOpen(true)}
         />
-        {fileInput}
+        {importDialog}
         {toast}
       </>
     );
@@ -140,6 +134,7 @@ export default function Builder() {
           </span>
 
           <div className="ml-auto flex items-center gap-1">
+            <AiStatusButton />
             {!onFinish && (
               <button
                 type="button"
@@ -154,8 +149,8 @@ export default function Builder() {
                 More ▾
               </summary>
               <div className="absolute right-0 z-40 mt-1 w-52 overflow-hidden rounded-lg border border-stone-200 bg-white py-1 shadow-lg">
-                <button type="button" className={menuItem} onClick={() => { closeMenu(); fileRef.current?.click(); }}>
-                  Import backup (.json)
+                <button type="button" className={menuItem} onClick={() => { closeMenu(); setImportOpen(true); }}>
+                  Import CV (PDF, Word, JSON)
                 </button>
                 <button type="button" className={menuItem} onClick={() => { closeMenu(); exportJson(); }}>
                   Save backup (.json)
@@ -183,6 +178,8 @@ export default function Builder() {
               onTemplate={setTemplate}
               onDownload={downloadPdf}
               onExport={exportJson}
+              jobAd={state.jobAd}
+              onJobAd={(jobAd) => update({ jobAd })}
             />
           </div>
 
@@ -238,7 +235,7 @@ export default function Builder() {
         </div>
       </div>
 
-      {fileInput}
+      {importDialog}
       {toast}
     </>
   );

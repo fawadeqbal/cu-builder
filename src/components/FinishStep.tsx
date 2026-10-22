@@ -51,7 +51,7 @@ export function FinishStep({ cv, template, onTemplate, onGoTo, onDownload, onExp
     <div className="flex flex-col gap-7">
       <section className="flex flex-col gap-3">
         <h3 className="text-sm font-semibold text-stone-800">Template</h3>
-        <div role="radiogroup" aria-label="Template" className="grid grid-cols-2 gap-3">
+        <div role="radiogroup" aria-label="Template" className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {TEMPLATES.map((t) => {
             const active = template === t.id;
             return (
@@ -65,8 +65,13 @@ export function FinishStep({ cv, template, onTemplate, onGoTo, onDownload, onExp
                   active ? "border-brand shadow-sm" : "border-stone-200 hover:border-stone-400"
                 }`}
               >
-                <div aria-hidden="true" className="relative h-40 overflow-hidden bg-stone-100">
-                  <div className="absolute left-1/2 top-3 w-[210mm] origin-top -translate-x-1/2 scale-[0.26]">
+                <div aria-hidden="true" className="relative h-36 overflow-hidden bg-stone-100">
+                  {t.atsFriendly && (
+                    <span className="absolute left-2 top-2 z-10 rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                      ATS-friendly
+                    </span>
+                  )}
+                  <div className="absolute left-1/2 top-3 w-[210mm] origin-top -translate-x-1/2 scale-[0.2]">
                     <div className="paper">
                       <CVDocument cv={cv} template={t.id} />
                     </div>

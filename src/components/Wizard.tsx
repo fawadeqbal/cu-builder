@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { STEPS } from "@/lib/steps";
 import type { CV, TemplateId } from "@/lib/types";
+import { AtsStep } from "./AtsStep";
 import { FinishStep } from "./FinishStep";
 import {
   EducationSection,
@@ -24,6 +25,8 @@ type Props = {
   onTemplate: (t: TemplateId) => void;
   onDownload: () => void;
   onExport: () => void;
+  jobAd: string;
+  onJobAd: (v: string) => void;
 };
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -44,10 +47,11 @@ function isEmptyStep(cv: CV, id: string): boolean {
   if (id === "education") return cv.education.length === 0;
   if (id === "projects") return cv.projects.length === 0;
   if (id === "extras") return cv.languages.length + cv.certificates.length === 0;
+  if (id === "ats") return true;
   return false;
 }
 
-export function Wizard({ cv, onChange, step, onStep, template, onTemplate, onDownload, onExport }: Props) {
+export function Wizard({ cv, onChange, step, onStep, template, onTemplate, onDownload, onExport, jobAd, onJobAd }: Props) {
   const index = Math.min(Math.max(step, 0), STEPS.length - 1);
   const current = STEPS[index];
   const [showErrors, setShowErrors] = useState(false);
@@ -160,6 +164,9 @@ export function Wizard({ cv, onChange, step, onStep, template, onTemplate, onDow
           {current.id === "skills" && <SkillsSection cv={cv} onChange={onChange} />}
           {current.id === "projects" && <ProjectsSection cv={cv} onChange={onChange} />}
           {current.id === "extras" && <ExtrasSection cv={cv} onChange={onChange} />}
+          {current.id === "ats" && (
+            <AtsStep cv={cv} onChange={onChange} template={template} onTemplate={onTemplate} jobAd={jobAd} onJobAd={onJobAd} />
+          )}
           {current.id === "finish" && (
             <FinishStep
               cv={cv}

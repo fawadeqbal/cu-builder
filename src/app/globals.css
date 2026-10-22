@@ -358,6 +358,77 @@ body {
   margin-bottom: 3pt;
 }
 
+/* ------------------------------------------------------------------ ATS */
+
+.tpl-ats {
+  font-family: Arial, "Liberation Sans", Helvetica, sans-serif;
+  font-size: 10pt;
+  line-height: 1.35;
+  color: #000;
+}
+.tpl-ats a {
+  color: #000;
+}
+.tpl-ats section {
+  margin-top: 9pt;
+}
+.a-header {
+  text-align: center;
+}
+.a-name {
+  margin: 0;
+  font-size: 20pt;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.a-headline {
+  margin-top: 3pt;
+  font-size: 11pt;
+  font-weight: 700;
+}
+.a-contact {
+  margin-top: 4pt;
+  font-size: 9.5pt;
+}
+.a-title {
+  margin: 0 0 4pt;
+  padding-bottom: 1.5pt;
+  border-bottom: 0.8pt solid #000;
+  font-size: 11pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4pt;
+}
+.a-entry {
+  break-inside: avoid;
+  margin-bottom: 6pt;
+}
+.a-entry-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8pt;
+}
+.a-entry-title {
+  font-weight: 700;
+}
+.a-date {
+  white-space: nowrap;
+}
+.a-muted {
+  font-weight: 400;
+}
+.a-skill {
+  margin-bottom: 1.5pt !important;
+}
+.tpl-ats ul {
+  list-style: disc;
+  margin: 2pt 0 2pt;
+  padding-left: 14pt;
+}
+.tpl-ats li {
+  margin-bottom: 1.5pt;
+}
+
 /* ------------------------------------------------------------------ Print */
 
 @page {
