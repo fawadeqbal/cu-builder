@@ -38,6 +38,10 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
+      # Host routing (src/proxy.ts): the app's own host, portfolio sub-domains, custom domains.
+      APP_URL: https://${DOMAIN}
+      PORTFOLIO_DOMAIN: ${PORTFOLIO_DOMAIN:-}
+      API_INTERNAL_URL: http://api:4000
 
   # Applies database migrations, then exits. The api waits for it.
   migrate:

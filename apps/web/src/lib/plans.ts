@@ -45,6 +45,7 @@ export const FEATURE_LABEL: Partial<Record<Feature, string>> = {
   interviewPrep: "Mock interviews",
   "tracker.unlimited": "Unlimited application tracking",
   "expertReview.included": "An included expert review",
+  "portfolio.customDomain": "A custom domain for your website",
 };
 
 export type Gate =

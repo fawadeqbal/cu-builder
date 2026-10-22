@@ -7,7 +7,7 @@
 /* ------------------------------------------------------------------ A4 sheet */
 
 .paper {
-  text-align: left;
+  text-align: start;
   width: 210mm;
   min-height: 297mm;
   padding: 10mm 12mm 12mm;
@@ -51,11 +51,11 @@
 .tpl-classic ul {
   list-style: disc;
   margin: 2pt 0 0;
-  padding-left: 11pt;
+  padding-inline-start: 11pt;
 }
 .tpl-classic li {
   margin: 0 0 1.4pt;
-  padding-left: 1pt;
+  padding-inline-start: 1pt;
 }
 .tpl-classic li::marker {
   color: var(--c-blue);
@@ -127,7 +127,7 @@
   text-justify: inter-word;
 }
 .c-content p.c-left {
-  text-align: left;
+  text-align: start;
 }
 .c-entry {
   break-inside: avoid;
@@ -153,7 +153,7 @@
 .c-entry-meta {
   color: var(--c-muted);
   white-space: nowrap;
-  text-align: right;
+  text-align: end;
 }
 .c-entry-sub {
   font-size: 8.8pt;
@@ -188,7 +188,7 @@
 }
 .c-compact li {
   margin-bottom: 1pt;
-  text-align: left;
+  text-align: start;
 }
 
 /* ------------------------------------------------------------------ Modern */
@@ -209,7 +209,7 @@
 .tpl-modern ul {
   list-style: disc;
   margin: 2.5pt 0 0;
-  padding-left: 10pt;
+  padding-inline-start: 10pt;
 }
 .tpl-modern li {
   margin-bottom: 1.6pt;
@@ -246,7 +246,7 @@
 .m-contact {
   font-size: 8.2pt;
   line-height: 1.5;
-  text-align: right;
+  text-align: end;
   color: var(--m-muted);
 }
 .m-contact a {
@@ -324,8 +324,8 @@
   color: var(--m-muted);
 }
 .m-side {
-  border-left: 0.6pt solid var(--m-rule);
-  padding-left: 6mm;
+  border-inline-start: 0.6pt solid var(--m-rule);
+  padding-inline-start: 6mm;
 }
 .m-side-item {
   break-inside: avoid;
@@ -377,7 +377,7 @@
 .tpl ul {
   list-style: disc;
   margin: 2pt 0 0;
-  padding-left: 11pt;
+  padding-inline-start: 11pt;
 }
 .tpl li {
   margin-bottom: 1.5pt;
@@ -495,7 +495,7 @@
   grid-template-columns: auto auto;
   gap: 0.5pt 10pt;
   font-size: 7.8pt;
-  text-align: right;
+  text-align: end;
   color: var(--muted);
 }
 .cp-section {
@@ -626,7 +626,7 @@
 .tl-item::before {
   content: "";
   position: absolute;
-  left: calc(26mm + 6pt + 4pt);
+  inset-inline-start: calc(26mm + 6pt + 4pt);
   top: 8pt;
   bottom: 0;
   width: 1pt;
@@ -636,7 +636,7 @@
   display: none;
 }
 .tl-date {
-  text-align: right;
+  text-align: end;
   font-size: 7.9pt;
   color: var(--muted);
   padding-top: 1pt;
@@ -779,10 +779,10 @@
 }
 .tpl-nordic ul {
   list-style: none;
-  padding-left: 0;
+  padding-inline-start: 0;
 }
 .tpl-nordic li {
-  padding-left: 9pt;
+  padding-inline-start: 9pt;
   text-indent: -9pt;
 }
 .tpl-nordic li::before {
@@ -1101,7 +1101,7 @@
 .cr-head::after {
   content: "";
   position: absolute;
-  right: -18mm;
+  inset-inline-end: -18mm;
   top: -22mm;
   width: 70mm;
   height: 70mm;
@@ -1343,7 +1343,7 @@
   margin-top: 1.5pt;
 }
 .tpl-elegant ul {
-  padding-left: 12pt;
+  padding-inline-start: 12pt;
 }
 .el-skills {
   display: grid;
@@ -1436,13 +1436,13 @@
 }
 .ex-grid li {
   position: relative;
-  padding-left: 9pt;
+  padding-inline-start: 9pt;
   margin: 0;
 }
 .ex-grid li::before {
   content: "";
   position: absolute;
-  left: 0;
+  inset-inline-start: 0;
   top: 4.2pt;
   width: 4pt;
   height: 4pt;
@@ -1506,8 +1506,8 @@
   line-height: 1.45;
 }
 .bd-side {
-  padding-right: 6mm;
-  border-right: 0.6pt solid color-mix(in srgb, var(--ac) 45%, #fff);
+  padding-inline-end: 6mm;
+  border-inline-end: 0.6pt solid color-mix(in srgb, var(--ac) 45%, #fff);
   min-width: 0;
 }
 .bd-name {
@@ -1701,4 +1701,109 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   font-size: 18pt;
+}
+
+/* Agency / institution mark above a CV (CVDocument `brand`). */
+.cv-brand {
+  display: flex;
+  align-items: center;
+  gap: 3mm;
+  padding: 3mm 0 2mm;
+  margin-bottom: 2mm;
+  border-bottom: 0.3mm solid var(--cv-accent);
+  font-size: 8.5pt;
+  color: #44403c;
+}
+.cv-brand-logo {
+  max-height: 9mm;
+  max-width: 40mm;
+  object-fit: contain;
+}
+.cv-brand-name {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+
+/* ------------------------------------------------------------------ Photo, personal details, RTL */
+
+/* Header photo: the top inline-end corner of the header, which keeps clear of it. */
+[data-step="personal"]:has(> .cv-photo--head) {
+  position: relative;
+  min-height: 27mm;
+  padding-inline-end: 30mm;
+}
+.cv-photo {
+  display: block;
+  object-fit: cover;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.cv-photo--head {
+  position: absolute;
+  top: 0;
+  inset-inline-end: 0;
+  width: 26mm;
+  height: 26mm;
+}
+.cv-photo--side {
+  width: 30mm;
+  height: 30mm;
+  margin: 0 auto 4mm;
+}
+.cv-photo--circle {
+  border-radius: 50%;
+}
+.cv-photo--rounded {
+  border-radius: 3mm;
+}
+.cv-photo--square {
+  border-radius: 0;
+}
+
+.cv-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1pt 10pt;
+  margin: 4pt 0 0;
+  font-size: 8.4pt;
+  line-height: 1.35;
+}
+.cv-details > div {
+  display: flex;
+  gap: 3pt;
+}
+.cv-details dt {
+  font-weight: 600;
+}
+.cv-details dt::after {
+  content: ":";
+}
+.cv-details dd {
+  margin: 0;
+}
+/* In a narrow side column, one detail per line. */
+.bd-side .cv-details,
+.sb-side .cv-details {
+  flex-direction: column;
+}
+
+/* Right-to-left CVs (Urdu, Arabic): an Arabic-script font, no letter-spacing (it breaks joining),
+   and emails, phone numbers and links kept left-to-right inside the line. */
+.cv-doc[dir="rtl"],
+.cv-doc[dir="rtl"] * {
+  font-family: var(--font-rtl, "Noto Naskh Arabic"), "Noto Naskh Arabic", "Noto Nastaliq Urdu", "Segoe UI", Tahoma, sans-serif !important;
+  letter-spacing: 0 !important;
+}
+.cv-doc[lang="ur"],
+.cv-doc[lang="ur"] * {
+  font-family: var(--font-urdu, "Noto Nastaliq Urdu"), "Noto Nastaliq Urdu", var(--font-rtl, "Noto Naskh Arabic"), "Noto Naskh Arabic", Tahoma, sans-serif !important;
+  line-height: 1.9;
+}
+.cv-doc[dir="rtl"] a,
+.cv-doc[dir="rtl"] .cv-ltr {
+  unicode-bidi: isolate;
+}
+.cv-doc[dir="rtl"] .cv-brand {
+  flex-direction: row;
 }

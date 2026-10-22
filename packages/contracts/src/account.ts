@@ -10,7 +10,7 @@ export const MeSchema = z.object({
   locale: z.string(),
   role: z.enum(["user", "admin"]),
   plan: PlanSchema,
-  planSource: z.enum(["base", "subscription", "pass"]),
+  planSource: z.enum(["base", "subscription", "pass", "organization"]),
   limits: z.object({ resumes: z.number().nullable(), aiCreditsPerMonth: z.number() }),
 });
 export type MeDto = z.output<typeof MeSchema>;
@@ -24,6 +24,7 @@ export const AuthProvidersSchema = z.object({
   magicLink: z.boolean(),
   google: z.boolean(),
   linkedin: z.boolean(),
+  microsoft: z.boolean().default(false),
 });
 export type AuthProvidersDto = z.output<typeof AuthProvidersSchema>;
 

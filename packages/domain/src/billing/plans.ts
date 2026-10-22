@@ -24,6 +24,7 @@ export const FEATURES = [
   "tracker.unlimited",
   "interviewPrep",
   "expertReview.included",
+  "portfolio.customDomain",
 ] as const;
 export type Feature = (typeof FEATURES)[number];
 
@@ -45,6 +46,7 @@ const MINIMUM_PLAN: Record<Feature, Plan> = {
   "tracker.unlimited": "standard",
   interviewPrep: "premium",
   "expertReview.included": "executive",
+  "portfolio.customDomain": "standard",
 };
 
 /** The lowest plan whose templates include each tier. */

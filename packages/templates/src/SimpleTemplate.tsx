@@ -1,15 +1,17 @@
 import { linkHref, type CV, type StepId } from "@cvb/domain";
 import type { ReactNode } from "react";
-import { Block, Bullets, ContactText, contacts, joinParts, ProjectLinks } from "./shared";
+import { Block, Bullets, ContactText, contacts, joinParts, ProjectLinks, cvLabels, Photo, PersonalDetailsList } from "./shared";
 
 /** Simple — centred name, one column, a ruled heading per section. Safe for any ATS. */
 export function SimpleTemplate({ cv }: { cv: CV }) {
   const p = cv.personal;
+  const tr = cvLabels(cv);
   const info = contacts(p);
   return (
     <div className="tpl tpl-simple">
       <Block as="header" step="personal" className="s-head">
-        <div className="s-name">{p.name || "Your Name"}</div>
+        <Photo cv={cv} />
+        <div className="s-name">{p.name || tr("Your Name")}</div>
         {p.headline && <div className="s-headline">{p.headline}</div>}
         {p.tagline && <div className="s-tagline">{p.tagline}</div>}
         {info.length > 0 && (
@@ -21,16 +23,17 @@ export function SimpleTemplate({ cv }: { cv: CV }) {
             ))}
           </div>
         )}
+        <PersonalDetailsList cv={cv} tr={tr} />
       </Block>
 
       {cv.summary.trim() && (
-        <Section step="summary" title="Profile">
+        <Section step="summary" title={tr("Profile")}>
           <p>{cv.summary}</p>
         </Section>
       )}
 
       {cv.experience.length > 0 && (
-        <Section step="experience" title="Experience">
+        <Section step="experience" title={tr("Experience")}>
           {cv.experience.map((e) => (
             <div key={e.id} className="s-entry">
               <div className="s-row">
@@ -39,14 +42,14 @@ export function SimpleTemplate({ cv }: { cv: CV }) {
               </div>
               {e.location && <div className="s-sub">{e.location}</div>}
               <Bullets items={e.bullets} />
-              {e.stack && <div className="s-sub">Tools: {e.stack}</div>}
+              {e.stack && <div className="s-sub">{tr("Tools:")} {e.stack}</div>}
             </div>
           ))}
         </Section>
       )}
 
       {cv.projects.length > 0 && (
-        <Section step="projects" title="Projects">
+        <Section step="projects" title={tr("Projects")}>
           {cv.projects.map((pr) => (
             <div key={pr.id} className="s-entry">
               <div className="s-row">
@@ -59,14 +62,14 @@ export function SimpleTemplate({ cv }: { cv: CV }) {
                 </div>
               )}
               <Bullets items={pr.bullets} />
-              {pr.stack && <div className="s-sub">Tools: {pr.stack}</div>}
+              {pr.stack && <div className="s-sub">{tr("Tools:")} {pr.stack}</div>}
             </div>
           ))}
         </Section>
       )}
 
       {cv.skills.length > 0 && (
-        <Section step="skills" title="Skills">
+        <Section step="skills" title={tr("Skills")}>
           {cv.skills.map((s) => (
             <p key={s.id} className="s-skill">
               {s.category && <b>{s.category}: </b>}
@@ -77,7 +80,7 @@ export function SimpleTemplate({ cv }: { cv: CV }) {
       )}
 
       {cv.education.length > 0 && (
-        <Section step="education" title="Education">
+        <Section step="education" title={tr("Education")}>
           {cv.education.map((ed) => (
             <div key={ed.id} className="s-entry">
               <div className="s-row">
@@ -91,7 +94,7 @@ export function SimpleTemplate({ cv }: { cv: CV }) {
       )}
 
       {cv.certificates.length > 0 && (
-        <Section step="extras" title="Certificates">
+        <Section step="extras" title={tr("Certificates")}>
           {cv.certificates.map((c) => (
             <p key={c.id} className="s-skill">
               <b>{c.url ? <a href={linkHref(c.url)}>{c.name}</a> : c.name}</b>
@@ -102,7 +105,7 @@ export function SimpleTemplate({ cv }: { cv: CV }) {
       )}
 
       {cv.languages.length > 0 && (
-        <Section step="extras" title="Languages">
+        <Section step="extras" title={tr("Languages")}>
           <p>
             {cv.languages.map((l, i) => (
               <span key={l.id}>

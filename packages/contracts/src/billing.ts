@@ -28,7 +28,7 @@ export type OfferDto = z.output<typeof OfferSchema>;
 
 export const BillingStatusSchema = z.object({
   plan: PlanSchema,
-  source: z.enum(["base", "subscription", "pass"]),
+  source: z.enum(["base", "subscription", "pass", "organization"]),
   subscription: z
     .object({ plan: PlanSchema, status: z.string(), currentPeriodEnd: z.string(), cancelAtPeriodEnd: z.boolean() })
     .nullable(),

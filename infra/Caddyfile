@@ -1,5 +1,10 @@
 {
 	email {$ACME_EMAIL}
+	# Certificates for portfolio sub-domains and custom domains are issued on the first visit,
+	# only for hosts the API says we serve (published sites, verified domains).
+	on_demand_tls {
+		ask http://api:4000/api/v1/public/domains/allowed
+	}
 }
 
 {$DOMAIN} {
@@ -14,6 +19,33 @@
 	}
 
 	# The API owns /api (REST under /api/v1, Better Auth under /api/auth, payment webhooks).
+	handle /api/* {
+		request_body {
+			max_size 6MB
+		}
+		reverse_proxy api:4000
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+}
+
+# Portfolio sites (<slug>.{$PORTFOLIO_DOMAIN}) and custom domains (portfolios, white-label
+# partners). The web app's proxy decides what each host shows.
+https:// {
+	tls {
+		on_demand
+	}
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
 	handle /api/* {
 		request_body {
 			max_size 6MB

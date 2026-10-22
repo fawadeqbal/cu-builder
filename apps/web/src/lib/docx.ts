@@ -1,4 +1,5 @@
-import { clean, linkHref, linkLabel, type CV } from "@cvb/domain";
+import { clean, cvDirection, DETAIL_LABELS, linkHref, linkLabel, showPhoto, visibleDetails, type CV } from "@cvb/domain";
+import { cvLabels } from "@cvb/templates";
 import type { PageSize } from "./page";
 
 /**
@@ -6,7 +7,10 @@ import type { PageSize } from "./page";
  * or text boxes, so it opens cleanly in Word and Google Docs and parses well in ATS.
  */
 export async function buildCvDocx(cv: CV, { accent, pageSize }: { accent: string; pageSize: PageSize }): Promise<Blob> {
-  const { AlignmentType, BorderStyle, Document, ExternalHyperlink, Packer, Paragraph, TextRun } = await import("docx");
+  const { AlignmentType, BorderStyle, Document, ExternalHyperlink, ImageRun, Packer, Paragraph, TextRun } = await import("docx");
+  // Urdu and Arabic CVs: right-to-left paragraphs and headings in the CV's language.
+  const rtl = cvDirection(cv) === "rtl";
+  const tr = cvLabels(cv);
 
   const color = accent.replace("#", "").toUpperCase();
   const muted = "5B6673";
@@ -17,14 +21,14 @@ export async function buildCvDocx(cv: CV, { accent, pageSize }: { accent: string
     new ExternalHyperlink({ link: linkHref(value), children: [new TextRun({ text: linkLabel(value), color, underline: {} })] });
 
   const heading = (text: string) =>
-    new Paragraph({
+    new Paragraph({ bidirectional: rtl,
       spacing: { before: 240, after: 80 },
       border: { bottom: { style: BorderStyle.SINGLE, size: 6, color, space: 2 } },
-      children: [new TextRun({ text: text.toUpperCase(), bold: true, size: 22, color, characterSpacing: 20 })],
+      children: [new TextRun({ text: tr(text).toUpperCase(), bold: true, size: 22, color, characterSpacing: 20 })],
     });
 
   const titleLine = (left: string, right: string) =>
-    new Paragraph({
+    new Paragraph({ bidirectional: rtl,
       spacing: { before: 120, after: 20 },
       children: [
         new TextRun({ text: left, bold: true, size: 21 }),
@@ -33,13 +37,26 @@ export async function buildCvDocx(cv: CV, { accent, pageSize }: { accent: string
     });
 
   const plain = (text: string, opts: { italic?: boolean; color?: string } = {}) =>
-    new Paragraph({ spacing: { after: 40 }, children: [new TextRun({ text, size: 20, ...opts })] });
+    new Paragraph({ bidirectional: rtl, spacing: { after: 40 }, children: [new TextRun({ text, size: 20, ...opts })] });
 
-  const bullet = (text: string) => new Paragraph({ bullet: { level: 0 }, spacing: { after: 20 }, children: [new TextRun({ text, size: 20 })] });
+  const bullet = (text: string) => new Paragraph({ bidirectional: rtl, bullet: { level: 0 }, spacing: { after: 20 }, children: [new TextRun({ text, size: 20 })] });
 
   // Header
+  if (showPhoto(cv)) {
+    const [, type, data] = cv.photo.match(/^data:image\/(jpeg|png|webp);base64,(.+)$/) ?? [];
+    if (data && type !== "webp") {
+      const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+      children.push(
+        new Paragraph({
+          bidirectional: rtl,
+          alignment: rtl ? AlignmentType.LEFT : AlignmentType.RIGHT,
+          children: [new ImageRun({ type: type === "png" ? "png" : "jpg", data: bytes, transformation: { width: 96, height: 96 } })],
+        }),
+      );
+    }
+  }
   if (p.name.trim()) {
-    children.push(new Paragraph({ alignment: AlignmentType.LEFT, children: [new TextRun({ text: p.name.trim(), bold: true, size: 40 })] }));
+    children.push(new Paragraph({ bidirectional: rtl, alignment: rtl ? AlignmentType.RIGHT : AlignmentType.LEFT, children: [new TextRun({ text: p.name.trim(), bold: true, size: 40 })] }));
   }
   if (p.headline.trim()) children.push(plain(p.headline.trim(), { color }));
   const contact = [p.email, p.phone, p.location].map((s) => s.trim()).filter(Boolean);
@@ -47,12 +64,15 @@ export async function buildCvDocx(cv: CV, { accent, pageSize }: { accent: string
   const links = [p.website, p.linkedin, p.github].map((s) => s.trim()).filter(Boolean);
   if (links.length) {
     children.push(
-      new Paragraph({
+      new Paragraph({ bidirectional: rtl,
         spacing: { after: 40 },
         children: links.flatMap((l, i) => [...(i ? [new TextRun({ text: "  ·  ", color: muted })] : []), link(l)]),
       }),
     );
   }
+
+  const details = visibleDetails(cv);
+  if (details.length) children.push(plain(details.map((d) => `${tr(DETAIL_LABELS[d.key])}: ${d.value}`).join("  ·  "), { color: muted }));
 
   if (cv.summary.trim()) {
     children.push(heading("Summary"), plain(cv.summary.trim()));
@@ -74,7 +94,7 @@ export async function buildCvDocx(cv: CV, { accent, pageSize }: { accent: string
       children.push(titleLine(pr.name.trim(), pr.date.trim()));
       const prLinks = pr.links.map((l) => l.trim()).filter(Boolean);
       if (prLinks.length) {
-        children.push(new Paragraph({ children: prLinks.flatMap((l, i) => [...(i ? [new TextRun({ text: "  ·  " })] : []), link(l)]) }));
+        children.push(new Paragraph({ bidirectional: rtl, children: prLinks.flatMap((l, i) => [...(i ? [new TextRun({ text: "  ·  " })] : []), link(l)]) }));
       }
       clean(pr.bullets).forEach((b) => children.push(bullet(b)));
       if (pr.stack.trim()) children.push(plain(`Stack: ${pr.stack.trim()}`, { color: muted }));
@@ -86,7 +106,7 @@ export async function buildCvDocx(cv: CV, { accent, pageSize }: { accent: string
     children.push(heading("Skills"));
     for (const s of skills) {
       children.push(
-        new Paragraph({
+        new Paragraph({ bidirectional: rtl,
           spacing: { after: 40 },
           children: [
             ...(s.category.trim() ? [new TextRun({ text: `${s.category.trim()}: `, bold: true, size: 20 })] : []),
@@ -110,7 +130,7 @@ export async function buildCvDocx(cv: CV, { accent, pageSize }: { accent: string
     children.push(heading("Certificates"));
     for (const c of certs) {
       children.push(
-        new Paragraph({
+        new Paragraph({ bidirectional: rtl,
           spacing: { after: 40 },
           children: [
             new TextRun({ text: c.name.trim(), bold: true, size: 20 }),

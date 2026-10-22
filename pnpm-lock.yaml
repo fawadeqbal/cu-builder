@@ -339,6 +339,9 @@ importers:
       docx:
         specifier: 9.9.0
         version: 9.9.0
+      fflate:
+        specifier: 0.8.3
+        version: 0.8.3
       jspdf:
         specifier: 4.2.1
         version: 4.2.1
@@ -391,6 +394,9 @@ importers:
       typescript:
         specifier: 5.9.3
         version: 5.9.3
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@types/node@22.20.5)(happy-dom@20.14.5)(vite@8.3.4(@types/node@22.20.5)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
 
   apps/worker:
     dependencies:
@@ -442,6 +448,9 @@ importers:
       rxjs:
         specifier: 7.8.2
         version: 7.8.2
+      stripe:
+        specifier: 23.0.0
+        version: 23.0.0(@types/node@22.20.5)
       unpdf:
         specifier: 1.8.1
         version: 1.8.1

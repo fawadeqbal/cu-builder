@@ -101,7 +101,7 @@ export function TailorReview({
       {notes.length > 0 && (
         <div className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900 ring-1 ring-amber-200">
           <p className="font-semibold">Worth adding if true</p>
-          <ul className="mt-1 list-disc pl-5">
+          <ul className="mt-1 list-disc ps-5">
             {notes.map((n) => (
               <li key={n}>{n}</li>
             ))}

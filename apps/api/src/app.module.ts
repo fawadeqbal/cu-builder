@@ -17,6 +17,8 @@ import { HealthModule } from "./modules/health/health.module.js";
 import { TrackerModule } from "./modules/tracker/tracker.module.js";
 import { FeedModule } from "./modules/feed/feed.module.js";
 import { InterviewsModule } from "./modules/interviews/interviews.module.js";
+import { ServicesModule } from "./modules/services/services.module.js";
+import { CommentsModule } from "./modules/comments/comments.module.js";
 import { CoverLettersModule } from "./modules/cover-letters/cover-letters.module.js";
 import { JobsModule } from "./modules/jobs/jobs.module.js";
 import { ImportsModule } from "./modules/imports/imports.module.js";
@@ -25,6 +27,10 @@ import { ApiTokensModule } from "./modules/tokens/api-tokens.module.js";
 import { TemplatesModule } from "./modules/templates/templates.module.js";
 import { ShareLinksModule } from "./modules/share-links/share-links.module.js";
 import { UsersModule } from "./modules/users/users.module.js";
+import { DomainsModule } from "./modules/domains/domains.module.js";
+import { PortfolioModule } from "./modules/portfolio/portfolio.module.js";
+import { OrgsModule } from "./modules/orgs/orgs.module.js";
+import { CandidatesModule } from "./modules/candidates/candidates.module.js";
 
 /**
  * Composition root: infrastructure first (config, database, queues, storage, auth, rate
@@ -53,6 +59,10 @@ import { UsersModule } from "./modules/users/users.module.js";
     BillingModule,
     HealthModule,
     UsersModule,
+    DomainsModule,
+    PortfolioModule,
+    OrgsModule,
+    CandidatesModule,
     ResumesModule,
     ShareLinksModule,
     ImportsModule,
@@ -61,6 +71,8 @@ import { UsersModule } from "./modules/users/users.module.js";
     TrackerModule,
     FeedModule,
     InterviewsModule,
+    ServicesModule,
+    CommentsModule,
     AdminModule,
     AnalyticsModule,
   ],

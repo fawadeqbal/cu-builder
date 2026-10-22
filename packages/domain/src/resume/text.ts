@@ -1,4 +1,5 @@
 import { clean, linkLabel } from "./model";
+import { DETAIL_LABELS, visibleDetails } from "./regional";
 import type { CV } from "./types";
 
 /**
@@ -20,6 +21,8 @@ export function cvToText(cv: CV): string {
   if (contact) out.push(contact);
   const links = line(...[p.website, p.linkedin, p.github].filter((s) => s.trim()).map(linkLabel), p.extra);
   if (links) out.push(links);
+  const details = visibleDetails(cv).map((d) => `${DETAIL_LABELS[d.key]}: ${d.value}`);
+  if (details.length) out.push(line(...details));
 
   section("Summary", cv.summary.trim() ? [cv.summary.trim()] : []);
 

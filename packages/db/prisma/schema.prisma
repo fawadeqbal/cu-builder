@@ -82,6 +82,13 @@ model User {
   interviews    InterviewSession[]
   stories       StarStory[]
   apiTokens     ApiToken[]
+  expert        ExpertProfile?
+  orders        ServiceOrder[]     @relation("BuyerOrders")
+  orderMessages OrderMessage[]
+  comments      ReviewComment[]
+  memberships   Membership[]
+  candidates    Candidate[]
+  portfolio     PortfolioSite?
 
   @@map("users")
 }
@@ -169,6 +176,9 @@ model Resume {
   job          Job?            @relation(fields: [jobId], references: [id], onDelete: SetNull)
   matches      Match[]
   coverLetters CoverLetter[]
+  orders       ServiceOrder[]
+  comments     ReviewComment[]
+  portfolios   PortfolioSite[]
 
   @@index([userId, updatedAt(sort: Desc)])
   @@map("resumes")
@@ -478,17 +488,17 @@ model Reminder {
 
 /// What the job feed looks for, and how often to email new matches.
 model JobPreferences {
-  userId      String    @id @map("user_id")
-  titles      String[]
-  location    String    @default("")
-  remote      Boolean   @default(false)
-  salaryMin   Int?      @map("salary_min")
+  userId       String    @id @map("user_id")
+  titles       String[]
+  location     String    @default("")
+  remote       Boolean   @default(false)
+  salaryMin    Int?      @map("salary_min")
   /// off | daily | weekly
-  alerts      String    @default("off")
-  lastAlertAt DateTime? @map("last_alert_at")
+  alerts       String    @default("off")
+  lastAlertAt  DateTime? @map("last_alert_at")
   /// The Monday progress email (on by default while there are active applications).
-  weeklyDigest Boolean  @default(true) @map("weekly_digest")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  weeklyDigest Boolean   @default(true) @map("weekly_digest")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -568,4 +578,279 @@ model ApiToken {
 
   @@index([userId])
   @@map("api_tokens")
+}
+
+// ─── Phase 4: services and scale ────────────────────────────────────────────
+
+/// An expert who sells CV reviews, CV writing, coaching or LinkedIn makeovers.
+model ExpertProfile {
+  userId          String    @id @map("user_id")
+  displayName     String    @map("display_name")
+  headline        String    @default("")
+  bio             String    @default("")
+  photoUrl        String?   @map("photo_url")
+  specialties     String[]
+  languages       String[]
+  /// review | writing | coaching | linkedin
+  services        String[]
+  /// pending | approved | suspended
+  status          String    @default("pending")
+  timezone        String    @default("UTC")
+  /// Weekly coaching availability in `timezone`: [{ day: 0-6, start: "09:00", end: "17:00" }].
+  availability    Json      @default("[]")
+  maxActiveOrders Int       @default(5) @map("max_active_orders")
+  /// Stripe Connect (Express) account for payouts.
+  stripeAccountId String?   @unique @map("stripe_account_id")
+  payoutsEnabled  Boolean   @default(false) @map("payouts_enabled")
+  ratingAvg       Float     @default(0) @map("rating_avg")
+  ratingCount     Int       @default(0) @map("rating_count")
+  approvedAt      DateTime? @map("approved_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  user   User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders ServiceOrder[] @relation("ExpertOrders")
+
+  @@index([status, ratingAvg(sort: Desc)])
+  @@map("expert_profiles")
+}
+
+/// A purchased (or plan-included) expert service.
+model ServiceOrder {
+  id                String    @id @default(cuid())
+  /// The buyer.
+  userId            String    @map("user_id")
+  expertId          String?   @map("expert_id")
+  /// review | review_rush | writing | coaching | linkedin
+  kind              String
+  /// pending_payment | paid | in_progress | delivered | completed | cancelled | refunded | disputed
+  status            String    @default("pending_payment")
+  resumeId          String?   @map("resume_id")
+  priceCents        Int       @map("price_cents")
+  currency          String    @default("usd")
+  /// The platform's share; the expert is paid the rest on completion.
+  commissionCents   Int       @default(0) @map("commission_cents")
+  /// Included in the plan (Executive review) rather than paid for.
+  included          Boolean   @default(false)
+  /// Intake questionnaire answers, coaching goals.
+  intake            Json      @default("{}")
+  dueAt             DateTime? @map("due_at")
+  scheduledAt       DateTime? @map("scheduled_at")
+  durationMin       Int?      @map("duration_min")
+  meetingUrl        String?   @map("meeting_url")
+  /// The expert's delivery summary, or coaching session notes.
+  deliveryNote      String    @default("") @map("delivery_note")
+  revisionsIncluded Int       @default(0) @map("revisions_included")
+  revisionsUsed     Int       @default(0) @map("revisions_used")
+  rating            Int?
+  ratingComment     String    @default("") @map("rating_comment")
+  checkoutId        String?   @unique @map("checkout_id")
+  paymentId         String?   @map("payment_id")
+  refundId          String?   @map("refund_id")
+  transferId        String?   @map("transfer_id")
+  refundReason      String    @default("") @map("refund_reason")
+  /// { reason, openedAt, resolution?, resolvedAt? }
+  dispute           Json?
+  paidAt            DateTime? @map("paid_at")
+  assignedAt        DateTime? @map("assigned_at")
+  deliveredAt       DateTime? @map("delivered_at")
+  completedAt       DateTime? @map("completed_at")
+  cancelledAt       DateTime? @map("cancelled_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  user     User            @relation("BuyerOrders", fields: [userId], references: [id], onDelete: Cascade)
+  expert   ExpertProfile?  @relation("ExpertOrders", fields: [expertId], references: [userId], onDelete: SetNull)
+  resume   Resume?         @relation(fields: [resumeId], references: [id], onDelete: SetNull)
+  messages OrderMessage[]
+  comments ReviewComment[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([expertId, status])
+  @@index([status, dueAt])
+  @@map("service_orders")
+}
+
+/// Messages on an order (questions, drafts, revision requests).
+model OrderMessage {
+  id          String   @id @default(cuid())
+  orderId     String   @map("order_id")
+  authorId    String   @map("author_id")
+  body        String
+  /// [{ key, name, size }] files in storage (drafts).
+  attachments Json     @default("[]")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  order  ServiceOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  author User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@map("order_messages")
+}
+
+/// A comment on one line of a CV, by an expert or a career-office reviewer.
+model ReviewComment {
+  id         String    @id @default(cuid())
+  resumeId   String    @map("resume_id")
+  authorId   String    @map("author_id")
+  orderId    String?   @map("order_id")
+  orgId      String?   @map("org_id")
+  /// Where in the CV: "summary", "personal.headline", "experience.<itemId>.bullets.2"…
+  anchor     String
+  /// The text commented on, as it was.
+  quote      String    @default("")
+  body       String
+  /// Replacement text the owner can apply in one click.
+  suggestion String?
+  resolvedAt DateTime? @map("resolved_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  resume Resume        @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  author User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  order  ServiceOrder? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  org    Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+
+  @@index([resumeId, createdAt])
+  @@map("review_comments")
+}
+
+/// A university, career centre, recruitment agency or white-label partner.
+model Organization {
+  id                String    @id @default(cuid())
+  name              String
+  slug              String    @unique
+  /// university | agency | partner
+  kind              String
+  /// Seat licences; members holding a seat get `seatPlan`.
+  seats             Int       @default(0)
+  seatPlan          Plan      @default(PREMIUM) @map("seat_plan")
+  /// The branded sign-up link: /join/<inviteCode>.
+  inviteCode        String    @unique @map("invite_code")
+  /// Email domains whose people may join with Google or Microsoft sign-in (e.g. "uni.edu.pk").
+  ssoDomains        String[]  @map("sso_domains")
+  /// White label: { productName, logoUrl, primaryColor, accentColor, templateIds, hideBrand }.
+  branding          Json      @default("{}")
+  customDomain      String?   @unique @map("custom_domain")
+  domainVerifiedAt  DateTime? @map("domain_verified_at")
+  /// Agencies: the template candidate CVs are reformatted into.
+  defaultTemplateId String?   @map("default_template_id")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  deletedAt         DateTime? @map("deleted_at")
+
+  members    Membership[]
+  invites    OrgInvite[]
+  candidates Candidate[]
+  comments   ReviewComment[]
+
+  @@map("organizations")
+}
+
+model Membership {
+  id        String   @id @default(cuid())
+  orgId     String   @map("org_id")
+  userId    String   @map("user_id")
+  /// owner | admin | reviewer | recruiter | member
+  role      String   @default("member")
+  cohort    String   @default("")
+  /// Holds a seat licence (gives the organisation's seat plan).
+  seat      Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@index([userId])
+  @@map("memberships")
+}
+
+model OrgInvite {
+  id         String    @id @default(cuid())
+  orgId      String    @map("org_id")
+  email      String
+  role       String    @default("member")
+  cohort     String    @default("")
+  token      String    @unique
+  acceptedAt DateTime? @map("accepted_at")
+  expiresAt  DateTime  @map("expires_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, email])
+  @@map("org_invites")
+}
+
+/// An agency's candidate CV: uploaded in bulk, parsed, reformatted in the agency template.
+model Candidate {
+  id            String   @id @default(cuid())
+  orgId         String   @map("org_id")
+  createdById   String   @map("created_by_id")
+  /// One bulk upload.
+  batchId       String   @default("") @map("batch_id")
+  name          String   @default("")
+  /// queued | parsing | ready | failed
+  status        String   @default("queued")
+  fileKey       String   @default("") @map("file_key")
+  fileName      String   @default("") @map("file_name")
+  mimeType      String   @default("") @map("mime_type")
+  /// The parsed CV (ResumeDataSchema).
+  data          Json?
+  /// Fields the parser was unsure of: [{ path, label, reason }].
+  lowConfidence Json     @default("[]") @map("low_confidence")
+  hideContacts  Boolean  @default(false) @map("hide_contacts")
+  templateId    String?  @map("template_id")
+  error         String   @default("")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdBy User         @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([orgId, createdAt(sort: Desc)])
+  @@index([batchId])
+  @@map("candidates")
+}
+
+/// A personal website generated from a CV: <slug>.<PORTFOLIO_DOMAIN> or a custom domain.
+model PortfolioSite {
+  id               String    @id @default(cuid())
+  userId           String    @unique @map("user_id")
+  resumeId         String    @map("resume_id")
+  slug             String    @unique
+  customDomain     String?   @unique @map("custom_domain")
+  domainVerifiedAt DateTime? @map("domain_verified_at")
+  published        Boolean   @default(false)
+  theme            String    @default("minimal")
+  accent           String?
+  showContactForm  Boolean   @default(true) @map("show_contact_form")
+  /// Extra content not in the CV: { about, projects: [{ title, description, url, imageUrl }] }.
+  content          Json      @default("{}")
+  viewCount        Int       @default(0) @map("view_count")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resume   Resume           @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  messages ContactMessage[]
+
+  @@map("portfolio_sites")
+}
+
+/// A message sent through a portfolio site's contact form.
+model ContactMessage {
+  id        String    @id @default(cuid())
+  siteId    String    @map("site_id")
+  name      String
+  email     String
+  message   String
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  site PortfolioSite @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([siteId, createdAt(sort: Desc)])
+  @@map("contact_messages")
 }

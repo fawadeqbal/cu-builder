@@ -1,16 +1,18 @@
 import { linkHref, type CV, type StepId } from "@cvb/domain";
 import type { ReactNode } from "react";
-import { Block, Bullets, ContactText, contacts, joinParts, ProjectLinks, splitItems } from "./shared";
+import { Block, Bullets, ContactText, contacts, joinParts, ProjectLinks, splitItems, cvLabels, Photo, PersonalDetailsList } from "./shared";
 
 /** Creative — a bold colour header and a two-column body. */
 export function CreativeTemplate({ cv }: { cv: CV }) {
   const p = cv.personal;
+  const tr = cvLabels(cv);
   const info = contacts(p);
   const hasSide = cv.skills.length + cv.education.length + cv.languages.length + cv.certificates.length > 0;
   return (
     <div className="tpl tpl-creative">
       <Block as="header" step="personal" className="cr-head">
-        <div className="cr-name">{p.name || "Your Name"}</div>
+        <Photo cv={cv} />
+        <div className="cr-name">{p.name || tr("Your Name")}</div>
         {p.headline && <div className="cr-headline">{p.headline}</div>}
         {info.length > 0 && (
           <div className="cr-contact">
@@ -21,6 +23,7 @@ export function CreativeTemplate({ cv }: { cv: CV }) {
             ))}
           </div>
         )}
+        <PersonalDetailsList cv={cv} tr={tr} />
       </Block>
 
       {(cv.summary.trim() || p.tagline) && (
@@ -33,7 +36,7 @@ export function CreativeTemplate({ cv }: { cv: CV }) {
       <div className={hasSide ? "cr-body" : "cr-body cr-body--single"}>
         <div className="cr-main">
           {cv.experience.length > 0 && (
-            <Section step="experience" title="Experience">
+            <Section step="experience" title={tr("Experience")}>
               {cv.experience.map((e) => (
                 <div key={e.id} className="cr-entry">
                   <div className="cr-date">{e.date}</div>
@@ -47,7 +50,7 @@ export function CreativeTemplate({ cv }: { cv: CV }) {
           )}
 
           {cv.projects.length > 0 && (
-            <Section step="projects" title="Projects">
+            <Section step="projects" title={tr("Projects")}>
               {cv.projects.map((pr) => (
                 <div key={pr.id} className="cr-entry">
                   <div className="cr-date">{pr.date}</div>
@@ -68,7 +71,7 @@ export function CreativeTemplate({ cv }: { cv: CV }) {
         {hasSide && (
           <aside className="cr-side">
             {cv.skills.length > 0 && (
-              <Section step="skills" title="Skills">
+              <Section step="skills" title={tr("Skills")}>
                 {cv.skills.map((s) => (
                   <div key={s.id} className="cr-skill">
                     <div className="cr-skill-cat">{s.category}</div>
@@ -82,7 +85,7 @@ export function CreativeTemplate({ cv }: { cv: CV }) {
               </Section>
             )}
             {cv.education.length > 0 && (
-              <Section step="education" title="Education">
+              <Section step="education" title={tr("Education")}>
                 {cv.education.map((ed) => (
                   <div key={ed.id} className="cr-side-item">
                     <b>{ed.degree}</b>
@@ -93,7 +96,7 @@ export function CreativeTemplate({ cv }: { cv: CV }) {
               </Section>
             )}
             {cv.languages.length > 0 && (
-              <Section step="extras" title="Languages">
+              <Section step="extras" title={tr("Languages")}>
                 {cv.languages.map((l) => (
                   <div key={l.id} className="cr-lang">
                     <b>{l.name}</b>
@@ -103,7 +106,7 @@ export function CreativeTemplate({ cv }: { cv: CV }) {
               </Section>
             )}
             {cv.certificates.length > 0 && (
-              <Section step="extras" title="Certificates">
+              <Section step="extras" title={tr("Certificates")}>
                 {cv.certificates.map((c) => (
                   <div key={c.id} className="cr-side-item">
                     <b>{c.url ? <a href={linkHref(c.url)}>{c.name}</a> : c.name}</b>

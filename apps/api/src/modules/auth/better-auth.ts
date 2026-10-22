@@ -5,6 +5,8 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { admin, magicLink } from "better-auth/plugins";
 import type { AppConfig } from "../../config/app-config.js";
+import { OrgsService } from "../orgs/orgs.service.js";
+import { PrismaOrgsStore } from "../orgs/prisma-orgs.store.js";
 
 export type AuthDeps = { db: DbClient; config: AppConfig; jobs: JobProducer };
 
@@ -15,6 +17,8 @@ export type AuthDeps = { db: DbClient; config: AppConfig; jobs: JobProducer };
  */
 export function createBetterAuth({ db, config, jobs }: AuthDeps) {
   const email = (payload: EmailJob) => jobs.enqueue(QUEUES.email, "send", payload).then(() => undefined);
+  // Single sign-on for organisations: people on a university's email domain join it when they sign in.
+  const orgs = new OrgsService(new PrismaOrgsStore(db), jobs, config);
 
   const socialProviders = {
     ...(config.GOOGLE_CLIENT_ID && config.GOOGLE_CLIENT_SECRET
@@ -22,6 +26,9 @@ export function createBetterAuth({ db, config, jobs }: AuthDeps) {
       : {}),
     ...(config.LINKEDIN_CLIENT_ID && config.LINKEDIN_CLIENT_SECRET
       ? { linkedin: { clientId: config.LINKEDIN_CLIENT_ID, clientSecret: config.LINKEDIN_CLIENT_SECRET } }
+      : {}),
+    ...(config.MICROSOFT_CLIENT_ID && config.MICROSOFT_CLIENT_SECRET
+      ? { microsoft: { clientId: config.MICROSOFT_CLIENT_ID, clientSecret: config.MICROSOFT_CLIENT_SECRET, tenantId: config.MICROSOFT_TENANT_ID } }
       : {}),
   };
 
@@ -47,7 +54,7 @@ export function createBetterAuth({ db, config, jobs }: AuthDeps) {
     socialProviders,
     // Deleting the user row cascades to sessions, accounts, CVs, versions, links, imports and billing rows.
     user: { deleteUser: { enabled: true } },
-    account: { accountLinking: { enabled: true, trustedProviders: ["google", "linkedin"] } },
+    account: { accountLinking: { enabled: true, trustedProviders: ["google", "linkedin", "microsoft"] } },
     session: {
       expiresIn: 60 * 60 * 24 * 30,
       updateAge: 60 * 60 * 24,
@@ -75,6 +82,14 @@ export function createBetterAuth({ db, config, jobs }: AuthDeps) {
           },
         },
       },
+      session: {
+        create: {
+          after: async (session) => {
+            const user = await db.user.findUnique({ where: { id: session.userId }, select: { id: true, email: true, emailVerified: true } });
+            if (user?.emailVerified) await orgs.autoJoin(user).catch(() => undefined);
+          },
+        },
+      },
     },
   });
 }
@@ -90,4 +105,5 @@ export const authProviders = (config: AppConfig) => ({
   magicLink: true,
   google: Boolean(config.GOOGLE_CLIENT_ID && config.GOOGLE_CLIENT_SECRET),
   linkedin: Boolean(config.LINKEDIN_CLIENT_ID && config.LINKEDIN_CLIENT_SECRET),
+  microsoft: Boolean(config.MICROSOFT_CLIENT_ID && config.MICROSOFT_CLIENT_SECRET),
 });

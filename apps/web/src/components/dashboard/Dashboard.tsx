@@ -20,9 +20,11 @@ import { PLAN_LABEL, type Gate } from "@/lib/plans";
 import { keys, useImports, useResume, useResumes, useTrash } from "@/lib/queries";
 import { UpgradeDialog } from "../UpgradeDialog";
 import { btn, card } from "../ui/styles";
+import { useT } from "@/lib/i18n";
 
 /** "My CVs": every CV in the account, imports in progress, and the trash. */
 export function Dashboard({ me }: { me: MeDto }) {
+  const t = useT();
   const qc = useQueryClient();
   const router = useRouter();
   const params = useSearchParams();
@@ -45,7 +47,7 @@ export function Dashboard({ me }: { me: MeDto }) {
     void migrateGuestCv()
       .then((r) => {
         if (r.kind === "moved") {
-          setNotice("The CV from this browser is now saved in your account.");
+          setNotice(t("dash.migrated"));
           void refresh();
         } else if (r.kind === "blocked") setMigration("blocked");
       })
@@ -88,7 +90,7 @@ export function Dashboard({ me }: { me: MeDto }) {
 
   function pickFile(file: File | undefined) {
     if (!file) return;
-    if (file.size > IMPORT_MAX_BYTES) return setNotice("That file is larger than 5 MB.");
+    if (file.size > IMPORT_MAX_BYTES) return setNotice(t("dash.tooLarge"));
     if (atLimit) return setGate({ kind: "feature", feature: "resume.multiple" });
     upload.mutate(file);
   }
@@ -122,7 +124,7 @@ export function Dashboard({ me }: { me: MeDto }) {
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-stone-900">My CVs</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-stone-900">{t("dash.title")}</h1>
           <p className="mt-1 text-sm text-stone-600">
             {list.length} {list.length === 1 ? "CV" : "CVs"}
             {limit !== null && <> · your {PLAN_LABEL[me.plan]} plan keeps {limit}</>}
@@ -130,7 +132,7 @@ export function Dashboard({ me }: { me: MeDto }) {
         </div>
         <div className="flex gap-2">
           <button type="button" className={btn.secondary} disabled={upload.isPending} onClick={() => fileRef.current?.click()}>
-            <UploadIcon className="size-4" /> {upload.isPending ? "Uploading…" : "Upload PDF or Word"}
+            <UploadIcon className="size-4" /> {upload.isPending ? t("dash.uploading") : t("dash.upload")}
           </button>
           <button
             type="button"
@@ -162,7 +164,7 @@ export function Dashboard({ me }: { me: MeDto }) {
       )}
 
       {resumes.isLoading ? (
-        <p className="py-16 text-center text-sm text-stone-500">Loading your CVs…</p>
+        <p className="py-16 text-center text-sm text-stone-500">{t("dash.loading")}</p>
       ) : list.length === 0 ? (
         <EmptyState onCreate={() => create.mutate()} onUpload={() => fileRef.current?.click()} highlightUpload={wantsImport} onDrop={pickFile} />
       ) : (
@@ -231,6 +233,7 @@ function ResumeCard({
   onError: (e: Error) => void;
   onNotice: (s: string) => void;
 }) {
+  const t = useT();
   const full = useResume(resume.id);
   const catalog = useCatalog();
   const menu = useRef<HTMLDetailsElement>(null);
@@ -255,14 +258,14 @@ function ResumeCard({
   const remove = useMutation({
     mutationFn: () => api.delete(`/resumes/${resume.id}`),
     onSuccess: () => {
-      onNotice("Moved to trash. You can restore it for 30 days.");
+      onNotice(t("dash.movedToTrash"));
       onChanged();
     },
     onError,
   });
 
   const close = () => menu.current?.removeAttribute("open");
-  const item = "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-stone-700 hover:bg-stone-100";
+  const item = "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-sm text-stone-700 hover:bg-stone-100";
 
   return (
     <li className={`${card} group flex flex-col overflow-hidden transition hover:-translate-y-0.5 hover:shadow-lg`}>
@@ -308,7 +311,7 @@ function ResumeCard({
           <summary aria-label="CV actions" className="grid size-8 cursor-pointer list-none place-items-center rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-700">
             <MoreIcon className="size-5" />
           </summary>
-          <div className="absolute right-0 z-20 mt-1 w-44 rounded-xl border border-stone-200 bg-white p-1 shadow-xl">
+          <div className="absolute end-0 z-20 mt-1 w-44 rounded-xl border border-stone-200 bg-white p-1 shadow-xl">
             <button type="button" className={item} onClick={() => { close(); setTitle(resume.title); setRenaming(true); }}>
               <PencilIcon className="size-4" /> Rename
             </button>
@@ -323,7 +326,7 @@ function ResumeCard({
       </div>
       {copies.length > 0 && (
         <div className="border-t border-stone-100 px-4 py-3">
-          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-stone-400">Tailored copies</div>
+          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-stone-400">{t("dash.tailored")}</div>
           <ul className="flex flex-col gap-1">
             {copies.map((c) => (
               <li key={c.id}>
@@ -360,14 +363,15 @@ function ImportRow({ item }: { item: ResumeImportDto }) {
 }
 
 function EmptyState({ onCreate, onUpload, onDrop, highlightUpload }: { onCreate: () => void; onUpload: () => void; onDrop: (f: File | undefined) => void; highlightUpload: boolean }) {
+  const t = useT();
   return (
     <div className="mt-8 grid gap-4 sm:grid-cols-2">
-      <button type="button" onClick={onCreate} className={`${card} flex flex-col items-start gap-2 p-6 text-left transition hover:shadow-md`}>
+      <button type="button" onClick={onCreate} className={`${card} flex flex-col items-start gap-2 p-6 text-start transition hover:shadow-md`}>
         <span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand">
           <PlusIcon className="size-5" />
         </span>
-        <span className="text-base font-semibold text-stone-900">Start a new CV</span>
-        <span className="text-sm text-stone-600">Answer a few short steps and watch it take shape.</span>
+        <span className="text-base font-semibold text-stone-900">{t("dash.newCv")}</span>
+        <span className="text-sm text-stone-600">{t("dash.newCvDesc")}</span>
       </button>
       <DropZone onFile={onDrop} onClick={onUpload} highlight={highlightUpload} big />
     </div>
@@ -376,6 +380,7 @@ function EmptyState({ onCreate, onUpload, onDrop, highlightUpload }: { onCreate:
 
 function DropZone({ onFile, onClick, highlight = true, big = false }: { onFile: (f: File | undefined) => void; onClick?: () => void; highlight?: boolean; big?: boolean }) {
   const [over, setOver] = useState(false);
+  const t = useT();
   return (
     <div
       role="button"
@@ -392,20 +397,21 @@ function DropZone({ onFile, onClick, highlight = true, big = false }: { onFile: 
         setOver(false);
         onFile(e.dataTransfer.files[0]);
       }}
-      className={`flex cursor-pointer flex-col items-start gap-2 rounded-2xl border-2 border-dashed p-6 text-left transition ${
+      className={`flex cursor-pointer flex-col items-start gap-2 rounded-2xl border-2 border-dashed p-6 text-start transition ${
         over ? "border-brand bg-brand/5" : highlight ? "border-brand/40 bg-white" : "border-stone-300 bg-white"
       } ${big ? "" : "min-h-56 justify-center"}`}
     >
       <span className="grid size-10 place-items-center rounded-xl bg-stone-100 text-stone-700">
         <UploadIcon className="size-5" />
       </span>
-      <span className="text-base font-semibold text-stone-900">Upload your current CV</span>
-      <span className="text-sm text-stone-600">Drop a PDF or Word file (up to 5 MB). We fill in the steps for you to check. A LinkedIn &quot;Save to PDF&quot; works too.</span>
+      <span className="text-base font-semibold text-stone-900">{t("dash.uploadCv")}</span>
+      <span className="text-sm text-stone-600">{t("dash.uploadCvDesc")}</span>
     </div>
   );
 }
 
 function Trash({ onRestored, onError }: { onRestored: () => void; onError: (e: Error) => void }) {
+  const t = useT();
   const qc = useQueryClient();
   const trash = useTrash();
   const restore = useMutation({
@@ -420,7 +426,7 @@ function Trash({ onRestored, onError }: { onRestored: () => void; onError: (e: E
   return (
     <div className={`${card} mt-3 divide-y divide-stone-100`}>
       {items.length === 0 ? (
-        <p className="px-4 py-6 text-center text-sm text-stone-500">Trash is empty. Deleted CVs stay here for 30 days.</p>
+        <p className="px-4 py-6 text-center text-sm text-stone-500">{t("dash.trashEmpty")}</p>
       ) : (
         items.map((r) => (
           <div key={r.id} className="flex items-center gap-3 px-4 py-3 text-sm">

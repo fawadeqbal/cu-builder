@@ -69,6 +69,8 @@ Want a fully vector PDF instead? Open **⋯ → Print or save with the browser**
 apps/web/src/
 ├── app/                 # routes: / (guest builder), /app, /edit/[id], /templates, /r/[slug], /pricing,
 │                        # /jobs (find + saved), /tracker, /interview, /letters, /letters/[id], /l/[slug],
+│                        # /experts, /experts/[id], /orders, /orders/[id], /expert, /review/[resumeId],
+│                        # /org, /org/new, /org/[id], /org/[id]/branding, /join/[code], /website, /p/[slug],
 │                        # /account, /account/billing, /admin, /sign-in, /sign-up, password pages
 ├── components/          # Builder, Wizard, SplitView, Preview, TemplateGallery, FinishStep, dialogs,
 │                        # dashboard/, auth/, billing/, account/, admin/, share/, ai/, ats/,
@@ -79,6 +81,8 @@ apps/web/src/
     ├── cv.ts            # guest storage; guest-migration.ts moves it into an account
     ├── api.ts, queries.ts, auth-client.ts   # API client, TanStack Query hooks, Better Auth client
     ├── tracker.ts       # tracker, feed and interview hooks
+    ├── services.ts, orgs.ts   # expert marketplace and organisation hooks
+    ├── i18n/            # en/ur/ar messages, useT(), locale cookie, dir
     ├── ai.ts            # AI calls with credits, plan gates from API errors
     ├── access.ts        # what the visitor can use (delegates to @cvb/domain)
     ├── catalog.ts       # template catalog with admin overrides
@@ -87,7 +91,7 @@ apps/web/src/
     └── steps.ts         # wizard step titles and tips
 ```
 
-Templates are in `packages/templates`, the CV model and checks in `packages/domain`, icons and the tier badge in `packages/ui`.
+`src/proxy.ts` routes portfolio subdomains and verified custom domains. Templates are in `packages/templates`, the CV model and checks in `packages/domain`, icons and the tier badge in `packages/ui`.
 
 ## Adding a new template
 

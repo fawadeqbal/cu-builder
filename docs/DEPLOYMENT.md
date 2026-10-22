@@ -115,6 +115,17 @@ GitHub Pages is no longer used (the app now needs a server). Disable it under **
 | Link analytics | Put Cloudflare (or any proxy that sends `CF-IPCountry` / `X-Country-Code`) in front of Caddy to see viewer countries; without it countries are blank |
 | Browser extension | Build with `pnpm --filter @cvb/extension build` and publish `apps/extension/dist` to the Chrome Web Store; people point it at `https://<domain>` and paste a key from Account → Browser extension |
 
+## 6b. Portfolio sites and custom domains
+
+Personal websites are served at `<slug>.<PORTFOLIO_DOMAIN>`; partners (white label) and paid users can connect their own domains. Caddy issues certificates on demand, after asking the API whether it serves the host (`GET /api/v1/public/domains/allowed?domain=`: only the app's own host, published portfolio sub-domains and verified custom domains get one).
+
+1. Pick a domain for sites (it can be the main one or a separate one, e.g. `cvbuilder.app`) and add a **wildcard DNS record** `*.cvbuilder.app → <server IP>` (A record).
+2. In `.env.production` set `PORTFOLIO_DOMAIN=cvbuilder.app`. Optionally set `CUSTOM_DOMAIN_TARGET` (the host people CNAME their domains to; default: the app's host) and `CUSTOM_DOMAIN_IPV4` (the server's public IPv4, for apex domains that can't use a CNAME).
+3. The web container gets `APP_URL`, `PORTFOLIO_DOMAIN` and `API_INTERNAL_URL` from `docker-compose.prod.yml`; its proxy (`apps/web/src/proxy.ts`) rewrites a site's host to `/p/<slug>` and serves the normal app on partner domains.
+4. Custom domains: the owner enters the domain in My website (or Organisation → Branding), adds the CNAME or A record shown, then presses **Check DNS**. Once verified, the first HTTPS visit gets a certificate automatically.
+
+Without `PORTFOLIO_DOMAIN`, sites are still available at `https://<domain>/p/<slug>`.
+
 ## 7. Backups and upkeep
 
 ```bash

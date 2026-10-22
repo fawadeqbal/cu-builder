@@ -1,4 +1,4 @@
-import type { CV, Personal } from "./types";
+import type { CV, CVSettings, Personal, PersonalDetails } from "./types";
 
 /** Short unique id for list items. Uses Web Crypto (browser and Node 19+) when available. */
 export function newId(prefix = "id"): string {
@@ -20,6 +20,20 @@ export const emptyPersonal: Personal = {
   extra: "",
 };
 
+export const emptyDetails: PersonalDetails = {
+  dateOfBirth: "",
+  nationality: "",
+  gender: "",
+  maritalStatus: "",
+  visaStatus: "",
+  drivingLicence: "",
+  fatherName: "",
+  idNumber: "",
+  religion: "",
+};
+
+export const defaultSettings: CVSettings = { direction: "auto", language: "auto", region: "default", photo: { show: true, shape: "circle" } };
+
 export const emptyCV: CV = {
   personal: emptyPersonal,
   summary: "",
@@ -29,6 +43,9 @@ export const emptyCV: CV = {
   education: [],
   certificates: [],
   languages: [],
+  details: emptyDetails,
+  photo: "",
+  settings: defaultSettings,
 };
 
 /** Turns "github.com/me" into a clickable https URL. */
@@ -111,5 +128,22 @@ export function normalizeCV(input: unknown): CV {
       name: str(x.name),
       level: str(x.level),
     })),
+    details: Object.fromEntries(Object.keys(emptyDetails).map((k) => [k, str(obj(o.details)[k])])) as PersonalDetails,
+    photo: /^data:image\/(jpeg|png|webp);base64,/.test(str(o.photo)) ? str(o.photo) : "",
+    settings: normalizeSettings(o.settings),
+  };
+}
+
+const obj = (v: unknown) => (v && typeof v === "object" ? (v as Record<string, unknown>) : {});
+const oneOf = <T extends string>(v: unknown, allowed: readonly T[], fallback: T): T => (allowed.includes(v as T) ? (v as T) : fallback);
+
+function normalizeSettings(input: unknown): CVSettings {
+  const s = obj(input);
+  const photo = obj(s.photo);
+  return {
+    direction: oneOf(s.direction, ["auto", "ltr", "rtl"], "auto"),
+    language: oneOf(s.language, ["auto", "en", "ur", "ar"], "auto"),
+    region: oneOf(s.region, ["default", "us", "uk", "europass", "gulf", "south_asia"], "default"),
+    photo: { show: typeof photo.show === "boolean" ? photo.show : true, shape: oneOf(photo.shape, ["circle", "square", "rounded"], "circle") },
   };
 }

@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint src",
     "typecheck": "next typegen && tsc --noEmit",
-    "clean": "rm -rf .next out .turbo"
+    "clean": "rm -rf .next out .turbo",
+    "test": "vitest run"
   },
   "dependencies": {
     "@cvb/contracts": "workspace:*",
@@ -19,6 +20,7 @@
     "@tanstack/react-query": "5.104.1",
     "better-auth": "1.7.7",
     "docx": "9.9.0",
+    "fflate": "0.8.3",
     "jspdf": "4.2.1",
     "modern-screenshot": "4.6.8",
     "next": "16.4.2",
@@ -37,7 +39,8 @@
     "eslint": "9.39.5",
     "eslint-config-next": "16.4.2",
     "tailwindcss": "^4",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
   },
   "type": "module"
 }

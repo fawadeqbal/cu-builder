@@ -261,7 +261,7 @@ function BoardView({ columns, apps, onOpen }: { columns: BoardDto["columns"]; ap
                   }}
                   className={`group relative ${dragging === a.id ? "opacity-40" : ""}`}
                 >
-                  {over?.column === c.key && over.index === i && dragging && dragging !== a.id && <div className="absolute -top-1.5 left-1 right-1 h-0.5 rounded bg-brand" />}
+                  {over?.column === c.key && over.index === i && dragging && dragging !== a.id && <div className="absolute -top-1.5 start-1 end-1 h-0.5 rounded bg-brand" />}
                   <Card app={a} now={now} columns={columns} onOpen={() => onOpen(a.id)} onMove={(col) => moveTo(a, col)} />
                 </li>
               ))}
@@ -278,7 +278,7 @@ function Card({ app, now, columns, onOpen, onMove }: { app: ApplicationDto; now:
   const soon = app.interviewAt && new Date(app.interviewAt).getTime() > now ? app.interviewAt : null;
   return (
     <div className="cursor-grab rounded-xl bg-white p-3 shadow-xs ring-1 ring-stone-200 transition hover:ring-stone-300 active:cursor-grabbing">
-      <button type="button" onClick={onOpen} className="block w-full text-left">
+      <button type="button" onClick={onOpen} className="block w-full text-start">
         <div className="line-clamp-2 text-sm font-semibold text-stone-900">{app.job.title}</div>
         <div className="truncate text-xs text-stone-500">{[app.job.company, app.job.location].filter(Boolean).join(" · ") || "No company"}</div>
       </button>
@@ -287,7 +287,7 @@ function Card({ app, now, columns, onOpen, onMove }: { app: ApplicationDto; now:
         {app.deadlineAt && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-amber-800 ring-1 ring-amber-200">Due {shortDate(app.deadlineAt)}</span>}
         {app.shareLinkId && <span className="rounded-full bg-stone-100 px-2 py-0.5 text-stone-600">{app.linkViews} CV views</span>}
         {app.offer && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700 ring-1 ring-emerald-200">Offer details</span>}
-        <label className="ml-auto opacity-70 focus-within:opacity-100 group-hover:opacity-100">
+        <label className="ms-auto opacity-70 focus-within:opacity-100 group-hover:opacity-100">
           <span className="sr-only">Move {app.job.title} to</span>
           <select className="max-w-24 rounded-md bg-transparent py-0.5 text-[11px] text-stone-500 hover:bg-stone-100" value={app.status} onChange={(e) => onMove(e.target.value)}>
             {columns.map((c) => (
@@ -316,7 +316,7 @@ function ListView({ columns, apps, onOpen }: { columns: BoardDto["columns"]; app
         </label>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[44rem] text-left text-sm">
+        <table className="w-full min-w-[44rem] text-start text-sm">
           <thead className="bg-stone-50 text-xs font-semibold uppercase tracking-wide text-stone-500">
             <tr>
               <th className="px-4 py-2.5">Job</th>
@@ -331,7 +331,7 @@ function ListView({ columns, apps, onOpen }: { columns: BoardDto["columns"]; app
             {rows.map((a) => (
               <tr key={a.id} className="hover:bg-stone-50/60">
                 <td className="px-4 py-2.5">
-                  <button type="button" className="text-left" onClick={() => onOpen(a.id)}>
+                  <button type="button" className="text-start" onClick={() => onOpen(a.id)}>
                     <div className="font-medium text-stone-900 hover:underline">{a.job.title}</div>
                     <div className="text-xs text-stone-500">{a.job.company}</div>
                   </button>

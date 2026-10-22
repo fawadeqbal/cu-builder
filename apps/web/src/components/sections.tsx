@@ -1,10 +1,12 @@
 "use client";
 
-import { newId } from "@cvb/domain";
+import { DETAIL_LABELS, newId, regionRules, type DetailKey } from "@cvb/domain";
+import { useT } from "@/lib/i18n";
 import type { CV, ListKey, Personal } from "@cvb/domain";
 import { BulletsAssist } from "./ai/BulletsAssist";
 import { SkillsAssist } from "./ai/SkillsAssist";
 import { SummaryAssist } from "./ai/SummaryAssist";
+import { PhotoField } from "./cv/PhotoField";
 import { AddButton, ItemCard, LinesField, Panel, TextArea, TextField } from "./fields";
 
 export type SectionProps = { cv: CV; onChange: (cv: CV) => void };
@@ -52,17 +54,18 @@ function Empty({ children }: { children: React.ReactNode }) {
 export type PersonalErrors = Partial<Record<keyof Personal, string>>;
 
 export function PersonalSection({ cv, onChange, errors = {} }: SectionProps & { errors?: PersonalErrors }) {
+  const t = useT();
   const p = cv.personal;
   const set = (key: keyof Personal) => (value: string) =>
     onChange({ ...cv, personal: { ...cv.personal, [key]: value } });
 
   return (
     <div className="flex flex-col gap-4">
-      <Panel title="About you" description="Shown at the top of your CV.">
+      <Panel title={t("f.aboutYou")} description={t("f.aboutYouDesc")}>
         <div className="grid grid-cols-1 gap-4 @min-[520px]:grid-cols-2">
-          <TextField label="Full name" required value={p.name} onChange={set("name")} placeholder="Sara Ahmed" error={errors.name} />
+          <TextField label={t("f.fullName")} required value={p.name} onChange={set("name")} placeholder="Sara Ahmed" error={errors.name} />
           <TextField
-            label="Job title you want"
+            label={t("f.jobTitleWanted")}
             required
             value={p.headline}
             onChange={set("headline")}
@@ -71,17 +74,17 @@ export function PersonalSection({ cv, onChange, errors = {} }: SectionProps & { 
           />
         </div>
         <TextField
-          label="Key skills line (optional)"
+          label={t("f.skillsLine")}
           value={p.tagline}
           onChange={set("tagline")}
           placeholder="React · Node.js · PostgreSQL · Docker"
         />
       </Panel>
 
-      <Panel title="Contact" description="How employers reach you. Only email is required.">
+      <Panel title={t("f.contact")} description={t("f.contactDesc")}>
         <div className="grid grid-cols-1 gap-4 @min-[520px]:grid-cols-2">
           <TextField
-            label="Email"
+            label={t("f.email")}
             type="email"
             required
             value={p.email}
@@ -89,20 +92,62 @@ export function PersonalSection({ cv, onChange, errors = {} }: SectionProps & { 
             placeholder="you@example.com"
             error={errors.email}
           />
-          <TextField label="Phone" type="tel" value={p.phone} onChange={set("phone")} placeholder="+92 300 1234567" />
-          <TextField label="City, country" value={p.location} onChange={set("location")} placeholder="Lahore, Pakistan" />
-          <TextField label="Website / portfolio" value={p.website} onChange={set("website")} placeholder="yourname.dev" />
-          <TextField label="LinkedIn" value={p.linkedin} onChange={set("linkedin")} placeholder="linkedin.com/in/you" />
-          <TextField label="GitHub" value={p.github} onChange={set("github")} placeholder="github.com/you" />
+          <TextField label={t("f.phone")} type="tel" value={p.phone} onChange={set("phone")} placeholder="+92 300 1234567" />
+          <TextField label={t("f.cityCountry")} value={p.location} onChange={set("location")} placeholder="Lahore, Pakistan" />
+          <TextField label={t("f.website")} value={p.website} onChange={set("website")} placeholder="yourname.dev" />
+          <TextField label={t("f.linkedin")} value={p.linkedin} onChange={set("linkedin")} placeholder="linkedin.com/in/you" />
+          <TextField label={t("f.github")} value={p.github} onChange={set("github")} placeholder="github.com/you" />
         </div>
         <TextField
-          label="Anything else (optional)"
+          label={t("f.extra")}
           value={p.extra}
           onChange={set("extra")}
           placeholder="Nationality, visa status, driving licence…"
         />
       </Panel>
+
+      <Panel title={t("photo.title")} description={t("photo.desc")}>
+        <PhotoField cv={cv} onChange={onChange} />
+      </Panel>
+
+      <DetailsPanel cv={cv} onChange={onChange} />
     </div>
+  );
+}
+
+/** Date of birth, nationality, visa status… The fields the CV's country format uses come first. */
+function DetailsPanel({ cv, onChange }: SectionProps) {
+  const t = useT();
+  const region = cv.settings.region;
+  const used = regionRules(region).details;
+  const all = Object.keys(DETAIL_LABELS) as DetailKey[];
+  // International format: every field, collapsed by default. Others: just the region's fields.
+  const keys = region === "default" ? all : used;
+  if (!keys.length) return null;
+  const set = (key: DetailKey) => (value: string) => onChange({ ...cv, details: { ...cv.details, [key]: value } });
+  const body = (
+    <div className="grid grid-cols-1 gap-4 @min-[520px]:grid-cols-2">
+      {keys.map((k) => (
+        <TextField key={k} label={t(`details.${k}`)} value={cv.details[k]} onChange={set(k)} />
+      ))}
+    </div>
+  );
+  if (region === "default") {
+    const filled = all.some((k) => cv.details[k].trim());
+    return (
+      <details open={filled} className="group rounded-2xl border border-stone-200 bg-white shadow-xs [&_summary::-webkit-details-marker]:hidden">
+        <summary className="flex cursor-pointer list-none flex-col gap-0.5 px-5 py-4">
+          <span className="text-sm font-semibold text-stone-900">{t("details.title")}</span>
+          <span className="text-xs text-stone-500">{t("details.descAll")}</span>
+        </summary>
+        <div className="px-5 pb-5">{body}</div>
+      </details>
+    );
+  }
+  return (
+    <Panel title={t("details.title")} description={t("details.desc", { region: t(`region.${region}`) })}>
+      {body}
+    </Panel>
   );
 }
 
@@ -115,6 +160,7 @@ const SUMMARY_STARTERS = [
 ];
 
 export function SummarySection({ cv, onChange }: SectionProps) {
+  const t = useT();
   const words = cv.summary.trim() ? cv.summary.trim().split(/\s+/).length : 0;
   const tone =
     words === 0 ? "text-stone-400" : words < 30 ? "text-amber-600" : words <= 90 ? "text-emerald-600" : "text-amber-600";
@@ -125,7 +171,7 @@ export function SummarySection({ cv, onChange }: SectionProps) {
     <div className="flex flex-col gap-4">
       <Panel>
         <TextArea
-          label="About you"
+          label={t("f.summary")}
           rows={7}
           value={cv.summary}
           placeholder="Who you are, what you build or do, and what you are best at."
@@ -145,13 +191,13 @@ export function SummarySection({ cv, onChange }: SectionProps) {
       </Panel>
       {!cv.summary.trim() && (
         <div className="flex flex-col gap-2">
-          <span className="text-xs font-medium text-stone-500">Need a start? Tap one and edit it:</span>
+          <span className="text-xs font-medium text-stone-500">{t("f.summaryStarters")}</span>
           {SUMMARY_STARTERS.map((s) => (
             <button
               key={s}
               type="button"
               onClick={() => onChange({ ...cv, summary: s })}
-              className="rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-left text-sm text-stone-600 shadow-xs transition hover:border-brand/50 hover:bg-brand/[0.03] hover:text-brand"
+              className="rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-start text-sm text-stone-600 shadow-xs transition hover:border-brand/50 hover:bg-brand/[0.03] hover:text-brand"
             >
               {s}
             </button>
@@ -165,6 +211,7 @@ export function SummarySection({ cv, onChange }: SectionProps) {
 /* ------------------------------------------------------------------ Experience */
 
 export function ExperienceSection({ cv, onChange }: SectionProps) {
+  const t = useT();
   const { set, add, card } = useList(cv, onChange);
   const addJob = () =>
     add("experience", { id: newId("exp"), role: "", company: "", location: "", date: "", bullets: [], stack: "" });
@@ -181,13 +228,13 @@ export function ExperienceSection({ cv, onChange }: SectionProps) {
       {cv.experience.map((e, i) => (
         <ItemCard key={e.id} {...card("experience", i, [e.role, e.company].filter(Boolean).join(" · "), e.id)}>
           <div className="grid grid-cols-1 gap-4 @min-[520px]:grid-cols-2">
-            <TextField label="Job title" value={e.role} placeholder="Frontend Developer" onChange={(v) => set("experience", e.id, { role: v })} />
-            <TextField label="Company" value={e.company} placeholder="Bright Labs" onChange={(v) => set("experience", e.id, { company: v })} />
-            <TextField label="Location" value={e.location} placeholder="Lahore or Remote" onChange={(v) => set("experience", e.id, { location: v })} />
-            <TextField label="Dates" value={e.date} placeholder="Jan 2024 – Present" onChange={(v) => set("experience", e.id, { date: v })} />
+            <TextField label={t("f.jobTitle")} value={e.role} placeholder="Frontend Developer" onChange={(v) => set("experience", e.id, { role: v })} />
+            <TextField label={t("f.company")} value={e.company} placeholder="Bright Labs" onChange={(v) => set("experience", e.id, { company: v })} />
+            <TextField label={t("f.location")} value={e.location} placeholder="Lahore or Remote" onChange={(v) => set("experience", e.id, { location: v })} />
+            <TextField label={t("f.dates")} value={e.date} placeholder="Jan 2024 – Present" onChange={(v) => set("experience", e.id, { date: v })} />
           </div>
           <LinesField
-            label="What you did and achieved"
+            label={t("f.achievements")}
             rows={5}
             value={e.bullets}
             placeholder={"Built a booking dashboard used by 120 clinics\nCut page load time from 4 s to 1 s"}
@@ -197,7 +244,7 @@ export function ExperienceSection({ cv, onChange }: SectionProps) {
             <BulletsAssist bullets={e.bullets} role={e.role} company={e.company} onChange={(v) => set("experience", e.id, { bullets: v })} />
           </div>
           <TextField
-            label="Tools used (optional)"
+            label={t("f.tools")}
             value={e.stack}
             placeholder="React, Node.js, PostgreSQL"
             onChange={(v) => set("experience", e.id, { stack: v })}
@@ -212,6 +259,7 @@ export function ExperienceSection({ cv, onChange }: SectionProps) {
 /* ------------------------------------------------------------------ Education */
 
 export function EducationSection({ cv, onChange }: SectionProps) {
+  const t = useT();
   const { set, add, card } = useList(cv, onChange);
   return (
     <div className="flex flex-col gap-3">
@@ -219,10 +267,10 @@ export function EducationSection({ cv, onChange }: SectionProps) {
       {cv.education.map((ed, i) => (
         <ItemCard key={ed.id} {...card("education", i, ed.degree, ed.id)}>
           <div className="grid grid-cols-1 gap-4 @min-[520px]:grid-cols-2">
-            <TextField label="Degree" value={ed.degree} placeholder="BS Computer Science" onChange={(v) => set("education", ed.id, { degree: v })} />
-            <TextField label="School / university" value={ed.school} placeholder="University of the Punjab" onChange={(v) => set("education", ed.id, { school: v })} />
-            <TextField label="Dates" value={ed.date} placeholder="2018 – 2022" onChange={(v) => set("education", ed.id, { date: v })} />
-            <TextField label="Details (optional)" value={ed.details} placeholder="City · CGPA 3.4 / 4.0" onChange={(v) => set("education", ed.id, { details: v })} />
+            <TextField label={t("f.degree")} value={ed.degree} placeholder="BS Computer Science" onChange={(v) => set("education", ed.id, { degree: v })} />
+            <TextField label={t("f.school")} value={ed.school} placeholder="University of the Punjab" onChange={(v) => set("education", ed.id, { school: v })} />
+            <TextField label={t("f.dates")} value={ed.date} placeholder="2018 – 2022" onChange={(v) => set("education", ed.id, { date: v })} />
+            <TextField label={t("f.details")} value={ed.details} placeholder="City · CGPA 3.4 / 4.0" onChange={(v) => set("education", ed.id, { details: v })} />
           </div>
         </ItemCard>
       ))}
@@ -238,6 +286,7 @@ export function EducationSection({ cv, onChange }: SectionProps) {
 const SKILL_GROUPS = ["Frontend", "Backend", "Databases", "DevOps & tools", "Mobile", "Design", "Soft skills"];
 
 export function SkillsSection({ cv, onChange }: SectionProps) {
+  const t = useT();
   const { set, add, card } = useList(cv, onChange);
   const used = new Set(cv.skills.map((s) => s.category.trim().toLowerCase()));
   const suggestions = SKILL_GROUPS.filter((g) => !used.has(g.toLowerCase()));
@@ -264,9 +313,9 @@ export function SkillsSection({ cv, onChange }: SectionProps) {
       )}
       {cv.skills.map((s, i) => (
         <ItemCard key={s.id} {...card("skills", i, s.category, s.id)}>
-          <TextField label="Group name" value={s.category} placeholder="Frontend" onChange={(v) => set("skills", s.id, { category: v })} />
+          <TextField label={t("f.groupName")} value={s.category} placeholder="Frontend" onChange={(v) => set("skills", s.id, { category: v })} />
           <TextArea
-            label="Skills"
+            label={t("f.skills")}
             hint="separate with commas"
             rows={2}
             value={s.items}
@@ -283,6 +332,7 @@ export function SkillsSection({ cv, onChange }: SectionProps) {
 /* ------------------------------------------------------------------ Projects */
 
 export function ProjectsSection({ cv, onChange }: SectionProps) {
+  const t = useT();
   const { set, add, card } = useList(cv, onChange);
   return (
     <div className="flex flex-col gap-3">
@@ -292,18 +342,18 @@ export function ProjectsSection({ cv, onChange }: SectionProps) {
       {cv.projects.map((p, i) => (
         <ItemCard key={p.id} {...card("projects", i, p.name, p.id)}>
           <div className="grid grid-cols-1 gap-4 @min-[520px]:grid-cols-[1fr_9rem]">
-            <TextField label="Project name" value={p.name} placeholder="TaskFlow — Team Task Board" onChange={(v) => set("projects", p.id, { name: v })} />
-            <TextField label="Year" value={p.date} placeholder="2025" onChange={(v) => set("projects", p.id, { date: v })} />
+            <TextField label={t("f.projectName")} value={p.name} placeholder="TaskFlow — Team Task Board" onChange={(v) => set("projects", p.id, { name: v })} />
+            <TextField label={t("f.year")} value={p.date} placeholder="2025" onChange={(v) => set("projects", p.id, { date: v })} />
           </div>
           <LinesField
-            label="Links"
+            label={t("f.links")}
             rows={2}
             value={p.links}
             placeholder={"https://github.com/you/project\nhttps://project.live"}
             onChange={(v) => set("projects", p.id, { links: v })}
           />
           <LinesField
-            label="What it does"
+            label={t("f.whatItDoes")}
             rows={4}
             value={p.bullets}
             placeholder={"Kanban board with drag and drop\nJWT login and REST API"}
@@ -312,7 +362,7 @@ export function ProjectsSection({ cv, onChange }: SectionProps) {
           <div className="-mt-2">
             <BulletsAssist bullets={p.bullets} role={p.name} onChange={(v) => set("projects", p.id, { bullets: v })} />
           </div>
-          <TextField label="Tools used (optional)" value={p.stack} placeholder="React, Express, MongoDB" onChange={(v) => set("projects", p.id, { stack: v })} />
+          <TextField label={t("f.tools")} value={p.stack} placeholder="React, Express, MongoDB" onChange={(v) => set("projects", p.id, { stack: v })} />
         </ItemCard>
       ))}
       <AddButton onClick={() => add("projects", { id: newId("proj"), name: "", date: "", links: [], bullets: [], stack: "" })}>
@@ -325,16 +375,17 @@ export function ProjectsSection({ cv, onChange }: SectionProps) {
 /* ------------------------------------------------------------------ Extras */
 
 export function ExtrasSection({ cv, onChange }: SectionProps) {
+  const t = useT();
   const { set, add, card } = useList(cv, onChange);
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
-        <h3 className="text-sm font-semibold text-stone-900">Languages</h3>
+        <h3 className="text-sm font-semibold text-stone-900">{t("f.languages")}</h3>
         {cv.languages.map((l, i) => (
           <ItemCard key={l.id} {...card("languages", i, l.name, l.id)}>
             <div className="grid grid-cols-1 gap-4 @min-[520px]:grid-cols-2">
-              <TextField label="Language" value={l.name} placeholder="English" onChange={(v) => set("languages", l.id, { name: v })} />
-              <TextField label="Level" value={l.level} placeholder="Native, Fluent, Basic…" onChange={(v) => set("languages", l.id, { level: v })} />
+              <TextField label={t("f.language")} value={l.name} placeholder="English" onChange={(v) => set("languages", l.id, { name: v })} />
+              <TextField label={t("f.level")} value={l.level} placeholder="Native, Fluent, Basic…" onChange={(v) => set("languages", l.id, { level: v })} />
             </div>
           </ItemCard>
         ))}
@@ -342,15 +393,15 @@ export function ExtrasSection({ cv, onChange }: SectionProps) {
       </div>
 
       <div className="flex flex-col gap-3">
-        <h3 className="text-sm font-semibold text-stone-800">Certificates</h3>
+        <h3 className="text-sm font-semibold text-stone-800">{t("f.certificates")}</h3>
         {cv.certificates.map((c, i) => (
           <ItemCard key={c.id} {...card("certificates", i, c.name, c.id)}>
-            <TextField label="Certificate" value={c.name} placeholder="AWS Cloud Practitioner" onChange={(v) => set("certificates", c.id, { name: v })} />
+            <TextField label={t("f.certificate")} value={c.name} placeholder="AWS Cloud Practitioner" onChange={(v) => set("certificates", c.id, { name: v })} />
             <div className="grid grid-cols-1 gap-4 @min-[520px]:grid-cols-[1fr_6rem]">
-              <TextField label="Issued by" value={c.issuer} placeholder="Coursera" onChange={(v) => set("certificates", c.id, { issuer: v })} />
-              <TextField label="Year" value={c.year} placeholder="2024" onChange={(v) => set("certificates", c.id, { year: v })} />
+              <TextField label={t("f.issuer")} value={c.issuer} placeholder="Coursera" onChange={(v) => set("certificates", c.id, { issuer: v })} />
+              <TextField label={t("f.year")} value={c.year} placeholder="2024" onChange={(v) => set("certificates", c.id, { year: v })} />
             </div>
-            <TextField label="Link (optional)" value={c.url} onChange={(v) => set("certificates", c.id, { url: v })} />
+            <TextField label={t("f.linkOptional")} value={c.url} onChange={(v) => set("certificates", c.id, { url: v })} />
           </ItemCard>
         ))}
         <AddButton onClick={() => add("certificates", { id: newId("cert"), name: "", issuer: "", year: "", url: "" })}>

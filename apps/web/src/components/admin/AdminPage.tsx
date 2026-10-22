@@ -4,6 +4,7 @@ import type { AdminMetricsDto, AdminUpdateUserDto, AdminUserDto, MeDto, Page, Te
 import { PLANS, TEMPLATE_TIERS, type Plan, type TemplateTier } from "@cvb/domain";
 import { TEMPLATES } from "@cvb/templates/catalog";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 import { useDeferredValue, useState } from "react";
 import { TierBadge } from "@cvb/ui";
 import { api } from "@/lib/api";
@@ -12,12 +13,16 @@ import { keys } from "@/lib/queries";
 import { AppHeader } from "../AppHeader";
 import { RequireAuth } from "../RequireAuth";
 import { btn, card, field } from "../ui/styles";
+import { OrgsAdmin } from "./OrgsAdmin";
+import { ExpertsAdmin } from "./ExpertsAdmin";
 
-type Tab = "overview" | "users" | "templates";
+const TABS = ["overview", "users", "templates", "organisations", "experts"] as const;
+type Tab = (typeof TABS)[number];
 
 /** Internal console: numbers, users and the template catalog. Every call is checked by the API (role admin). */
 export function AdminPage() {
-  const [tab, setTab] = useState<Tab>("overview");
+  const params = useSearchParams();
+  const [tab, setTab] = useState<Tab>(() => TABS.find((t) => t === params.get("tab")) ?? "overview");
   return (
     <RequireAuth admin>
       {(me) => (
@@ -26,7 +31,7 @@ export function AdminPage() {
           <main className="mx-auto max-w-6xl px-4 pb-20 pt-8 sm:px-6">
             <h1 className="text-2xl font-semibold tracking-tight text-stone-900">Admin</h1>
             <nav className="mt-4 flex gap-1 border-b border-stone-200 text-sm font-medium">
-              {(["overview", "users", "templates"] as const).map((t) => (
+              {TABS.map((t) => (
                 <button key={t} type="button" onClick={() => setTab(t)} className={`-mb-px border-b-2 px-3 py-2 capitalize ${tab === t ? "border-brand text-stone-900" : "border-transparent text-stone-500 hover:text-stone-800"}`}>
                   {t}
                 </button>
@@ -36,6 +41,8 @@ export function AdminPage() {
               {tab === "overview" && <Overview />}
               {tab === "users" && <Users me={me} />}
               {tab === "templates" && <Templates />}
+              {tab === "organisations" && <OrgsAdmin />}
+              {tab === "experts" && <ExpertsAdmin />}
             </div>
           </main>
         </div>
@@ -82,9 +89,9 @@ function Overview() {
                 <span className="h-2.5 overflow-hidden rounded-full bg-stone-100">
                   <span className="block h-full rounded-full bg-brand" style={{ width: `${(n / top) * 100}%` }} />
                 </span>
-                <span className="text-right tabular-nums text-stone-600">
+                <span className="text-end tabular-nums text-stone-600">
                   {n.toLocaleString()}
-                  {i > 0 && first > 0 && <span className="ml-1 text-xs text-stone-400">{Math.round((n / first) * 100)}%</span>}
+                  {i > 0 && first > 0 && <span className="ms-1 text-xs text-stone-400">{Math.round((n / first) * 100)}%</span>}
                 </span>
               </li>
             );
@@ -120,7 +127,7 @@ function Users({ me }: { me: MeDto }) {
       <input className={`${field} max-w-sm`} placeholder="Search by email or name" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search users" />
       {update.error && <p className="text-sm text-red-600">{update.error.message}</p>}
       <div className={`${card} overflow-x-auto`}>
-        <table className="w-full min-w-[720px] text-left text-sm">
+        <table className="w-full min-w-[720px] text-start text-sm">
           <thead className="border-b border-stone-100 text-xs uppercase tracking-wide text-stone-500">
             <tr>
               <th className="px-4 py-3 font-semibold">User</th>
@@ -170,7 +177,7 @@ function Users({ me }: { me: MeDto }) {
                   </td>
                   <td className="px-4 py-3 tabular-nums">{u.resumes}</td>
                   <td className="px-4 py-3 text-stone-500">{new Date(u.createdAt).toLocaleDateString()}</td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-end">
                     {!self && (
                       <button
                         type="button"
@@ -211,7 +218,7 @@ function Templates() {
 
   return (
     <div className={`${card} overflow-x-auto`}>
-      <table className="w-full min-w-[640px] text-left text-sm">
+      <table className="w-full min-w-[640px] text-start text-sm">
         <thead className="border-b border-stone-100 text-xs uppercase tracking-wide text-stone-500">
           <tr>
             <th className="px-4 py-3 font-semibold">Template</th>

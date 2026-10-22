@@ -68,7 +68,7 @@ export function BulletsAssist({ bullets, role, company, onChange }: Props) {
                 <button
                   type="button"
                   onClick={() => void improve(l.i)}
-                  className="flex w-full items-start gap-3 rounded-xl border border-stone-200 bg-white p-3 text-left text-sm text-stone-800 hover:border-violet-300"
+                  className="flex w-full items-start gap-3 rounded-xl border border-stone-200 bg-white p-3 text-start text-sm text-stone-800 hover:border-violet-300"
                 >
                   <span className="flex-1">{l.text}</span>
                   {!isQuantified(l.text) && <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">no number</span>}

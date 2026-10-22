@@ -1,4 +1,4 @@
-import { clean, linkHref, linkLabel, type Personal, type StepId } from "@cvb/domain";
+import { clean, cvLanguage, DETAIL_LABELS, linkHref, linkLabel, showPhoto, visibleDetails, type CV, type Personal, type StepId } from "@cvb/domain";
 import type { ReactNode } from "react";
 
 export type Contact = { key: string; text: string; href?: string; kind: "email" | "phone" | "location" | "web" | "extra" };
@@ -83,3 +83,91 @@ export function Block({
 }
 
 export const joinParts = (parts: (string | undefined | false)[], sep = " · ") => parts.filter(Boolean).join(sep);
+
+// ─── Language, direction, photo and personal details ────────────────────────
+
+type Lang = "ur" | "ar";
+
+/** Template headings in the CV's own language. Keys are the English text the templates use. */
+const HEADINGS: Record<string, Record<Lang, string>> = {
+  About: { ur: "تعارف", ar: "نبذة" },
+  "About me": { ur: "میرے بارے میں", ar: "نبذة عني" },
+  Additional: { ur: "اضافی معلومات", ar: "معلومات إضافية" },
+  "Career History": { ur: "پیشہ ورانہ سفر", ar: "المسيرة المهنية" },
+  Certificates: { ur: "سرٹیفکیٹس", ar: "الشهادات" },
+  "Core Competencies": { ur: "بنیادی مہارتیں", ar: "الكفاءات الأساسية" },
+  Credentials: { ur: "اسناد", ar: "المؤهلات" },
+  Education: { ur: "تعلیم", ar: "التعليم" },
+  "Executive Summary": { ur: "خلاصہ", ar: "الملخص التنفيذي" },
+  Experience: { ur: "تجربہ", ar: "الخبرة" },
+  Expertise: { ur: "مہارت", ar: "مجالات الخبرة" },
+  Extras: { ur: "اضافی", ar: "إضافات" },
+  "Key Initiatives": { ur: "اہم منصوبے", ar: "المبادرات الرئيسية" },
+  Languages: { ur: "زبانیں", ar: "اللغات" },
+  "Professional Experience": { ur: "پیشہ ورانہ تجربہ", ar: "الخبرة المهنية" },
+  Profile: { ur: "پروفائل", ar: "الملف الشخصي" },
+  Projects: { ur: "منصوبے", ar: "المشاريع" },
+  "Selected Projects": { ur: "منتخب منصوبے", ar: "مشاريع مختارة" },
+  "Selected Work": { ur: "منتخب کام", ar: "أعمال مختارة" },
+  Skills: { ur: "مہارتیں", ar: "المهارات" },
+  Summary: { ur: "خلاصہ", ar: "الملخص" },
+  "Work experience": { ur: "ملازمت کا تجربہ", ar: "الخبرة العملية" },
+  Work: { ur: "ملازمت کا", ar: "الخبرة" },
+  experience: { ur: "تجربہ", ar: "العملية" },
+  "Your Name": { ur: "آپ کا نام", ar: "اسمك" },
+  "Stack:": { ur: "ٹیکنالوجی:", ar: "التقنيات:" },
+  "Tools:": { ur: "ٹولز:", ar: "الأدوات:" },
+  Certifications: { ur: "سرٹیفکیشنز", ar: "الشهادات" },
+  "and training": { ur: "اور تربیت", ar: "والتدريب" },
+  Contact: { ur: "رابطہ", ar: "التواصل" },
+  Email: { ur: "ای میل", ar: "البريد" },
+  Phone: { ur: "فون", ar: "الهاتف" },
+  Location: { ur: "مقام", ar: "الموقع" },
+  Website: { ur: "ویب سائٹ", ar: "الموقع الإلكتروني" },
+  LinkedIn: { ur: "لنکڈ اِن", ar: "لينكدإن" },
+  GitHub: { ur: "گِٹ ہب", ar: "غيت هب" },
+  Other: { ur: "دیگر", ar: "أخرى" },
+  "Personal details": { ur: "ذاتی معلومات", ar: "البيانات الشخصية" },
+  "Date of birth": { ur: "تاریخ پیدائش", ar: "تاريخ الميلاد" },
+  Nationality: { ur: "قومیت", ar: "الجنسية" },
+  Gender: { ur: "جنس", ar: "الجنس" },
+  "Marital status": { ur: "ازدواجی حیثیت", ar: "الحالة الاجتماعية" },
+  "Visa status": { ur: "ویزا کی حیثیت", ar: "حالة التأشيرة" },
+  "Driving licence": { ur: "ڈرائیونگ لائسنس", ar: "رخصة القيادة" },
+  "Father's name": { ur: "والد کا نام", ar: "اسم الأب" },
+  "CNIC / ID number": { ur: "شناختی کارڈ نمبر", ar: "رقم الهوية" },
+  Religion: { ur: "مذہب", ar: "الديانة" },
+};
+
+export type Translate = (english: string) => string;
+
+/** `tr("Experience")` in the CV's heading language (English text when there's no translation). */
+export function cvLabels(cv: CV): Translate {
+  const lang = cvLanguage(cv);
+  if (lang === "en") return (s) => s;
+  return (s) => HEADINGS[s]?.[lang] ?? s;
+}
+
+/** The profile photo, when the CV has one and its region shows photos. `side` sits in a column. */
+export function Photo({ cv, variant = "head" }: { cv: CV; variant?: "head" | "side" }) {
+  if (!showPhoto(cv)) return null;
+  return (
+    <img src={cv.photo} alt="" className={`cv-photo cv-photo--${variant} cv-photo--${cv.settings.photo.shape}`} />
+  );
+}
+
+/** Date of birth, nationality, visa status… as the CV's region expects them. */
+export function PersonalDetailsList({ cv, tr, className = "" }: { cv: CV; tr: Translate; className?: string }) {
+  const items = visibleDetails(cv);
+  if (!items.length) return null;
+  return (
+    <dl className={`cv-details ${className}`} data-step="personal">
+      {items.map((d) => (
+        <div key={d.key}>
+          <dt>{tr(DETAIL_LABELS[d.key])}</dt>
+          <dd>{d.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}

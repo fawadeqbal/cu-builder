@@ -59,7 +59,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
     }
   }
 
-  async function social(provider: "google" | "linkedin") {
+  async function social(provider: "google" | "linkedin" | "microsoft") {
     setError("");
     const res = await authClient.signIn.social({ provider, callbackURL: next, errorCallbackURL: `/${mode}${query}` });
     if (res.error) setError(res.error.message ?? "Couldn't reach the sign-in provider");
@@ -75,7 +75,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
     );
   }
 
-  const hasSocial = providers.data?.google || providers.data?.linkedin;
+  const hasSocial = providers.data?.google || providers.data?.linkedin || providers.data?.microsoft;
 
   return (
     <AuthShell
@@ -109,6 +109,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
           {providers.data?.linkedin && (
             <button type="button" className={`${btn.secondary} w-full`} onClick={() => void social("linkedin")}>
               <LinkedInMark /> Continue with LinkedIn
+            </button>
+          )}
+          {providers.data?.microsoft && (
+            <button type="button" className={`${btn.secondary} w-full`} onClick={() => void social("microsoft")}>
+              <MicrosoftMark /> Continue with Microsoft
             </button>
           )}
           <div className="my-2 flex items-center gap-3 text-xs text-stone-400">
@@ -214,3 +219,15 @@ function LinkedInMark() {
     </svg>
   );
 }
+
+function MicrosoftMark() {
+  return (
+    <svg viewBox="0 0 21 21" className="size-4" aria-hidden>
+      <path fill="#f25022" d="M1 1h9v9H1z" />
+      <path fill="#7fba00" d="M11 1h9v9h-9z" />
+      <path fill="#00a4ef" d="M1 11h9v9H1z" />
+      <path fill="#ffb900" d="M11 11h9v9h-9z" />
+    </svg>
+  );
+}
+

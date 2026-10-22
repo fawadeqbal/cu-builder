@@ -39,7 +39,7 @@ export function ViewSwitcher({ mode, onMode, allowSplit }: Props) {
     >
       <span
         aria-hidden="true"
-        className="absolute inset-y-0.5 left-0.5 rounded-md bg-white shadow-sm ring-1 ring-stone-900/5 transition-transform duration-300 ease-[cubic-bezier(.2,.8,.2,1)]"
+        className="absolute inset-y-0.5 start-0.5 rounded-md bg-white shadow-sm ring-1 ring-stone-900/5 transition-transform duration-300 ease-[cubic-bezier(.2,.8,.2,1)]"
         style={{
           width: `calc((100% - 4px) / ${options.length})`,
           transform: `translateX(${index * 100}%)`,

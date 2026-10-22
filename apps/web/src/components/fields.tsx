@@ -2,6 +2,7 @@
 
 import { useId, type ReactNode } from "react";
 import { ChevronDownIcon, ChevronUpIcon, PlusIcon, TrashIcon } from "@cvb/ui";
+import { useT } from "@/lib/i18n";
 
 const inputClass =
   "w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 shadow-xs transition " +
@@ -61,7 +62,7 @@ export function TextField({
     <div className="flex flex-col gap-1.5">
       <label htmlFor={id} className={labelClass}>
         {label}
-        {required && <span className="ml-0.5 text-red-600">*</span>}
+        {required && <span className="ms-0.5 text-red-600">*</span>}
       </label>
       <input
         id={id}
@@ -103,7 +104,7 @@ export function TextArea({
     <div className="flex flex-col gap-1.5">
       <label htmlFor={id} className={labelClass}>
         {label}
-        {hint && <span className="ml-1.5 font-normal text-stone-400">{hint}</span>}
+        {hint && <span className="ms-1.5 font-normal text-stone-400">{hint}</span>}
       </label>
       <textarea
         id={id}
@@ -159,23 +160,24 @@ export function ItemCard({
   onRemove: () => void;
   children: ReactNode;
 }) {
+  const t = useT();
   const btn =
     "grid size-8 place-items-center rounded-lg text-stone-400 transition hover:bg-stone-100 hover:text-stone-800 disabled:pointer-events-none disabled:opacity-30";
   return (
     <div className="group/card rounded-2xl border border-stone-200 bg-white shadow-xs transition hover:border-stone-300">
-      <div className="flex items-center gap-3 border-b border-stone-100 py-2 pl-4 pr-2">
+      <div className="flex items-center gap-3 border-b border-stone-100 py-2 ps-4 pe-2">
         <span className="grid size-6 shrink-0 place-items-center rounded-md bg-stone-100 text-[11px] font-semibold tabular-nums text-stone-500">
           {index + 1}
         </span>
         <span className="min-w-0 flex-1 truncate text-sm font-semibold text-stone-800">{title}</span>
         <div className="flex shrink-0 items-center opacity-60 transition group-hover/card:opacity-100 group-focus-within/card:opacity-100">
-          <button type="button" className={btn} onClick={() => onMove(-1)} disabled={index === 0} aria-label="Move up" title="Move up">
+          <button type="button" className={btn} onClick={() => onMove(-1)} disabled={index === 0} aria-label={t("common.moveUp")} title={t("common.moveUp")}>
             <ChevronUpIcon className="size-4" />
           </button>
-          <button type="button" className={btn} onClick={() => onMove(1)} disabled={index === total - 1} aria-label="Move down" title="Move down">
+          <button type="button" className={btn} onClick={() => onMove(1)} disabled={index === total - 1} aria-label={t("common.moveDown")} title={t("common.moveDown")}>
             <ChevronDownIcon className="size-4" />
           </button>
-          <button type="button" className={`${btn} hover:!bg-red-50 hover:!text-red-600`} onClick={onRemove} aria-label="Remove" title="Remove">
+          <button type="button" className={`${btn} hover:!bg-red-50 hover:!text-red-600`} onClick={onRemove} aria-label={t("common.remove")} title={t("common.remove")}>
             <TrashIcon className="size-4" />
           </button>
         </div>

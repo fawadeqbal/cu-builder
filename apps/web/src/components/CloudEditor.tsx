@@ -9,6 +9,7 @@ import { api, isApiError } from "@/lib/api";
 import { useCloudDocument } from "@/lib/document";
 import { keys, useResume } from "@/lib/queries";
 import Builder from "./Builder";
+import { OwnerComments } from "./comments/OwnerComments";
 import { RequireAuth } from "./RequireAuth";
 import { FullPageMessage } from "./ui/FullPageMessage";
 
@@ -53,7 +54,18 @@ function Editor({ resume }: { resume: ResumeDto }) {
     }
   }
 
-  return <Builder doc={doc} cloud={{ resumeId: resume.id, title, onRename: (t) => void rename(t) }} banner={<ImportReview />} />;
+  return (
+    <Builder
+      doc={doc}
+      cloud={{ resumeId: resume.id, title, onRename: (t) => void rename(t) }}
+      banner={
+        <>
+          <ImportReview />
+          <OwnerComments resumeId={resume.id} doc={doc} />
+        </>
+      }
+    />
+  );
 }
 
 /** After an upload: what the reader wasn't sure about, so the user checks those parts first. */
@@ -75,7 +87,7 @@ function ImportReview() {
           <strong className="font-semibold">We filled in your CV from {item.data.fileName}.</strong>{" "}
           {item.data.warnings.length ? "Please check these first:" : "Go through each step to check names, dates and bullet points."}
           {item.data.warnings.length > 0 && (
-            <ul className="mt-1 list-disc pl-5 text-sky-900">
+            <ul className="mt-1 list-disc ps-5 text-sky-900">
               {item.data.warnings.map((w) => (
                 <li key={w}>{w}</li>
               ))}

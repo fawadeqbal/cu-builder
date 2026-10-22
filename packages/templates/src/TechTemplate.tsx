@@ -1,15 +1,17 @@
 import { linkHref, type CV, type StepId } from "@cvb/domain";
 import type { ReactNode } from "react";
-import { Block, Bullets, ContactText, contacts, joinParts, ProjectLinks, splitItems } from "./shared";
+import { Block, Bullets, ContactText, contacts, joinParts, ProjectLinks, splitItems, cvLabels, Photo, PersonalDetailsList } from "./shared";
 
 /** Developer — mono accents, skill chips, and projects right after experience. */
 export function TechTemplate({ cv }: { cv: CV }) {
   const p = cv.personal;
+  const tr = cvLabels(cv);
   const info = contacts(p);
   return (
     <div className="tpl tpl-tech">
       <Block as="header" step="personal" className="tc-head">
-        <div className="tc-name">{p.name || "Your Name"}</div>
+        <Photo cv={cv} />
+        <div className="tc-name">{p.name || tr("Your Name")}</div>
         {p.headline && <div className="tc-headline">{p.headline}</div>}
         {p.tagline && <div className="tc-tagline">{p.tagline}</div>}
         {info.length > 0 && (
@@ -21,16 +23,17 @@ export function TechTemplate({ cv }: { cv: CV }) {
             ))}
           </div>
         )}
+        <PersonalDetailsList cv={cv} tr={tr} />
       </Block>
 
       {cv.summary.trim() && (
-        <Section step="summary" title="about">
+        <Section step="summary" title={tr("About").toLowerCase()}>
           <p>{cv.summary}</p>
         </Section>
       )}
 
       {cv.skills.length > 0 && (
-        <Section step="skills" title="skills">
+        <Section step="skills" title={tr("Skills").toLowerCase()}>
           <div className="tc-skills">
             {cv.skills.map((s) => (
               <div key={s.id} className="tc-skill">
@@ -43,7 +46,7 @@ export function TechTemplate({ cv }: { cv: CV }) {
       )}
 
       {cv.experience.length > 0 && (
-        <Section step="experience" title="experience">
+        <Section step="experience" title={tr("Experience").toLowerCase()}>
           {cv.experience.map((e) => (
             <div key={e.id} className="tc-entry">
               <div className="tc-row">
@@ -62,7 +65,7 @@ export function TechTemplate({ cv }: { cv: CV }) {
       )}
 
       {cv.projects.length > 0 && (
-        <Section step="projects" title="projects">
+        <Section step="projects" title={tr("Projects").toLowerCase()}>
           <div className="tc-projects">
             {cv.projects.map((pr) => (
               <div key={pr.id} className="tc-entry tc-project">
@@ -84,7 +87,7 @@ export function TechTemplate({ cv }: { cv: CV }) {
       )}
 
       {cv.education.length > 0 && (
-        <Section step="education" title="education">
+        <Section step="education" title={tr("Education").toLowerCase()}>
           {cv.education.map((ed) => (
             <div key={ed.id} className="tc-row tc-entry">
               <span>
@@ -99,7 +102,7 @@ export function TechTemplate({ cv }: { cv: CV }) {
       )}
 
       {cv.certificates.length + cv.languages.length > 0 && (
-        <Section step="extras" title="extras">
+        <Section step="extras" title={tr("Extras").toLowerCase()}>
           {cv.certificates.map((c) => (
             <p key={c.id}>
               <b>{c.url ? <a href={linkHref(c.url)}>{c.name}</a> : c.name}</b>

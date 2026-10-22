@@ -1,4 +1,6 @@
 import type { StepId } from "@cvb/domain";
+import { useMemo } from "react";
+import { useT, type MessageKey } from "./i18n";
 
 export type { StepId };
 
@@ -88,3 +90,23 @@ export const STEPS: Step[] = [
     tips: [],
   },
 ];
+
+/** The steps in the interface language. Ids, order and `optional` are the same as STEPS. */
+export function localizeSteps(t: (key: MessageKey) => string): Step[] {
+  return STEPS.map((s) => {
+    const k = (suffix: string) => `step.${s.id}.${suffix}` as MessageKey;
+    return {
+      ...s,
+      short: t(k("short")),
+      title: t(k("title")),
+      intro: t(k("intro")),
+      tips: s.tips.map((_, i) => t(k(`tip${i + 1}`))),
+    };
+  });
+}
+
+/** `useSteps()` — STEPS translated for the current language. */
+export function useSteps(): Step[] {
+  const t = useT();
+  return useMemo(() => localizeSteps(t), [t]);
+}

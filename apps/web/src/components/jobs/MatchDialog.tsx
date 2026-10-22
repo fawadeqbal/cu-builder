@@ -148,7 +148,7 @@ export function MatchDialog({ open, onClose, cv, resumeId, flush, onCv, onGate }
                 <ul className="flex max-h-64 flex-col gap-1.5 overflow-y-auto">
                   {jobs.data.map((j) => (
                     <li key={j.id}>
-                      <button type="button" onClick={() => void run(j)} className="w-full rounded-xl border border-stone-200 px-3 py-2 text-left text-sm hover:border-brand/50 hover:bg-brand/[0.03]">
+                      <button type="button" onClick={() => void run(j)} className="w-full rounded-xl border border-stone-200 px-3 py-2 text-start text-sm hover:border-brand/50 hover:bg-brand/[0.03]">
                         <span className="font-medium text-stone-900">{j.title}</span>
                         {j.company && <span className="text-stone-500"> · {j.company}</span>}
                       </button>

@@ -60,6 +60,33 @@ export const ResumeDataSchema = z.object({
     .max(30)
     .default([]),
   languages: z.array(z.object({ id, name: text(60), level: text(60) })).max(20).default([]),
+  details: z
+    .object({
+      dateOfBirth: text(60),
+      nationality: text(80),
+      gender: text(40),
+      maritalStatus: text(40),
+      visaStatus: text(120),
+      drivingLicence: text(80),
+      fatherName: text(120),
+      idNumber: text(40),
+      religion: text(60),
+    })
+    .default({ dateOfBirth: "", nationality: "", gender: "", maritalStatus: "", visaStatus: "", drivingLicence: "", fatherName: "", idNumber: "", religion: "" }),
+  /** A small JPEG/PNG/WebP data URL (the editor crops and downsizes to ≤ 400 px). */
+  photo: z
+    .string()
+    .max(220_000)
+    .refine((v) => v === "" || /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(v), "Photo must be an image")
+    .default(""),
+  settings: z
+    .object({
+      direction: z.enum(["auto", "ltr", "rtl"]).default("auto"),
+      language: z.enum(["auto", "en", "ur", "ar"]).default("auto"),
+      region: z.enum(["default", "us", "uk", "europass", "gulf", "south_asia"]).default("default"),
+      photo: z.object({ show: z.boolean().default(true), shape: z.enum(["circle", "square", "rounded"]).default("circle") }).default({ show: true, shape: "circle" }),
+    })
+    .default({ direction: "auto", language: "auto", region: "default", photo: { show: true, shape: "circle" } }),
 });
 
 // Compile-time guarantee that the schema and the domain type never drift apart.

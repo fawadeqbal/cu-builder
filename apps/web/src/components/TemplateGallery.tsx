@@ -138,7 +138,7 @@ function Gallery({ resume }: { resume: ResumeDto | null }) {
           </Link>
           <Link
             href={backHref}
-            className="ml-auto flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-stone-600 transition hover:bg-stone-100 hover:text-stone-900"
+            className="ms-auto flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-stone-600 transition hover:bg-stone-100 hover:text-stone-900"
           >
             <ArrowLeftIcon className="size-4" /> {resume || !signedIn ? "Back to editor" : "My CVs"}
           </Link>
@@ -233,7 +233,7 @@ function Gallery({ resume }: { resume: ResumeDto | null }) {
             <span className="relative inline-flex">
               <input type="checkbox" className="peer sr-only" checked={atsOnly} onChange={(e) => setAtsOnly(e.target.checked)} />
               <span className="h-5 w-9 rounded-full bg-stone-200 transition peer-checked:bg-emerald-500 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand" />
-              <span className="absolute left-0.5 top-0.5 size-4 rounded-full bg-white shadow transition peer-checked:translate-x-4" />
+              <span className="absolute start-0.5 top-0.5 size-4 rounded-full bg-white shadow transition peer-checked:translate-x-4" />
             </span>
             ATS-friendly only
           </label>
@@ -266,7 +266,7 @@ function Gallery({ resume }: { resume: ResumeDto | null }) {
             ))}
           </FilterGroup>
 
-          <div className="relative lg:ml-auto">
+          <div className="relative lg:ms-auto">
             <input
               type="search"
               value={query}
@@ -340,7 +340,7 @@ function Gallery({ resume }: { resume: ResumeDto | null }) {
 function FilterGroup({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <span className="mr-1 w-14 shrink-0 text-xs font-semibold uppercase tracking-wide text-stone-400 lg:w-auto">{label}</span>
+      <span className="me-1 w-14 shrink-0 text-xs font-semibold uppercase tracking-wide text-stone-400 lg:w-auto">{label}</span>
       {children}
     </div>
   );
@@ -400,7 +400,7 @@ function TemplateCard({
           <ScaledSheet cv={cv} template={meta.id} accent={accent} />
         </button>
         {current && (
-          <span className="absolute right-6 top-6 inline-flex items-center gap-1 rounded-full bg-brand px-2 py-0.5 text-[11px] font-semibold text-white shadow-sm">
+          <span className="absolute end-6 top-6 inline-flex items-center gap-1 rounded-full bg-brand px-2 py-0.5 text-[11px] font-semibold text-white shadow-sm">
             <CheckIcon className="size-3" /> In use
           </span>
         )}
@@ -426,7 +426,7 @@ function TemplateCard({
         <div className="flex items-center gap-2">
           <span className="size-2.5 rounded-full" style={{ background: accent ?? meta.accent }} />
           <h2 className="text-[15px] font-semibold text-stone-900">{meta.name}</h2>
-          <TierBadge tier={meta.tier} className="ml-auto" />
+          <TierBadge tier={meta.tier} className="ms-auto" />
           {meta.ats && (
             <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 ring-1 ring-inset ring-emerald-200">
               ATS
@@ -487,15 +487,15 @@ function PreviewDialog({
           <div className="mx-auto w-full max-w-[640px] shadow-xl">
             <ScaledSheet cv={cv} template={meta.id} accent={accent} />
           </div>
-          <button type="button" onClick={() => go(-1)} aria-label="Previous template" className="absolute left-4 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-white text-stone-700 shadow-lg ring-1 ring-black/5 hover:bg-stone-50">
+          <button type="button" onClick={() => go(-1)} aria-label="Previous template" className="absolute start-4 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-white text-stone-700 shadow-lg ring-1 ring-black/5 hover:bg-stone-50">
             <ArrowLeftIcon className="size-5" />
           </button>
-          <button type="button" onClick={() => go(1)} aria-label="Next template" className="absolute right-4 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-white text-stone-700 shadow-lg ring-1 ring-black/5 hover:bg-stone-50">
+          <button type="button" onClick={() => go(1)} aria-label="Next template" className="absolute end-4 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-white text-stone-700 shadow-lg ring-1 ring-black/5 hover:bg-stone-50">
             <ArrowRightIcon className="size-5" />
           </button>
         </div>
 
-        <aside className="flex w-full flex-col gap-5 overflow-y-auto border-l border-stone-200 p-6 md:w-80">
+        <aside className="flex w-full flex-col gap-5 overflow-y-auto border-s border-stone-200 p-6 md:w-80">
           <div className="flex items-start justify-between gap-2">
             <div>
               <div className="text-xs font-medium text-stone-500">

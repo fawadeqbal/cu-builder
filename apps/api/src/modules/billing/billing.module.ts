@@ -27,6 +27,6 @@ import { UnavailableGateway } from "./unavailable.gateway.js";
       }),
     },
   ],
-  exports: [EntitlementsService],
+  exports: [EntitlementsService, BillingService],
 })
 export class BillingModule {}

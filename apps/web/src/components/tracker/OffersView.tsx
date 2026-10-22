@@ -37,13 +37,13 @@ export function OffersView({ apps, me, onOpen }: { apps: ApplicationDto[]; me: M
           <p className="px-4 py-8 text-center text-sm text-stone-500">Open an application and add its offer details (Offer tab) to compare them here.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[40rem] text-left text-sm">
+            <table className="w-full min-w-[40rem] text-start text-sm">
               <thead className="bg-stone-50 text-xs font-semibold uppercase tracking-wide text-stone-500">
                 <tr>
                   <th className="px-4 py-2.5" />
                   {offers.map((o) => (
                     <th key={o.id} className="px-4 py-2.5 normal-case">
-                      <button type="button" className="text-left text-sm font-semibold text-stone-900 hover:underline" onClick={() => onOpen(o.id)}>
+                      <button type="button" className="text-start text-sm font-semibold text-stone-900 hover:underline" onClick={() => onOpen(o.id)}>
                         {o.job.company || o.job.title}
                       </button>
                       <div className="text-xs font-normal text-stone-500">{o.job.title}</div>

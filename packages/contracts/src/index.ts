@@ -14,3 +14,6 @@ export * from "./feed";
 export * from "./interviews";
 export * from "./tokens";
 export * from "./tracker";
+export * from "./services";
+export * from "./orgs";
+export * from "./portfolio";

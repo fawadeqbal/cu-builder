@@ -1,15 +1,17 @@
 import { linkHref, type CV, type StepId } from "@cvb/domain";
 import type { ReactNode } from "react";
-import { Block, Bullets, ContactText, contacts, joinParts, ProjectLinks } from "./shared";
+import { Block, Bullets, ContactText, contacts, joinParts, ProjectLinks, cvLabels, Photo, PersonalDetailsList } from "./shared";
 
 /** Nordic — light type, wide margins, dates in a quiet left column. */
 export function NordicTemplate({ cv }: { cv: CV }) {
   const p = cv.personal;
+  const tr = cvLabels(cv);
   const info = contacts(p);
   return (
     <div className="tpl tpl-nordic">
       <Block as="header" step="personal" className="n-head">
-        <div className="n-name">{p.name || "Your Name"}</div>
+        <Photo cv={cv} />
+        <div className="n-name">{p.name || tr("Your Name")}</div>
         {p.headline && <div className="n-headline">{p.headline}</div>}
         {info.length > 0 && (
           <div className="n-contact">
@@ -20,11 +22,12 @@ export function NordicTemplate({ cv }: { cv: CV }) {
             ))}
           </div>
         )}
+        <PersonalDetailsList cv={cv} tr={tr} />
       </Block>
 
       {(cv.summary.trim() || p.tagline) && (
         <Block step="summary" className="n-section">
-          <h2>About</h2>
+          <h2>{tr("About")}</h2>
           <div>
             {cv.summary.trim() && <p className="n-lead">{cv.summary}</p>}
             {p.tagline && <p className="n-muted n-tagline">{p.tagline}</p>}
@@ -33,7 +36,7 @@ export function NordicTemplate({ cv }: { cv: CV }) {
       )}
 
       {cv.experience.length > 0 && (
-        <Section step="experience" title="Experience">
+        <Section step="experience" title={tr("Experience")}>
           {cv.experience.map((e) => (
             <Row key={e.id} date={e.date}>
               <div className="n-title">
@@ -49,7 +52,7 @@ export function NordicTemplate({ cv }: { cv: CV }) {
       )}
 
       {cv.projects.length > 0 && (
-        <Section step="projects" title="Projects">
+        <Section step="projects" title={tr("Projects")}>
           {cv.projects.map((pr) => (
             <Row key={pr.id} date={pr.date}>
               <div className="n-title">{pr.name}</div>
@@ -66,7 +69,7 @@ export function NordicTemplate({ cv }: { cv: CV }) {
       )}
 
       {cv.education.length > 0 && (
-        <Section step="education" title="Education">
+        <Section step="education" title={tr("Education")}>
           {cv.education.map((ed) => (
             <Row key={ed.id} date={ed.date}>
               <div className="n-title">{ed.degree}</div>
@@ -77,7 +80,7 @@ export function NordicTemplate({ cv }: { cv: CV }) {
       )}
 
       {cv.skills.length > 0 && (
-        <Section step="skills" title="Skills">
+        <Section step="skills" title={tr("Skills")}>
           {cv.skills.map((s) => (
             <Row key={s.id} date={s.category}>
               <div>{s.items}</div>
@@ -87,7 +90,7 @@ export function NordicTemplate({ cv }: { cv: CV }) {
       )}
 
       {cv.certificates.length > 0 && (
-        <Section step="extras" title="Certificates">
+        <Section step="extras" title={tr("Certificates")}>
           {cv.certificates.map((c) => (
             <Row key={c.id} date={c.year}>
               <div>
@@ -100,7 +103,7 @@ export function NordicTemplate({ cv }: { cv: CV }) {
       )}
 
       {cv.languages.length > 0 && (
-        <Section step="extras" title="Languages">
+        <Section step="extras" title={tr("Languages")}>
           {cv.languages.map((l) => (
             <Row key={l.id} date={l.name}>
               <div className="n-muted">{l.level}</div>

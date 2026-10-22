@@ -58,12 +58,12 @@ export function SummaryAssist({ cv, onChange }: { cv: CV; onChange: (summary: st
               Rewrite ▾
             </AiButton>
           </summary>
-          <div className="absolute left-0 z-20 mt-1 w-44 rounded-xl border border-stone-200 bg-white p-1 shadow-lg">
+          <div className="absolute start-0 z-20 mt-1 w-44 rounded-xl border border-stone-200 bg-white p-1 shadow-lg">
             {MODES.map(([mode, label]) => (
               <button
                 key={mode}
                 type="button"
-                className="block w-full rounded-lg px-3 py-2 text-left text-sm text-stone-700 hover:bg-stone-100"
+                className="block w-full rounded-lg px-3 py-2 text-start text-sm text-stone-700 hover:bg-stone-100"
                 onClick={() => void run("rewrite", "/ai/rewrite", { text: cv.summary, mode }, (r) => [r.text as string])}
               >
                 {label}

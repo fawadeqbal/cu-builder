@@ -5,6 +5,11 @@
 
 @theme inline {
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Not inline: utilities read var(--color-brand), so a white-label partner can restyle the app
+   at runtime (components/branding/BrandingProvider sets these on <html>). */
+@theme {
   --color-brand: #1e4b8f;
   --color-brand-dark: #173a70;
 }
@@ -91,4 +96,18 @@ body {
 /* Nested targets (a section inside a section) never happen today, but keep one outline if they do. */
 .preview-live [data-step] [data-step]:hover::before {
   content: none;
+}
+
+/* ------------------------------------------------------------------ Urdu and Arabic interface */
+
+html[lang="ar"] body {
+  font-family: var(--font-rtl), var(--font-inter), Tahoma, sans-serif;
+}
+html[lang="ur"] body {
+  font-family: var(--font-urdu), var(--font-rtl), Tahoma, sans-serif;
+  line-height: 1.75;
+}
+/* Nastaliq is tall; keep form controls and buttons from clipping it. */
+html[lang="ur"] :is(input, select, textarea, button) {
+  line-height: 1.9;
 }

@@ -15,6 +15,7 @@ const DAY = 24 * 3600 * 1000;
 @Injectable()
 export class BillingService {
   private readonly logger = new Logger(BillingService.name);
+  private orderPaid: ((orderId: string, paymentRef: string) => Promise<void>) | null = null;
 
   constructor(
     @Inject(BILLING_REPOSITORY) private readonly billing: BillingRepository,
@@ -22,6 +23,11 @@ export class BillingService {
     @Inject(JOB_PRODUCER) private readonly jobs: JobProducer,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
+
+  /** Expert services register here to hear about paid orders (keeps billing free of service code). */
+  onOrderPaid(handler: (orderId: string, paymentRef: string) => Promise<void>): void {
+    this.orderPaid = handler;
+  }
 
   offers(): OfferDto[] {
     return OFFERS.map((o) => ({
@@ -41,7 +47,9 @@ export class BillingService {
     const profile = await this.billing.profile(user.id);
     if (!profile) throw new NotFoundError("User", user.id);
     const now = new Date();
-    const { plan, source } = effectivePlan({ base: profile.basePlan, subscriptions: profile.subscriptions, passes: profile.passes }, now);
+    const own = effectivePlan({ base: profile.basePlan, subscriptions: profile.subscriptions, passes: profile.passes }, now);
+    // An organisation seat (resolved by the auth guard) can lift the plan above what was bought.
+    const { plan, source } = user.planSource === "organization" ? { plan: user.plan, source: user.planSource } : own;
     const sub = profile.subscriptions
       .filter((s) => s.status !== "canceled" && s.currentPeriodEnd > now)
       .sort((a, b) => +b.currentPeriodEnd - +a.currentPeriodEnd)[0];
@@ -103,6 +111,12 @@ export class BillingService {
         currentPeriodEnd: event.currentPeriodEnd,
         cancelAtPeriodEnd: event.cancelAtPeriodEnd,
       });
+      return;
+    }
+
+    if (event.kind === "order.paid") {
+      if (!this.orderPaid) throw new Error("No handler for paid orders");
+      await this.orderPaid(event.orderId, event.paymentRef);
       return;
     }
 

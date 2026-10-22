@@ -30,6 +30,14 @@ export type BillingEvent =
       amountCents: number;
       currency: string;
     }
+  | {
+      /** An expert service order was paid (Checkout session with an orderId). */
+      kind: "order.paid";
+      id: string;
+      orderId: string;
+      paymentRef: string;
+      amountCents: number;
+    }
   | { kind: "ignored"; id: string; type: string };
 
 /**

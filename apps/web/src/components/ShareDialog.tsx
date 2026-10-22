@@ -128,7 +128,7 @@ function LinkEditor({ link, onChanged, onUpgrade }: { link: ShareLinkDto; onChan
               onClick={() => save.mutate({ enabled: !link.enabled })}
               className={`relative h-6 w-11 rounded-full transition ${link.enabled ? "bg-emerald-500" : "bg-stone-300"}`}
             >
-              <span className={`absolute top-0.5 size-5 rounded-full bg-white shadow transition ${link.enabled ? "left-[22px]" : "left-0.5"}`} />
+              <span className={`absolute top-0.5 size-5 rounded-full bg-white shadow transition ${link.enabled ? "start-[22px]" : "start-0.5"}`} />
             </button>
           </div>
           <div className="flex gap-2">
@@ -141,7 +141,7 @@ function LinkEditor({ link, onChanged, onUpgrade }: { link: ShareLinkDto; onChan
             Viewed {link.viewCount} {link.viewCount === 1 ? "time" : "times"}
             {link.lastViewedAt && <> · last {new Date(link.lastViewedAt).toLocaleString()}</>}
             {link.hasPassword && (
-              <span className="ml-2 inline-flex items-center gap-1 text-stone-600">
+              <span className="ms-2 inline-flex items-center gap-1 text-stone-600">
                 <LockIcon className="size-3" /> Password protected
               </span>
             )}

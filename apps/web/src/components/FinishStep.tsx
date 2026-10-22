@@ -3,7 +3,8 @@
 import Link from "next/link";
 import type { AtsReport } from "@cvb/domain";
 import { STEPS } from "@/lib/steps";
-import type { CV } from "@cvb/domain";
+import { applyRegionPreset, REGIONS, type CV, type CVDirection, type CVLanguage, type Region } from "@cvb/domain";
+import { LOCALES, useT } from "@/lib/i18n";
 import type { TemplateId } from "@cvb/templates/catalog";
 import { ACCENTS, CVDocument, templateTags } from "@cvb/templates";
 import { LockIcon, TierBadge } from "@cvb/ui";
@@ -17,6 +18,7 @@ export type FinishAts = { report: AtsReport; full: boolean; onUnlock: () => void
 
 type Props = {
   cv: CV;
+  onChange: (cv: CV) => void;
   template: TemplateId;
   onTemplate: (t: TemplateId) => void;
   accent: string | null;
@@ -26,7 +28,8 @@ type Props = {
   ats: FinishAts;
 };
 
-export function FinishStep({ cv, template, onTemplate, accent, onAccent, onGoTo, actions, ats }: Props) {
+export function FinishStep({ cv, onChange, template, onTemplate, accent, onAccent, onGoTo, actions, ats }: Props) {
+  const t = useT();
   const { templates, meta: metaOf } = useCatalog();
   const { plan } = usePlan();
   const meta = metaOf(template);
@@ -55,13 +58,13 @@ export function FinishStep({ cv, template, onTemplate, accent, onAccent, onGoTo,
               href={actions.templatesHref}
               className="mt-1 inline-flex w-fit items-center gap-1.5 rounded-lg bg-stone-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-stone-700"
             >
-              Browse all {templates.length} templates →
+              {t("finish.browse", { count: templates.length })}
             </Link>
           </div>
         </div>
 
         <div>
-          <div className="mb-2 text-xs font-medium text-stone-500">Quick switch</div>
+          <div className="mb-2 text-xs font-medium text-stone-500">{t("finish.quickSwitch")}</div>
           <div role="radiogroup" aria-label="Template" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
             {templates.map((t) => {
               const active = t.id === template;
@@ -102,10 +105,10 @@ export function FinishStep({ cv, template, onTemplate, accent, onAccent, onGoTo,
 
         <div>
           <div className="mb-2 flex items-center justify-between text-xs">
-            <span className="font-medium text-stone-500">Accent colour</span>
+            <span className="font-medium text-stone-500">{t("finish.accent")}</span>
             {accent && (
               <button type="button" onClick={() => onAccent(null)} className="font-medium text-brand hover:underline">
-                Use template colour
+                {t("finish.templateColour")}
               </button>
             )}
           </div>
@@ -129,11 +132,13 @@ export function FinishStep({ cv, template, onTemplate, accent, onAccent, onGoTo,
         </div>
       </section>
 
+      <FormatPanel cv={cv} onChange={onChange} actions={actions} template={template} onTemplate={onTemplate} />
+
       <AtsPanel report={ats.report} full={ats.full} onUnlock={ats.onUnlock} onFix={(step) => onGoTo(STEPS.findIndex((s) => s.id === step))} />
 
       <section className="flex flex-col gap-4 rounded-2xl bg-brand/5 p-5 ring-1 ring-brand/15">
         <div className="flex items-center justify-between gap-3">
-          <span className="text-xs font-medium text-stone-600">Page size</span>
+          <span className="text-xs font-medium text-stone-600">{t("finish.pageSize")}</span>
           <div role="radiogroup" aria-label="Page size" className="flex rounded-lg bg-white p-0.5 text-xs ring-1 ring-inset ring-stone-200">
             {(Object.keys(PAGE_SIZES) as PageSize[]).map((size) => (
               <button
@@ -155,7 +160,7 @@ export function FinishStep({ cv, template, onTemplate, accent, onAccent, onGoTo,
           disabled={actions.busy === "pdf"}
           className="w-full rounded-xl bg-brand px-5 py-3 text-base font-semibold text-white shadow-sm hover:bg-brand-dark disabled:cursor-wait disabled:opacity-80"
         >
-          {actions.busy === "pdf" ? "Preparing PDF…" : "Download PDF"}
+          {actions.busy === "pdf" ? t("wizard.preparingPdf") : t("wizard.downloadPdf")}
         </button>
         <div className="grid grid-cols-2 gap-2">
           {(["docx", "txt"] as const).map((f) => (
@@ -167,21 +172,99 @@ export function FinishStep({ cv, template, onTemplate, accent, onAccent, onGoTo,
               className="flex items-center justify-center gap-1.5 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-stone-800 ring-1 ring-inset ring-stone-200 hover:bg-stone-50"
             >
               {actions.locked.includes(f) && <LockIcon className="size-3.5 text-stone-400" />}
-              {actions.busy === f ? "Preparing…" : EXPORT_LABEL[f]}
+              {actions.busy === f ? t("finish.preparing") : EXPORT_LABEL[f]}
             </button>
           ))}
         </div>
         <p className="text-xs leading-relaxed text-stone-600">
-          The PDF keeps text selectable and links clickable. The Word file is a clean, one-column version you can edit; plain text is for job portals with a single text box.
+          {t("finish.exportNote")}
         </p>
         <button
           type="button"
           onClick={() => actions.exportAs("json")}
           className="self-start text-sm font-medium text-brand underline-offset-4 hover:underline"
         >
-          Save a backup file (.json) to edit later
+          {t("finish.backup")}
         </button>
       </section>
     </div>
   );
 }
+
+/** Country format (page size, photo, personal details), writing direction and heading language. */
+function FormatPanel({
+  cv,
+  onChange,
+  actions,
+  template,
+  onTemplate,
+}: {
+  cv: CV;
+  onChange: (cv: CV) => void;
+  actions: ExportActions;
+  template: TemplateId;
+  onTemplate: (t: TemplateId) => void;
+}) {
+  const t = useT();
+  const { meta: metaOf } = useCatalog();
+  const region = cv.settings.region;
+  const suggested = applyRegionPreset(cv, region).template as TemplateId | undefined;
+  const set = (patch: Partial<CV["settings"]>) => onChange({ ...cv, settings: { ...cv.settings, ...patch } });
+
+  function choose(next: Region) {
+    const out = applyRegionPreset(cv, next);
+    onChange(out.cv);
+    if (out.pageSize !== actions.pageSize) actions.onPageSize(out.pageSize);
+  }
+
+  const select = "w-full rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-sm text-stone-800";
+  return (
+    <section className="flex flex-col gap-4 rounded-2xl border border-stone-200 bg-white p-5 shadow-xs">
+      <div>
+        <h3 className="text-sm font-semibold text-stone-900">{t("region.title")}</h3>
+        <p className="text-xs text-stone-500">{t("region.desc")}</p>
+      </div>
+      <div role="radiogroup" aria-label={t("region.title")} className="flex flex-wrap gap-1.5">
+        {REGIONS.map((r) => (
+          <button
+            key={r}
+            type="button"
+            role="radio"
+            aria-checked={region === r}
+            onClick={() => choose(r)}
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold ring-1 transition ${region === r ? "bg-brand text-white ring-brand" : "bg-white text-stone-700 ring-stone-200 hover:ring-stone-300"}`}
+          >
+            {t(`region.${r}`)}
+          </button>
+        ))}
+      </div>
+      {suggested && suggested !== template && (
+        <button type="button" onClick={() => onTemplate(suggested)} className="self-start text-sm font-medium text-brand hover:underline">
+          {t("region.useTemplate", { name: metaOf(suggested).name })}
+        </button>
+      )}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="flex flex-col gap-1 text-xs font-medium text-stone-600">
+          {t("dir.title")}
+          <select className={select} value={cv.settings.direction} onChange={(e) => set({ direction: e.target.value as CVDirection })}>
+            <option value="auto">{t("dir.auto")}</option>
+            <option value="ltr">{t("dir.ltr")}</option>
+            <option value="rtl">{t("dir.rtl")}</option>
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-medium text-stone-600">
+          {t("cvlang.title")}
+          <select className={select} value={cv.settings.language} onChange={(e) => set({ language: e.target.value as CVLanguage })}>
+            <option value="auto">{t("cvlang.auto")}</option>
+            {LOCALES.map((l) => (
+              <option key={l.code} value={l.code} lang={l.code}>
+                {l.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+    </section>
+  );
+}
+

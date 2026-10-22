@@ -56,6 +56,27 @@ describe("StripeGateway.parseWebhook", () => {
     expect(await gateway.parseWebhook(body, header)).toMatchObject({ kind: "payment.completed", offer: "pass_7d", amountCents: 900 });
   });
 
+  it("recognises a paid expert order", async () => {
+    const { body, header } = signed({
+      id: "evt_order",
+      object: "event",
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          id: "cs_order",
+          object: "checkout.session",
+          mode: "payment",
+          payment_status: "paid",
+          payment_intent: "pi_order",
+          amount_total: 3900,
+          currency: "usd",
+          metadata: { userId: "u1", orderId: "o1" },
+        },
+      },
+    });
+    expect(await gateway.parseWebhook(body, header)).toMatchObject({ kind: "order.paid", orderId: "o1", paymentRef: "pi_order", amountCents: 3900 });
+  });
+
   it("rejects bad signatures", async () => {
     await expect(gateway.parseWebhook(Buffer.from("{}"), "t=1,v1=bad")).rejects.toThrow("Invalid webhook signature");
   });

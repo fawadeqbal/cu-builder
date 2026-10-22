@@ -199,11 +199,11 @@ export function Preview({
           </button>
         )}
 
-        <div className="@md:ml-auto">
+        <div className="@md:ms-auto">
           <TemplatePicker template={template} accent={accent} onTemplate={onTemplate} onAccent={onAccent} templatesHref={templatesHref} />
         </div>
 
-        <div className="ml-auto flex items-center gap-0.5">
+        <div className="ms-auto flex items-center gap-0.5">
           <button type="button" className={btn} title="Zoom out" aria-label="Zoom out" disabled={scale <= MIN_SCALE + 0.01} onClick={() => onZoom(clampScale(stepZoom(scale, -1)))}>
             <MinusIcon className="size-4" />
           </button>
@@ -265,7 +265,7 @@ export function Preview({
                 const top = (10 + (i + 1) * (PAGE_SIZES[pageSize].h - PRINT_MARGIN_MM)) * pxPerMm;
                 return (
                   <div key={i} aria-hidden="true" className="pointer-events-none absolute inset-x-0 border-t-2 border-dashed border-rose-300/80" style={{ top }}>
-                    <span className="absolute -top-2.5 right-2 rounded bg-rose-50 px-1.5 text-[10px] font-semibold text-rose-500">Page {i + 2}</span>
+                    <span className="absolute -top-2.5 end-2 rounded bg-rose-50 px-1.5 text-[10px] font-semibold text-rose-500">Page {i + 2}</span>
                   </div>
                 );
               })}
@@ -286,7 +286,7 @@ export function MiniPreview({ cv, template, accent, scale = 1, onOpen }: { cv: C
       type="button"
       onClick={onOpen}
       title="Show preview (Alt+2)"
-      className="group fixed bottom-24 right-6 z-30 hidden w-[150px] overflow-hidden rounded-xl bg-white text-left shadow-xl ring-1 ring-stone-900/10 transition hover:-translate-y-0.5 hover:shadow-2xl lg:block"
+      className="group fixed bottom-24 end-6 z-30 hidden w-[150px] overflow-hidden rounded-xl bg-white text-start shadow-xl ring-1 ring-stone-900/10 transition hover:-translate-y-0.5 hover:shadow-2xl lg:block"
     >
       <div aria-hidden="true" className="relative h-[176px] overflow-hidden bg-stone-100">
         <div className="absolute left-2 top-2 w-[210mm] origin-top-left scale-[0.168]">

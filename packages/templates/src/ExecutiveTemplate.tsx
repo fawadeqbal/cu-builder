@@ -1,17 +1,19 @@
 import { linkHref, type CV, type StepId } from "@cvb/domain";
 import type { ReactNode } from "react";
-import { Block, Bullets, ContactText, contacts, joinParts, ProjectLinks, splitItems } from "./shared";
+import { Block, Bullets, ContactText, contacts, joinParts, ProjectLinks, splitItems, cvLabels, Photo, PersonalDetailsList } from "./shared";
 
 /** Executive — a dark header band, a core-competencies grid and a strong career summary. */
 export function ExecutiveTemplate({ cv }: { cv: CV }) {
   const p = cv.personal;
+  const tr = cvLabels(cv);
   const info = contacts(p);
   const competencies = cv.skills.flatMap((s) => splitItems(s.items));
   return (
     <div className="tpl tpl-executive">
       <Block as="header" step="personal" className="ex-head">
+        <Photo cv={cv} />
         <div className="ex-band">
-          <div className="ex-name">{p.name || "Your Name"}</div>
+          <div className="ex-name">{p.name || tr("Your Name")}</div>
           {p.headline && <div className="ex-headline">{p.headline}</div>}
         </div>
         {info.length > 0 && (
@@ -23,17 +25,18 @@ export function ExecutiveTemplate({ cv }: { cv: CV }) {
             ))}
           </div>
         )}
+        <PersonalDetailsList cv={cv} tr={tr} />
       </Block>
 
       {(cv.summary.trim() || p.tagline) && (
-        <Section step="summary" title="Executive Summary">
+        <Section step="summary" title={tr("Executive Summary")}>
           {cv.summary.trim() && <p className="ex-lead">{cv.summary}</p>}
           {p.tagline && <p className="ex-muted">{p.tagline}</p>}
         </Section>
       )}
 
       {competencies.length > 0 && (
-        <Section step="skills" title="Core Competencies">
+        <Section step="skills" title={tr("Core Competencies")}>
           <ul className="ex-grid">
             {competencies.map((c, i) => (
               <li key={`${c}-${i}`}>{c}</li>
@@ -43,7 +46,7 @@ export function ExecutiveTemplate({ cv }: { cv: CV }) {
       )}
 
       {cv.experience.length > 0 && (
-        <Section step="experience" title="Career History">
+        <Section step="experience" title={tr("Career History")}>
           {cv.experience.map((e) => (
             <div key={e.id} className="ex-entry">
               <div className="ex-row">
@@ -59,7 +62,7 @@ export function ExecutiveTemplate({ cv }: { cv: CV }) {
       )}
 
       {cv.projects.length > 0 && (
-        <Section step="projects" title="Key Initiatives">
+        <Section step="projects" title={tr("Key Initiatives")}>
           {cv.projects.map((pr) => (
             <div key={pr.id} className="ex-entry">
               <div className="ex-row">
@@ -79,7 +82,7 @@ export function ExecutiveTemplate({ cv }: { cv: CV }) {
 
       <div className="ex-split">
         {cv.education.length > 0 && (
-          <Section step="education" title="Education">
+          <Section step="education" title={tr("Education")}>
             {cv.education.map((ed) => (
               <div key={ed.id} className="ex-small-entry">
                 <b>{ed.degree}</b>
@@ -90,7 +93,7 @@ export function ExecutiveTemplate({ cv }: { cv: CV }) {
           </Section>
         )}
         {cv.certificates.length + cv.languages.length > 0 && (
-          <Section step="extras" title="Credentials">
+          <Section step="extras" title={tr("Credentials")}>
             {cv.certificates.map((c) => (
               <div key={c.id} className="ex-small-entry">
                 <b>{c.url ? <a href={linkHref(c.url)}>{c.name}</a> : c.name}</b>
@@ -99,7 +102,7 @@ export function ExecutiveTemplate({ cv }: { cv: CV }) {
             ))}
             {cv.languages.length > 0 && (
               <div className="ex-small-entry">
-                <b>Languages</b>
+                <b>{tr("Languages")}</b>
                 <div>{cv.languages.map((l) => joinParts([l.name, l.level && `(${l.level})`], " ")).join(", ")}</div>
               </div>
             )}

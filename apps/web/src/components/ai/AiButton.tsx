@@ -26,7 +26,7 @@ export function Suggestion({ text, onUse }: { text: string; onUse: () => void })
     <button
       type="button"
       onClick={onUse}
-      className="group w-full whitespace-pre-line rounded-xl border border-stone-200 bg-white p-3 text-left text-sm leading-relaxed text-stone-800 shadow-xs transition hover:border-violet-300 hover:bg-violet-50/40"
+      className="group w-full whitespace-pre-line rounded-xl border border-stone-200 bg-white p-3 text-start text-sm leading-relaxed text-stone-800 shadow-xs transition hover:border-violet-300 hover:bg-violet-50/40"
     >
       {parts.map((p, i) =>
         /^\[[^\]]+\]$/.test(p) ? (

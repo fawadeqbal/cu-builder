@@ -12,7 +12,7 @@ import { keys, useBillingStatus } from "@/lib/queries";
 import { btn } from "../ui/styles";
 import { AccountLayout, Section } from "./AccountLayout";
 
-const SOURCE = { base: "", subscription: "through your subscription", pass: "with a Job-Hunt Pass" } as const;
+const SOURCE = { base: "", subscription: "through your subscription", pass: "with a Job-Hunt Pass", organization: "through your organisation" } as const;
 
 export function BillingPage() {
   return <AccountLayout title="Account">{() => <Billing />}</AccountLayout>;

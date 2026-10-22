@@ -183,7 +183,7 @@ function FeedCard({ job, onGate }: { job: FeedJobDto; onGate: (g: Gate) => void 
           View posting ↗
         </a>
         {job.description.length > 240 && (
-          <button type="button" className="ml-auto text-sm font-medium text-brand hover:underline" onClick={() => setOpen((v) => !v)}>
+          <button type="button" className="ms-auto text-sm font-medium text-brand hover:underline" onClick={() => setOpen((v) => !v)}>
             {open ? "Less" : "More"}
           </button>
         )}

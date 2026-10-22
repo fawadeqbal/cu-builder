@@ -1,3 +1,4 @@
+import { defaultSettings, emptyDetails } from "./model";
 import type { CV } from "./types";
 
 /** Example CV shown on first visit. Replace it with your own details or import a JSON file. */
@@ -88,5 +89,7 @@ export const sampleCV: CV = {
   languages: [
     { id: "lang-1", name: "English", level: "Professional working proficiency" },
     { id: "lang-2", name: "Urdu", level: "Native" },
-  ],
+  ],  details: { ...emptyDetails, nationality: "Pakistani" },
+  photo: "",
+  settings: defaultSettings,
 };

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { TEMPLATES } from "@cvb/templates/catalog";
 import { sampleCV } from "@cvb/domain";
 import { CVDocument } from "@cvb/templates";
+import { useT } from "@/lib/i18n";
+import { LanguageSwitcher } from "./AppHeader";
 
 type Props = {
   onStart: () => void;
@@ -13,31 +15,33 @@ type Props = {
 };
 
 const POINTS = [
-  { title: "Answer simple questions", text: "One short step at a time, with tips on what to write." },
-  { title: "Watch it take shape", text: "Your CV updates live in a clean, recruiter-friendly layout." },
-  { title: "Download and share", text: "Save a PDF or Word file, or send a link to your CV." },
-];
+  { title: "welcome.f1", text: "welcome.f1d" },
+  { title: "welcome.f2", text: "welcome.f2d" },
+  { title: "welcome.f3", text: "welcome.f3d" },
+] as const;
 
 export function Welcome({ onStart, onExample, onImport, signedIn }: Props) {
+  const t = useT();
   return (
     <div className="min-h-dvh bg-stone-100">
       <header className="mx-auto flex max-w-6xl items-center gap-2 px-5 py-5">
         <span className="grid size-8 place-items-center rounded-md bg-brand text-xs font-bold text-white">CV</span>
         <span className="text-base font-semibold tracking-tight text-stone-900">CV Builder</span>
-        <nav className="ml-auto flex items-center gap-1 text-sm font-medium">
+        <nav className="ms-auto flex items-center gap-1 text-sm font-medium">
+          <LanguageSwitcher />
           <Link href="/templates" className="hidden rounded-lg px-3 py-2 text-stone-600 hover:bg-white hover:text-stone-900 sm:block">
-            Templates
+            {t("nav.templates")}
           </Link>
           <Link href="/pricing" className="rounded-lg px-3 py-2 text-stone-600 hover:bg-white hover:text-stone-900">
-            Pricing
+            {t("nav.pricing")}
           </Link>
           {signedIn ? (
             <Link href="/app" className="rounded-lg bg-stone-900 px-3 py-2 text-white hover:bg-stone-700">
-              My CVs
+              {t("nav.myCvs")}
             </Link>
           ) : (
             <Link href="/sign-in?next=/app" className="rounded-lg bg-white px-3 py-2 text-stone-800 shadow-xs ring-1 ring-stone-200 hover:bg-stone-50">
-              Sign in
+              {t("nav.signIn")}
             </Link>
           )}
         </nav>
@@ -47,10 +51,10 @@ export function Welcome({ onStart, onExample, onImport, signedIn }: Props) {
         <div className="flex flex-col gap-8">
           <div className="flex flex-col gap-4">
             <h1 className="text-4xl font-bold leading-[1.1] tracking-tight text-stone-900 sm:text-5xl">
-              Make a professional CV in a few easy steps
+              {t("welcome.title")}
             </h1>
             <p className="max-w-lg text-lg leading-relaxed text-stone-600">
-              Free, no sign-up needed. Fill in your details, choose a design and download your CV as a PDF. Create an account to keep it safe on every device.
+              {t("welcome.lead")}
             </p>
           </div>
 
@@ -61,8 +65,8 @@ export function Welcome({ onStart, onExample, onImport, signedIn }: Props) {
                   {i + 1}
                 </span>
                 <div>
-                  <div className="font-semibold text-stone-900">{p.title}</div>
-                  <div className="text-sm text-stone-600">{p.text}</div>
+                  <div className="font-semibold text-stone-900">{t(p.title)}</div>
+                  <div className="text-sm text-stone-600">{t(p.text)}</div>
                 </div>
               </li>
             ))}
@@ -74,14 +78,14 @@ export function Welcome({ onStart, onExample, onImport, signedIn }: Props) {
               onClick={onStart}
               className="rounded-lg bg-brand px-6 py-3 text-base font-semibold text-white shadow-sm hover:bg-brand-dark"
             >
-              Create my CV
+              {t("welcome.create")}
             </button>
             <button
               type="button"
               onClick={onExample}
               className="rounded-lg bg-white px-5 py-3 text-base font-medium text-stone-800 shadow-xs ring-1 ring-stone-300 hover:bg-stone-50"
             >
-              Start from an example
+              {t("welcome.example")}
             </button>
           </div>
           <button
@@ -89,19 +93,19 @@ export function Welcome({ onStart, onExample, onImport, signedIn }: Props) {
             onClick={onImport}
             className="self-start text-sm font-medium text-stone-500 underline-offset-4 hover:text-brand hover:underline"
           >
-            Already have a saved CV file? Import it
+            {t("welcome.importJson")}
           </button>
           <Link
             href={signedIn ? "/app?import=1" : "/sign-up?next=%2Fapp%3Fimport%3D1"}
             className="self-start text-sm font-medium text-stone-500 underline-offset-4 hover:text-brand hover:underline"
           >
-            Have a CV as PDF or Word? Upload it and we&apos;ll fill in the steps
+            {t("welcome.upload")}
           </Link>
           <Link
             href="/templates"
             className="self-start text-sm font-medium text-brand underline-offset-4 hover:underline"
           >
-            Browse {TEMPLATES.length} CV templates →
+            {t("welcome.browse", { count: TEMPLATES.length })}
           </Link>
         </div>
 

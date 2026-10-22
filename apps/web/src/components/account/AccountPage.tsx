@@ -7,6 +7,7 @@ import { useState, type FormEvent } from "react";
 import { api } from "@/lib/api";
 import { authClient } from "@/lib/auth-client";
 import { keys } from "@/lib/queries";
+import { supportedLocale, useI18n } from "@/lib/i18n";
 import { btn, field, label } from "../ui/styles";
 import { AccountLayout, Section } from "./AccountLayout";
 import { ExtensionKeys } from "./ExtensionKeys";
@@ -14,16 +15,17 @@ import { ExtensionKeys } from "./ExtensionKeys";
 const LOCALES = [
   ["en", "English"],
   ["en-GB", "English (UK)"],
-  ["ur", "Urdu"],
-  ["ar", "Arabic"],
+  ["ur", "اردو (Urdu)"],
+  ["ar", "العربية (Arabic)"],
   ["de", "German"],
   ["fr", "French"],
   ["es", "Spanish"],
 ] as const;
 
 export function AccountPage() {
+  const { t } = useI18n();
   return (
-    <AccountLayout title="Account">
+    <AccountLayout title={t("account.title")}>
       {(me) => (
         <>
           <Profile me={me} />
@@ -38,15 +40,21 @@ export function AccountPage() {
 }
 
 function Profile({ me }: { me: MeDto }) {
+  const { t, setLocale: setUiLocale } = useI18n();
   const qc = useQueryClient();
   const [name, setName] = useState(me.name);
   const [locale, setLocale] = useState(me.locale);
   const save = useMutation({
     mutationFn: () => api.patch<MeDto>("/me", { name, locale }),
-    onSuccess: (data) => qc.setQueryData(keys.me, data),
+    onSuccess: (data) => {
+      qc.setQueryData(keys.me, data);
+      // The interface follows when the language is one it speaks.
+      const ui = supportedLocale(data.locale);
+      if (ui) setUiLocale(ui);
+    },
   });
   return (
-    <Section title="Profile">
+    <Section title={t("account.profile")}>
       <form
         className="grid gap-4 sm:grid-cols-2"
         onSubmit={(e) => {
@@ -56,13 +64,13 @@ function Profile({ me }: { me: MeDto }) {
       >
         <div>
           <label className={label} htmlFor="name">
-            Name
+            {t("account.name")}
           </label>
           <input id="name" className={field} required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <div>
           <label className={label} htmlFor="locale">
-            Language
+            {t("account.language")}
           </label>
           <select id="locale" className={field} value={locale} onChange={(e) => setLocale(e.target.value)}>
             {LOCALES.map(([v, l]) => (
@@ -73,19 +81,19 @@ function Profile({ me }: { me: MeDto }) {
           </select>
         </div>
         <div className="sm:col-span-2">
-          <span className={label}>Email</span>
+          <span className={label}>{t("account.email")}</span>
           <p className="text-sm text-stone-700">
             {me.email}{" "}
-            <span className={`ml-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${me.emailVerified ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800"}`}>
-              {me.emailVerified ? "Confirmed" : "Not confirmed"}
+            <span className={`ms-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${me.emailVerified ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800"}`}>
+              {me.emailVerified ? t("account.confirmed") : t("account.notConfirmed")}
             </span>
           </p>
         </div>
         <div className="flex items-center gap-3 sm:col-span-2">
           <button type="submit" className={btn.primary} disabled={save.isPending}>
-            {save.isPending ? "Saving…" : "Save"}
+            {save.isPending ? t("common.saving") : t("common.save")}
           </button>
-          {save.isSuccess && <span className="text-sm text-emerald-700">Saved</span>}
+          {save.isSuccess && <span className="text-sm text-emerald-700">{t("common.saved")}</span>}
           {save.error && <span className="text-sm text-red-600">{save.error.message}</span>}
         </div>
       </form>
@@ -94,6 +102,7 @@ function Profile({ me }: { me: MeDto }) {
 }
 
 function Password() {
+  const { t } = useI18n();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [state, setState] = useState<{ ok?: boolean; error?: string }>({});
@@ -108,7 +117,7 @@ function Password() {
     }
   }
   return (
-    <Section title="Password" description="Signed in with Google, LinkedIn or an email link only? Use “Forgot password” on the sign-in page to set one.">
+    <Section title={t("account.password")} description={t("account.passwordDesc")}>
       <form className="grid gap-4 sm:grid-cols-2" onSubmit={submit}>
         <div>
           <label className={label} htmlFor="current">
@@ -135,22 +144,24 @@ function Password() {
 }
 
 function Sessions() {
+  const { t } = useI18n();
   const [done, setDone] = useState(false);
   return (
-    <Section title="Devices" description="Signed in on a shared or lost device? Sign out everywhere else.">
+    <Section title={t("account.devices")} description={t("account.devicesDesc")}>
       <button
         type="button"
         className={btn.secondary}
         disabled={done}
         onClick={() => void authClient.revokeOtherSessions().then(() => setDone(true))}
       >
-        {done ? "Signed out on other devices" : "Sign out on all other devices"}
+        {done ? "Signed out on other devices" : t("account.signOutOthers")}
       </button>
     </Section>
   );
 }
 
 function DataControls({ me }: { me: MeDto }) {
+  const { t } = useI18n();
   const router = useRouter();
   const qc = useQueryClient();
   const [confirm, setConfirm] = useState("");
@@ -177,17 +188,17 @@ function DataControls({ me }: { me: MeDto }) {
   }
 
   return (
-    <Section title="Your data">
+    <Section title={t("account.yourData")}>
       <div className="flex flex-col gap-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-stone-600">Download everything we store about you, including every CV and its history, as one JSON file.</p>
+          <p className="text-sm text-stone-600">{t("account.exportDesc")}</p>
           <a href="/api/v1/me/export" className={btn.secondary}>
             Export my data
           </a>
         </div>
         <form onSubmit={remove} className="flex flex-col gap-3 rounded-xl bg-red-50/60 p-4 ring-1 ring-red-100">
           <div>
-            <h3 className="text-sm font-semibold text-red-800">Delete account</h3>
+            <h3 className="text-sm font-semibold text-red-800">{t("account.deleteAccount")}</h3>
             <p className="mt-0.5 text-sm text-red-900/80">
               Deletes your account, every CV, share link and history right away. Cancel any subscription first. This can&apos;t be undone.
             </p>
@@ -212,7 +223,7 @@ function DataControls({ me }: { me: MeDto }) {
           </div>
           {error && <p className="text-sm text-red-700">{error}</p>}
           <button type="submit" className={`${btn.danger} self-start`} disabled={pending || confirm.trim().toLowerCase() !== me.email.toLowerCase()}>
-            {pending ? "Deleting…" : "Delete my account"}
+            {pending ? "Deleting…" : t("account.deleteMine")}
           </button>
         </form>
       </div>

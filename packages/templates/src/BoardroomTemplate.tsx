@@ -1,16 +1,18 @@
 import { linkHref, type CV, type StepId } from "@cvb/domain";
 import type { ReactNode } from "react";
-import { Block, Bullets, ContactText, contacts, joinParts, ProjectLinks } from "./shared";
+import { Block, Bullets, ContactText, contacts, joinParts, ProjectLinks, cvLabels, Photo, PersonalDetailsList } from "./shared";
 
 /** Boardroom — the name set large in a side column, gold rules, a serif summary. */
 export function BoardroomTemplate({ cv }: { cv: CV }) {
   const p = cv.personal;
+  const tr = cvLabels(cv);
   const info = contacts(p);
-  const [first, ...rest] = (p.name || "Your Name").trim().split(/\s+/);
+  const [first, ...rest] = (p.name || tr("Your Name")).trim().split(/\s+/);
   return (
     <div className="tpl tpl-boardroom">
       <div className="bd-side">
         <Block as="header" step="personal" className="bd-id">
+          <Photo cv={cv} variant="side" />
           <div className="bd-name">
             <span>{first}</span>
             {rest.length > 0 && <span>{rest.join(" ")}</span>}
@@ -26,10 +28,11 @@ export function BoardroomTemplate({ cv }: { cv: CV }) {
               ))}
             </div>
           )}
+          <PersonalDetailsList cv={cv} tr={tr} />
         </Block>
 
         {cv.education.length > 0 && (
-          <SideSection step="education" title="Education">
+          <SideSection step="education" title={tr("Education")}>
             {cv.education.map((ed) => (
               <div key={ed.id} className="bd-side-item">
                 <b>{ed.degree}</b>
@@ -41,7 +44,7 @@ export function BoardroomTemplate({ cv }: { cv: CV }) {
         )}
 
         {cv.skills.length > 0 && (
-          <SideSection step="skills" title="Expertise">
+          <SideSection step="skills" title={tr("Expertise")}>
             {cv.skills.map((s) => (
               <div key={s.id} className="bd-side-item">
                 <b>{s.category}</b>
@@ -52,7 +55,7 @@ export function BoardroomTemplate({ cv }: { cv: CV }) {
         )}
 
         {cv.languages.length > 0 && (
-          <SideSection step="extras" title="Languages">
+          <SideSection step="extras" title={tr("Languages")}>
             {cv.languages.map((l) => (
               <div key={l.id} className="bd-side-item">
                 <b>{l.name}</b>
@@ -63,7 +66,7 @@ export function BoardroomTemplate({ cv }: { cv: CV }) {
         )}
 
         {cv.certificates.length > 0 && (
-          <SideSection step="extras" title="Credentials">
+          <SideSection step="extras" title={tr("Credentials")}>
             {cv.certificates.map((c) => (
               <div key={c.id} className="bd-side-item">
                 <b>{c.url ? <a href={linkHref(c.url)}>{c.name}</a> : c.name}</b>
@@ -83,7 +86,7 @@ export function BoardroomTemplate({ cv }: { cv: CV }) {
         )}
 
         {cv.experience.length > 0 && (
-          <Section step="experience" title="Experience">
+          <Section step="experience" title={tr("Experience")}>
             {cv.experience.map((e) => (
               <div key={e.id} className="bd-entry">
                 <div className="bd-date">{e.date}</div>
@@ -97,7 +100,7 @@ export function BoardroomTemplate({ cv }: { cv: CV }) {
         )}
 
         {cv.projects.length > 0 && (
-          <Section step="projects" title="Selected Work">
+          <Section step="projects" title={tr("Selected Work")}>
             {cv.projects.map((pr) => (
               <div key={pr.id} className="bd-entry">
                 <div className="bd-date">{pr.date}</div>

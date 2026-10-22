@@ -91,7 +91,7 @@ function SavedJobs({ onGate }: { onGate: (g: Gate) => void }) {
                 <button
                   type="button"
                   onClick={() => setSelected(j.id)}
-                  className={`w-full rounded-xl border px-3 py-2.5 text-left text-sm transition ${job?.id === j.id ? "border-brand/40 bg-brand/[0.04]" : "border-stone-200 bg-white hover:border-stone-300"}`}
+                  className={`w-full rounded-xl border px-3 py-2.5 text-start text-sm transition ${job?.id === j.id ? "border-brand/40 bg-brand/[0.04]" : "border-stone-200 bg-white hover:border-stone-300"}`}
                 >
                   <div className="truncate font-semibold text-stone-900">{j.title}</div>
                   <div className="truncate text-xs text-stone-500">{[j.company, j.location].filter(Boolean).join(" · ") || "No company"}</div>

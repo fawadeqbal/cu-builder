@@ -27,7 +27,7 @@ export function TemplatePicker({ template, accent, onTemplate, onAccent, templat
 
   return (
     <details ref={ref} className="relative [&_summary::-webkit-details-marker]:hidden">
-      <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg py-1.5 pl-2 pr-2.5 text-xs font-medium text-stone-700 ring-1 ring-stone-200 transition hover:bg-stone-50">
+      <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg py-1.5 ps-2 pe-2.5 text-xs font-medium text-stone-700 ring-1 ring-stone-200 transition hover:bg-stone-50">
         <span className="size-3 rounded-full ring-1 ring-black/10" style={{ background: current }} />
         <span className="max-w-[9rem] truncate">{meta.name}</span>
         <ChevronDownIcon className="size-3.5 text-stone-400" />
@@ -75,7 +75,7 @@ export function TemplatePicker({ template, accent, onTemplate, onAccent, templat
                     onTemplate(t.id);
                     close();
                   }}
-                  className={`flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm ${
+                  className={`flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-start text-sm ${
                     t.id === template ? "bg-brand/[0.07] text-brand" : "text-stone-700 hover:bg-stone-50"
                   }`}
                 >

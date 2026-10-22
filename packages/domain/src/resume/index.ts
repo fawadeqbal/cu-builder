@@ -7,3 +7,4 @@ export * from "./text";
 export * from "./ats";
 export * from "./match";
 export * from "./diff";
+export * from "./regional";

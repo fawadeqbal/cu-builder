@@ -94,7 +94,7 @@ Arrows mean "may import". Anything not drawn is forbidden.
 | Package | Responsibility | Key exports | Built with |
 | --- | --- | --- | --- |
 | `@cvb/shared` | Generic building blocks | `Result`, `ok`/`err`, `AppError` family (`NotFoundError`, `PlanRequiredError`…), `assertNever`, `slugify`, `wordCount` | tsup (ESM) |
-| `@cvb/domain` | Business rules | `CV` types, `emptyCV`, `normalizeCV`, `sampleCV`, `cvChecks`, `cvStrength`, `stepState`, `parseResumeText` (import), `cvToText` (TXT export), `atsReport` (ATS score), `matchJob`/`addKeyword` (job match), `diffCV`/`applyChanges` (reviewable edits), `guardNumbers`/`creditBalance`/`AI_TASKS` (AI rules), `DEFAULT_COLUMNS`/`positionBetween`/`remindersFor`/`progressSince` (tracker), `compareOffers`/`NEGOTIATION_TEMPLATES`/`fillTemplate` (offers), `QUESTION_BANK`/`questionsFor`/`roleFamily`/`sessionSummary` (interviews), `summariseViews`/`deviceFromUserAgent`/`referrerHost` (link analytics), `PLANS`, `FEATURES`, `can`, `LIMITS`, `canUseTemplateTier`, `OFFERS`, `effectivePlan` | tsup |
+| `@cvb/domain` | Business rules | `CV` types, `emptyCV`, `normalizeCV`, `sampleCV`, `cvChecks`, `cvStrength`, `stepState`, `parseResumeText` (import), `cvToText` (TXT export), `atsReport` (ATS score), `matchJob`/`addKeyword` (job match), `diffCV`/`applyChanges` (reviewable edits), `guardNumbers`/`creditBalance`/`AI_TASKS` (AI rules), `DEFAULT_COLUMNS`/`positionBetween`/`remindersFor`/`progressSince` (tracker), `compareOffers`/`NEGOTIATION_TEMPLATES`/`fillTemplate` (offers), `QUESTION_BANK`/`questionsFor`/`roleFamily`/`sessionSummary` (interviews), `summariseViews`/`deviceFromUserAgent`/`referrerHost` (link analytics), `SERVICES`/commission/order transitions/coaching slots (expert services), `orgCan`/seats/CSV invites/`cohortMetrics`/`lowConfidenceFields` (organisations), slug, domain and colour-contrast rules (portfolio, white label), `applyRegionPreset`/`regionRules`/direction detection (regional formats), `PLANS`, `FEATURES`, `can`, `LIMITS`, `canUseTemplateTier`, `OFFERS`, `effectivePlan` | tsup |
 | `@cvb/contracts` | Boundary shapes | Resume, version, share-link (+ view analytics), import, billing, account, admin, analytics, tracker, feed, interview and API-token schemas; `ApiErrorSchema`, `PaginationQuerySchema`, `QUEUES`, `JOBS`, job payload schemas | tsup |
 | `@cvb/config` | Environment | `ApiEnvSchema`, `WorkerEnvSchema`, `loadEnv` | tsup |
 | `@cvb/db` | Persistence | `createDbClient`, Prisma model types and enums, `planToDomain`/`planToDb`; `@cvb/db/nest`: `DatabaseModule`, `DB` token | Prisma generate + tsc |
@@ -175,6 +175,11 @@ All under `/api/v1` except Better Auth (`/api/auth/*`).
 | Tracker | `GET/PUT tracker/board`, `GET/POST applications`, `GET/PATCH/DELETE applications/:id`, `POST applications/:id/move`, `POST applications/:id/share-link`, `POST applications/:id/brief` (AI), `GET/POST reminders`, `PATCH/DELETE reminders/:id` |
 | Job feed | `GET feed`, `GET/PUT feed/preferences`, `POST feed/save`, `GET feed/salary` |
 | Interviews | `GET interviews/bank`, `GET/POST interviews/sessions`, `GET/DELETE interviews/sessions/:id`, `POST interviews/sessions/:id/answer`, `GET/POST interviews/stories`, `POST interviews/stories/from-bullet`, `PATCH/DELETE interviews/stories/:id` |
+| Expert services | `GET services/catalog`, `GET services/included`, `GET experts`, `GET experts/:id`, `GET experts/:id/slots`, `GET/PUT expert/me`, `GET expert/orders`, `POST expert/payouts/connect|refresh` (Stripe Connect), `GET/POST orders`, `GET orders/:id`, `GET/POST orders/:id/messages`, `GET orders/:id/calendar` (.ics), `POST orders/:id/{cancel,start,deliver,complete,revision,dispute}`, `PUT orders/:id/notes`; admin `GET/PATCH admin/experts`, `GET admin/orders`, `POST admin/orders/:id/{refund,resolve,assign,payout}` |
+| Review comments | `GET review/resumes/:id` (read-only CV for owner, assigned expert or org reviewer: `reviewAccess()`), `GET/POST resumes/:id/comments`, `PATCH/DELETE comments/:id` |
+| Organisations | `GET/POST orgs`, `GET/PATCH/DELETE orgs/:id`, `GET orgs/:id/members`, `PATCH/DELETE orgs/:id/members/:memberId`, `GET/POST orgs/:id/invites`, `POST orgs/:id/invites/bulk` (CSV, `dryRun`), `DELETE orgs/:id/invites/:inviteId`, `GET orgs/:id/cohort`, `GET orgs/:id/cohort.csv`, `GET public/join/:code`, `POST join/:code`, `GET/POST orgs/:id/candidates`, `GET/PATCH/DELETE orgs/:id/candidates/:candidateId`; admin `GET admin/orgs`, `PATCH admin/orgs/:id` |
+| White label | `GET/PUT orgs/:id/branding`, `PUT orgs/:id/branding/domain`, `POST orgs/:id/branding/domain/verify`, `GET public/branding?host=`, `GET public/domains/allowed` (Caddy on-demand TLS `ask`), `GET public/domains/resolve` |
+| Portfolio | `GET/PUT/DELETE portfolio`, `PUT portfolio/domain`, `POST portfolio/domain/verify`, `GET portfolio/messages`, `PATCH/DELETE portfolio/messages/:id`, `GET public/sites/:slug`, `GET public/sites/by-host`, `POST public/sites/:slug/contact` |
 | Extension keys | `GET/POST tokens`, `DELETE tokens/:id` (`Authorization: Bearer cvb_…` then works on every signed-in route) |
 | Cover letters | `GET/POST cover-letters`, `POST cover-letters/draft`, `GET/PATCH/DELETE cover-letters/:id`, `GET public/l/:slug` (public) |
 | Billing | `GET billing/offers` (public), `GET billing/status`, `POST billing/checkout`, `POST billing/portal`, `POST billing/webhooks/:provider` (public, raw body, signature-checked, idempotent) |
@@ -205,6 +210,8 @@ worker/src/
 ├── resume-import/    ResumeImportProcessor + ResumeParser port (unpdf / mammoth → parseResumeText) + ImportResults port
 ├── maintenance/      Daily job scheduler: empties 30-day trash, deletes week-old uploads, expired tokens
 ├── notifications/    Reminder emails (every 15 min), Monday digest, daily/weekly job alerts from @cvb/jobfeed
+├── services/         Expert orders: due/overdue warnings, auto-complete after 7 days, payouts
+├── candidates/       Agency bulk import: parse each uploaded CV, flag low-confidence fields
 ├── config/           WorkerConfigModule (WorkerEnvSchema)
 └── worker.module.ts  DatabaseModule + QueueModule + one module per queue
 ```
@@ -216,7 +223,7 @@ Rules:
 - Expected permanent failures throw BullMQ's `UnrecoverableError` (no retries). Everything else retries with exponential backoff (`DEFAULT_JOB_OPTIONS`: 3 attempts).
 - Scale by running more worker processes; concurrency per process comes from `WORKER_CONCURRENCY`.
 
-Queues today: `email`, `resume-import`, `maintenance`, `notifications`.
+Queues today: `email`, `resume-import`, `maintenance`, `notifications`, `services`, `candidate-import`.
 
 ---
 
@@ -380,5 +387,10 @@ curl -H "x-dev-user: dev@cvbuilder.local" http://localhost:4000/api/v1/resumes
 | 17 | Fractional card positions on the tracker board | A move writes one row (the midpoint of its neighbours), so drag and drop stays cheap and conflict-free |
 | 18 | Link analytics store a daily visitor hash, never raw IPs | Unique-viewer counts without keeping personal data; bots are counted but don't trigger emails |
 | 19 | Browser extension uses personal access tokens (hashed) | No third-party cookies; revocable per device; the extension computes match scores locally with the same domain code |
+| 20 | Expert payments: platform charges, pays experts on completion (Stripe Connect transfers) | Refunds and disputes are settled before money leaves the platform; commission is explicit per order; dev gateway marks orders paid when Stripe isn't configured (DEV_AUTH only) |
+| 21 | One `reviewAccess()` policy for experts and career-office reviewers | Every route that shows someone else's CV asks the same question; comments are anchored to CV lines, not page positions |
+| 22 | Organisation seats raise the member's plan through entitlements | No separate licence logic in features: `can(plan, …)` keeps working, the plan source says "organization" |
+| 23 | Host-based routing (Next proxy) + Caddy on-demand TLS for portfolio and white-label domains | One deployment serves the app, `<slug>.PORTFOLIO_DOMAIN` sites and verified custom domains; certificates only for domains the API vouches for |
+| 24 | In-house i18n (en/ur/ar) with logical CSS everywhere; CV direction separate from UI language | No dependency; RTL layouts mirror via `ms/me/ps/pe/start/end`; a CV can be RTL while the UI is English and vice versa |
 
 New significant decisions get a short ADR in `docs/adr/NNN-title.md` and a row here.

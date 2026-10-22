@@ -1,6 +1,6 @@
-import { linkHref, type CV, type StepId } from "@cvb/domain";
+import { linkHref, showPhoto, type CV, type StepId } from "@cvb/domain";
 import type { ReactNode } from "react";
-import { Block, Bullets, ContactText, contacts, initials, joinParts, ProjectLinks, splitItems } from "./shared";
+import { Block, Bullets, ContactText, contacts, initials, joinParts, ProjectLinks, splitItems, cvLabels, Photo, PersonalDetailsList } from "./shared";
 
 const LABELS: Record<string, string> = {
   email: "Email",
@@ -15,17 +15,18 @@ const LABELS: Record<string, string> = {
 /** Sidebar Pro — a coloured sidebar with a monogram, contact, skills and extras. */
 export function SidebarTemplate({ cv }: { cv: CV }) {
   const p = cv.personal;
+  const tr = cvLabels(cv);
   const info = contacts(p);
   return (
     <div className="tpl tpl-sidebar">
       <aside className="sb-side">
         <Block as="div" step="personal" className="sb-id">
-          <div className="sb-mono">{initials(p.name)}</div>
+          {showPhoto(cv) ? <Photo cv={cv} variant="side" /> : <div className="sb-mono">{initials(p.name)}</div>}
           {info.length > 0 && (
             <dl className="sb-contact">
               {info.map((c) => (
                 <div key={c.key}>
-                  <dt>{LABELS[c.key]}</dt>
+                  <dt>{tr(LABELS[c.key] ?? "")}</dt>
                   <dd>
                     <ContactText c={c} />
                   </dd>
@@ -33,10 +34,11 @@ export function SidebarTemplate({ cv }: { cv: CV }) {
               ))}
             </dl>
           )}
+          <PersonalDetailsList cv={cv} tr={tr} />
         </Block>
 
         {cv.skills.length > 0 && (
-          <SideBlock step="skills" title="Skills">
+          <SideBlock step="skills" title={tr("Skills")}>
             {cv.skills.map((s) => (
               <div key={s.id} className="sb-skill">
                 <div className="sb-skill-cat">{s.category}</div>
@@ -51,7 +53,7 @@ export function SidebarTemplate({ cv }: { cv: CV }) {
         )}
 
         {cv.education.length > 0 && (
-          <SideBlock step="education" title="Education">
+          <SideBlock step="education" title={tr("Education")}>
             {cv.education.map((ed) => (
               <div key={ed.id} className="sb-item">
                 <b>{ed.degree}</b>
@@ -63,7 +65,7 @@ export function SidebarTemplate({ cv }: { cv: CV }) {
         )}
 
         {cv.languages.length > 0 && (
-          <SideBlock step="extras" title="Languages">
+          <SideBlock step="extras" title={tr("Languages")}>
             {cv.languages.map((l) => (
               <div key={l.id} className="sb-lang">
                 <b>{l.name}</b>
@@ -74,7 +76,7 @@ export function SidebarTemplate({ cv }: { cv: CV }) {
         )}
 
         {cv.certificates.length > 0 && (
-          <SideBlock step="extras" title="Certificates">
+          <SideBlock step="extras" title={tr("Certificates")}>
             {cv.certificates.map((c) => (
               <div key={c.id} className="sb-item">
                 <b>{c.url ? <a href={linkHref(c.url)}>{c.name}</a> : c.name}</b>
@@ -87,19 +89,19 @@ export function SidebarTemplate({ cv }: { cv: CV }) {
 
       <div className="sb-main">
         <Block as="header" step="personal" className="sb-head">
-          <div className="sb-name">{p.name || "Your Name"}</div>
+          <div className="sb-name">{p.name || tr("Your Name")}</div>
           {p.headline && <div className="sb-headline">{p.headline}</div>}
           {p.tagline && <div className="sb-tagline">{p.tagline}</div>}
         </Block>
 
         {cv.summary.trim() && (
-          <MainBlock step="summary" title="Profile">
+          <MainBlock step="summary" title={tr("Profile")}>
             <p>{cv.summary}</p>
           </MainBlock>
         )}
 
         {cv.experience.length > 0 && (
-          <MainBlock step="experience" title="Experience">
+          <MainBlock step="experience" title={tr("Experience")}>
             {cv.experience.map((e) => (
               <div key={e.id} className="sb-entry">
                 <div className="sb-row">
@@ -115,7 +117,7 @@ export function SidebarTemplate({ cv }: { cv: CV }) {
         )}
 
         {cv.projects.length > 0 && (
-          <MainBlock step="projects" title="Projects">
+          <MainBlock step="projects" title={tr("Projects")}>
             {cv.projects.map((pr) => (
               <div key={pr.id} className="sb-entry">
                 <div className="sb-row">

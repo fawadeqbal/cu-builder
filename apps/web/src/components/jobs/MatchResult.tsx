@@ -34,11 +34,11 @@ export function MatchResult({ match, onAdd, onUnlock }: { match: JobMatchDto; on
           <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500">Missing from your CV</h4>
           <div className="flex flex-wrap gap-1.5">
             {missing.map((k) => (
-              <span key={k.keyword} className={`inline-flex items-center gap-1 rounded-full py-1 pl-2.5 pr-1 text-xs font-medium ring-1 ring-inset ${k.required ? "bg-red-50 text-red-800 ring-red-200" : "bg-amber-50 text-amber-900 ring-amber-200"}`}>
+              <span key={k.keyword} className={`inline-flex items-center gap-1 rounded-full py-1 ps-2.5 pe-1 text-xs font-medium ring-1 ring-inset ${k.required ? "bg-red-50 text-red-800 ring-red-200" : "bg-amber-50 text-amber-900 ring-amber-200"}`}>
                 {k.keyword}
                 {k.required ? <span className="text-[10px] opacity-70">required</span> : <span className="text-[10px] opacity-70">nice to have</span>}
                 {onAdd && (
-                  <button type="button" onClick={() => onAdd(k.keyword)} className="ml-0.5 grid size-5 place-items-center rounded-full bg-white/80 hover:bg-white" title={`Add ${k.keyword} to your skills (only if you have it)`}>
+                  <button type="button" onClick={() => onAdd(k.keyword)} className="ms-0.5 grid size-5 place-items-center rounded-full bg-white/80 hover:bg-white" title={`Add ${k.keyword} to your skills (only if you have it)`}>
                     <PlusIcon className="size-3" />
                   </button>
                 )}

@@ -33,6 +33,7 @@ import { UpgradeDialog } from "./UpgradeDialog";
 import { ViewSwitcher } from "./ViewSwitcher";
 import { Welcome } from "./Welcome";
 import { Wizard } from "./Wizard";
+import { useT, type MessageKey } from "@/lib/i18n";
 
 const DESKTOP = "(min-width: 1024px)";
 
@@ -61,6 +62,7 @@ type Props = {
  * DocumentController it is given (browser storage for guests, the API for accounts).
  */
 export default function Builder({ doc, cloud, banner }: Props) {
+  const t = useT();
   const { state, update } = doc;
   const { plan, signedIn } = usePlan();
   const catalog = useCatalog();
@@ -309,7 +311,7 @@ export default function Builder({ doc, cloud, banner }: Props) {
     );
   }
 
-  const menuItem = "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-stone-700 hover:bg-stone-100";
+  const menuItem = "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start text-sm text-stone-700 hover:bg-stone-100";
   const title = cloud?.title ?? (state.cv.personal.name.trim() ? `${state.cv.personal.name.trim()}'s CV` : "Untitled CV");
   const share = () => (cloud && hasFeature(plan, "share.link") ? setSharing(true) : setGate({ kind: "feature", feature: "share.link" }));
 
@@ -320,7 +322,7 @@ export default function Builder({ doc, cloud, banner }: Props) {
           <div className="flex min-w-0 items-center gap-2.5">
             <Link
               href={signedIn ? "/app" : "/"}
-              title={signedIn ? "My CVs" : "CV Builder"}
+              title={signedIn ? t("nav.myCvs") : "CV Builder"}
               className="grid size-8 shrink-0 place-items-center rounded-lg bg-brand text-[11px] font-bold tracking-wide text-white shadow-sm shadow-brand/30"
             >
               CV
@@ -388,7 +390,7 @@ export default function Builder({ doc, cloud, banner }: Props) {
                 className="hidden items-center gap-1.5 whitespace-nowrap rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-dark disabled:cursor-wait disabled:opacity-80 sm:flex"
               >
                 {busy === "pdf" ? <Spinner /> : templateLocked ? <LockIcon className="size-4" /> : <DownloadIcon className="size-4" />}
-                <span className="hidden xl:inline">{busy === "pdf" ? "Preparing PDF…" : "Download PDF"}</span>
+                <span className="hidden xl:inline">{busy === "pdf" ? t("wizard.preparingPdf") : t("wizard.downloadPdf")}</span>
                 <span className="xl:hidden">PDF</span>
               </button>
             )}
@@ -400,12 +402,12 @@ export default function Builder({ doc, cloud, banner }: Props) {
               >
                 <MoreIcon className="size-5" />
               </summary>
-              <div className="absolute right-0 z-40 mt-2 max-h-[80dvh] w-64 overflow-y-auto rounded-xl border border-stone-200 bg-white p-1 shadow-xl">
+              <div className="absolute end-0 z-40 mt-2 max-h-[80dvh] w-64 overflow-y-auto rounded-xl border border-stone-200 bg-white p-1 shadow-xl">
                 <MenuLabel>Download</MenuLabel>
                 {(["docx", "txt"] as const).map((f) => (
                   <button key={f} type="button" className={menuItem} onClick={() => void exportAs(f)}>
                     {f === "docx" ? "Word document (.docx)" : "Plain text (.txt)"}
-                    {locked.includes(f) && <LockIcon className="ml-auto size-3.5 text-stone-400" />}
+                    {locked.includes(f) && <LockIcon className="ms-auto size-3.5 text-stone-400" />}
                   </button>
                 ))}
                 <button type="button" className={menuItem} onClick={() => { closeMenu(); printPdf(); }}>
@@ -559,18 +561,18 @@ export default function Builder({ doc, cloud, banner }: Props) {
           <button
             type="button"
             onClick={mode === "preview" ? () => void exportAs("pdf") : () => setMode("preview")}
-            className={`fixed right-4 z-30 flex items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition ${
+            className={`fixed end-4 z-30 flex items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition ${
               mode === "preview" ? "bottom-5 bg-brand" : "bottom-[76px] bg-stone-900"
             }`}
           >
-            {mode === "preview" ? (busy === "pdf" ? "Preparing PDF…" : "Download PDF") : (<><PreviewIcon className="size-4" /> Preview</>)}
+            {mode === "preview" ? (busy === "pdf" ? t("wizard.preparingPdf") : t("wizard.downloadPdf")) : (<><PreviewIcon className="size-4" /> {t("builder.preview")}</>)}
           </button>
         )}
         {!isDesktop && mode === "preview" && (
           <button
             type="button"
             onClick={() => setMode("editor")}
-            className="fixed bottom-5 left-4 z-30 flex items-center gap-1.5 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 shadow-lg ring-1 ring-stone-900/10"
+            className="fixed bottom-5 start-4 z-30 flex items-center gap-1.5 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-stone-800 shadow-lg ring-1 ring-stone-900/10"
           >
             <EditorIcon className="size-4" /> Edit
           </button>
@@ -641,16 +643,18 @@ function MenuLabel({ children }: { children: ReactNode }) {
   return <div className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-stone-400">{children}</div>;
 }
 
-const STATUS: Record<SaveStatus, { text: string; dot: string }> = {
-  local: { text: "Saved in this browser", dot: "bg-emerald-500" },
-  saving: { text: "Saving…", dot: "bg-amber-400 animate-pulse" },
-  saved: { text: "Saved to your account", dot: "bg-emerald-500" },
-  offline: { text: "Offline, will sync when you're back", dot: "bg-stone-400" },
-  error: { text: "Couldn't save, retrying", dot: "bg-red-500" },
+const STATUS: Record<SaveStatus, { text: MessageKey; dot: string }> = {
+  local: { text: "builder.saveLocal", dot: "bg-emerald-500" },
+  saving: { text: "builder.saving", dot: "bg-amber-400 animate-pulse" },
+  saved: { text: "builder.saved", dot: "bg-emerald-500" },
+  offline: { text: "builder.offline", dot: "bg-stone-400" },
+  error: { text: "builder.saveError", dot: "bg-red-500" },
 };
 
 function SaveIndicator({ status, conflict }: { status: SaveStatus; conflict: boolean }) {
-  const s = conflict ? { text: "Two versions: choose one above", dot: "bg-amber-500" } : STATUS[status];
+  const t = useT();
+  const k = conflict ? { text: "builder.conflict" as MessageKey, dot: "bg-amber-500" } : STATUS[status];
+  const s = { text: t(k.text), dot: k.dot };
   return (
     <span className="flex items-center gap-1.5 text-xs text-stone-500" aria-live="polite">
       <span className={`size-1.5 rounded-full ${s.dot}`} /> {s.text}
@@ -671,7 +675,7 @@ function TitleField({ title, onRename }: { title: string; onRename: (t: string) 
           setValue(title);
           setEditing(true);
         }}
-        className="-mx-1 truncate rounded px-1 text-left text-sm font-semibold text-stone-900 hover:bg-stone-100"
+        className="-mx-1 truncate rounded px-1 text-start text-sm font-semibold text-stone-900 hover:bg-stone-100"
       >
         {title}
       </button>

@@ -51,7 +51,7 @@ export type SubscriptionState = {
 
 export type PassState = { plan: Plan; startsAt: Date; endsAt: Date };
 
-export type PlanSource = "base" | "subscription" | "pass";
+export type PlanSource = "base" | "subscription" | "pass" | "organization";
 
 /**
  * The plan a user actually has right now: the best of their base plan, any subscription that

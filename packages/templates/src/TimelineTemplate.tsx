@@ -1,15 +1,17 @@
 import { linkHref, type CV, type StepId } from "@cvb/domain";
 import type { ReactNode } from "react";
-import { Block, Bullets, ContactText, contacts, joinParts, ProjectLinks, splitItems } from "./shared";
+import { Block, Bullets, ContactText, contacts, joinParts, ProjectLinks, splitItems, cvLabels, Photo, PersonalDetailsList } from "./shared";
 
 /** Timeline — dates on the left of a vertical line, a dot per entry. */
 export function TimelineTemplate({ cv }: { cv: CV }) {
   const p = cv.personal;
+  const tr = cvLabels(cv);
   const info = contacts(p);
   return (
     <div className="tpl tpl-timeline">
       <Block as="header" step="personal" className="tl-head">
-        <div className="tl-name">{p.name || "Your Name"}</div>
+        <Photo cv={cv} />
+        <div className="tl-name">{p.name || tr("Your Name")}</div>
         {p.headline && <div className="tl-headline">{p.headline}</div>}
         {p.tagline && <div className="tl-tagline">{p.tagline}</div>}
         {info.length > 0 && (
@@ -21,6 +23,7 @@ export function TimelineTemplate({ cv }: { cv: CV }) {
             ))}
           </div>
         )}
+        <PersonalDetailsList cv={cv} tr={tr} />
       </Block>
 
       {cv.summary.trim() && (
@@ -30,7 +33,7 @@ export function TimelineTemplate({ cv }: { cv: CV }) {
       )}
 
       {cv.experience.length > 0 && (
-        <Section step="experience" title="Experience">
+        <Section step="experience" title={tr("Experience")}>
           {cv.experience.map((e) => (
             <Item key={e.id} date={e.date}>
               <div className="tl-title">{e.role}</div>
@@ -43,7 +46,7 @@ export function TimelineTemplate({ cv }: { cv: CV }) {
       )}
 
       {cv.projects.length > 0 && (
-        <Section step="projects" title="Projects">
+        <Section step="projects" title={tr("Projects")}>
           {cv.projects.map((pr) => (
             <Item key={pr.id} date={pr.date}>
               <div className="tl-title">{pr.name}</div>
@@ -60,7 +63,7 @@ export function TimelineTemplate({ cv }: { cv: CV }) {
       )}
 
       {cv.education.length > 0 && (
-        <Section step="education" title="Education">
+        <Section step="education" title={tr("Education")}>
           {cv.education.map((ed) => (
             <Item key={ed.id} date={ed.date}>
               <div className="tl-title">{ed.degree}</div>
@@ -72,7 +75,7 @@ export function TimelineTemplate({ cv }: { cv: CV }) {
 
       {cv.skills.length > 0 && (
         <Block step="skills" className="tl-section">
-          <h2>Skills</h2>
+          <h2>{tr("Skills")}</h2>
           <div className="tl-skills">
             {cv.skills.map((s) => (
               <div key={s.id} className="tl-skill">
@@ -88,7 +91,7 @@ export function TimelineTemplate({ cv }: { cv: CV }) {
         <Block step="extras" className="tl-section tl-extras">
           {cv.certificates.length > 0 && (
             <div>
-              <h2>Certificates</h2>
+              <h2>{tr("Certificates")}</h2>
               {cv.certificates.map((c) => (
                 <p key={c.id}>
                   <b>{c.url ? <a href={linkHref(c.url)}>{c.name}</a> : c.name}</b>
@@ -99,7 +102,7 @@ export function TimelineTemplate({ cv }: { cv: CV }) {
           )}
           {cv.languages.length > 0 && (
             <div>
-              <h2>Languages</h2>
+              <h2>{tr("Languages")}</h2>
               {cv.languages.map((l) => (
                 <p key={l.id}>
                   <b>{l.name}</b>

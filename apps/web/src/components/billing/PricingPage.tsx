@@ -12,12 +12,14 @@ import { formatPrice, PLAN_LABEL, PLAN_POINTS } from "@/lib/plans";
 import { useBillingStatus, useMe, useOffers } from "@/lib/queries";
 import { AppHeader } from "../AppHeader";
 import { btn, card } from "../ui/styles";
+import { useT } from "@/lib/i18n";
 
 const PAID: Exclude<Plan, "free">[] = ["standard", "premium", "executive"];
 type Provider = "stripe" | "local";
 
 /** Plans, yearly discount and Job-Hunt Passes, with checkout through the chosen payment method. */
 export function PricingPage() {
+  const t = useT();
   const params = useSearchParams();
   const router = useRouter();
   const me = useMe();
@@ -62,11 +64,11 @@ export function PricingPage() {
       <AppHeader />
       <main className="mx-auto max-w-6xl px-4 pb-20 pt-10 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
-          <h1 className="text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">Simple plans for every job search</h1>
-          <p className="mt-3 text-[15px] text-stone-600">Start free. Upgrade when you need more, or buy a pass for just the weeks you&apos;re applying.</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">{t("pricing.title")}</h1>
+          <p className="mt-3 text-[15px] text-stone-600">{t("pricing.subtitle")}</p>
         </div>
 
-        {cancelled && <p className="mx-auto mt-6 max-w-md rounded-lg bg-stone-100 px-4 py-2 text-center text-sm text-stone-600">Checkout was cancelled. Nothing was charged.</p>}
+        {cancelled && <p className="mx-auto mt-6 max-w-md rounded-lg bg-stone-100 px-4 py-2 text-center text-sm text-stone-600">{t("pricing.cancelled")}</p>}
         {checkout.error && <p className="mx-auto mt-6 max-w-md rounded-lg bg-red-50 px-4 py-2 text-center text-sm text-red-700">{checkout.error.message}</p>}
 
         <div className="mt-8 flex flex-col items-center gap-3">
@@ -80,7 +82,7 @@ export function PricingPage() {
                 onClick={() => setBillingInterval(i)}
                 className={`rounded-full px-4 py-1.5 font-medium ${interval === i ? "bg-stone-900 text-white" : "text-stone-600"}`}
               >
-                {i === "month" ? "Monthly" : "Yearly · save up to 30%"}
+                {i === "month" ? t("pricing.monthly") : t("pricing.yearly")}
               </button>
             ))}
           </div>
@@ -104,7 +106,7 @@ export function PricingPage() {
 
         <div className="mt-8 grid gap-4 lg:grid-cols-4">
           <PlanCard plan="free" price="$0" note="forever" current={current === "free"} highlight={false}>
-            <span className={`${btn.secondary} w-full`}>{me.data ? "Your plan" : "Included"}</span>
+            <span className={`${btn.secondary} w-full`}>{me.data ? t("pricing.yourPlan") : t("pricing.included")}</span>
           </PlanCard>
           {PAID.map((plan) => {
             const offer = subFor(plan);
@@ -126,7 +128,7 @@ export function PricingPage() {
                   disabled={!offer?.available || checkout.isPending || portal.isPending || current === plan}
                   onClick={() => offer && buy(offer)}
                 >
-                  {current === plan ? "Your plan" : !offer?.available ? "Payments coming soon" : hasSubscription ? "Change plan" : `Get ${PLAN_LABEL[plan]}`}
+                  {current === plan ? t("pricing.yourPlan") : !offer?.available ? t("pricing.comingSoon") : hasSubscription ? t("pricing.changePlan") : `Get ${PLAN_LABEL[plan]}`}
                 </button>
               </PlanCard>
             );
@@ -135,7 +137,7 @@ export function PricingPage() {
 
         <section className={`${card} mt-10 grid gap-6 p-6 md:grid-cols-[1.2fr_2fr] md:items-center`}>
           <div>
-            <h2 className="text-lg font-semibold text-stone-900">Job-Hunt Pass</h2>
+            <h2 className="text-lg font-semibold text-stone-900">{t("pricing.pass")}</h2>
             <p className="mt-1 text-sm text-stone-600">
               Everything in Premium for a set time, paid once. No subscription to remember to cancel.
             </p>
@@ -148,7 +150,7 @@ export function PricingPage() {
                   <div className="text-xs text-stone-500">{formatPrice(p.priceCents, p.currency)} once</div>
                 </div>
                 <button type="button" className={btn.secondary} disabled={!p.available || checkout.isPending} onClick={() => buy(p)}>
-                  {p.available ? "Buy pass" : "Soon"}
+                  {p.available ? t("pricing.buyPass") : "Soon"}
                 </button>
               </div>
             ))}
@@ -158,8 +160,8 @@ export function PricingPage() {
         {packs.length > 0 && (
           <section id="credits" className={`${card} mt-4 grid scroll-mt-20 gap-6 p-6 md:grid-cols-[1.2fr_2fr] md:items-center`}>
             <div>
-              <h2 className="text-lg font-semibold text-stone-900">AI credit packs</h2>
-              <p className="mt-1 text-sm text-stone-600">Extra credits on top of your monthly allowance. They never expire and are used after the monthly ones.</p>
+              <h2 className="text-lg font-semibold text-stone-900">{t("pricing.credits")}</h2>
+              <p className="mt-1 text-sm text-stone-600">{t("pricing.creditsDesc")}</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               {packs.map((p) => (
@@ -186,13 +188,14 @@ export function PricingPage() {
 }
 
 function PlanCard({ plan, price, note, current, highlight, children }: { plan: Plan; price: string; note: string; current: boolean; highlight: boolean; children: ReactNode }) {
+  const t = useT();
   return (
     <div className={`relative flex flex-col gap-4 rounded-2xl bg-white p-6 shadow-xs ring-1 ${highlight ? "ring-2 ring-brand" : "ring-stone-200"}`}>
-      {highlight && <span className="absolute -top-3 left-6 rounded-full bg-brand px-2.5 py-0.5 text-[11px] font-semibold text-white">Recommended</span>}
+      {highlight && <span className="absolute -top-3 start-6 rounded-full bg-brand px-2.5 py-0.5 text-[11px] font-semibold text-white">{t("pricing.recommended")}</span>}
       <div>
         <div className="flex items-center gap-2">
           <h2 className="text-base font-semibold text-stone-900">{PLAN_LABEL[plan]}</h2>
-          {current && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-emerald-200">Current</span>}
+          {current && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-emerald-200">{t("pricing.current")}</span>}
         </div>
         <div className="mt-3 flex items-baseline gap-1.5">
           <span className="text-3xl font-semibold tracking-tight text-stone-900">{price}</span>

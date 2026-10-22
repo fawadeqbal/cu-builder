@@ -50,18 +50,36 @@ export const JobFeedEnvSchema = z.object({
   ADZUNA_COUNTRY: z.string().length(2).default("gb"),
 });
 
+/** Portfolio sites and custom domains (portfolios, white-label partners). */
+export const SitesEnvSchema = z.object({
+  /** Parent of portfolio sub-domains: <slug>.<PORTFOLIO_DOMAIN> (wildcard DNS to this server). */
+  PORTFOLIO_DOMAIN: optional,
+  /** Where custom domains point a CNAME. Defaults to the APP_URL host. */
+  CUSTOM_DOMAIN_TARGET: optional,
+  /** The server's public IPv4 addresses, for apex domains (A records). Comma-separated. */
+  CUSTOM_DOMAIN_IPV4: z
+    .string()
+    .default("")
+    .transform((v) => v.split(",").map((s) => s.trim()).filter(Boolean)),
+});
+
 export const ApiEnvSchema = BaseEnvSchema.extend(DatabaseEnvSchema.shape)
   .extend(RedisEnvSchema.shape)
   .extend(StorageEnvSchema.shape)
   .extend(AppUrlEnvSchema.shape)
   .extend(AiEnvSchema.shape)
   .extend(JobFeedEnvSchema.shape)
+  .extend(SitesEnvSchema.shape)
   .extend({
     BETTER_AUTH_SECRET: z.string().min(32, "BETTER_AUTH_SECRET must be at least 32 characters"),
     GOOGLE_CLIENT_ID: optional,
     GOOGLE_CLIENT_SECRET: optional,
     LINKEDIN_CLIENT_ID: optional,
     LINKEDIN_CLIENT_SECRET: optional,
+    /** Microsoft (Entra ID) sign-in, for universities on Microsoft 365. Tenant "common" accepts any. */
+    MICROSOFT_CLIENT_ID: optional,
+    MICROSOFT_CLIENT_SECRET: optional,
+    MICROSOFT_TENANT_ID: z.string().default("common"),
     STRIPE_SECRET_KEY: optional,
     STRIPE_WEBHOOK_SECRET: optional,
     /** Comma-separated emails that become admins when they sign up. */
@@ -88,6 +106,13 @@ export const WorkerEnvSchema = BaseEnvSchema.extend(DatabaseEnvSchema.shape)
     SMTP_URL: optional,
     EMAIL_FROM: z.string().default("CV Builder <no-reply@cvbuilder.local>"),
     WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(64).default(5),
+    /** Pays experts (Stripe Connect transfers) when orders complete on their own. */
+    STRIPE_SECRET_KEY: optional,
+    /** Who hears about overdue expert orders. Comma-separated. */
+    ADMIN_EMAILS: z
+      .string()
+      .default("")
+      .transform((v) => v.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean)),
   });
 export type WorkerEnv = z.output<typeof WorkerEnvSchema>;
 

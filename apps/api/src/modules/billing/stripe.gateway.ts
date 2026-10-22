@@ -104,6 +104,17 @@ export class StripeGateway implements PaymentGateway {
       case "checkout.session.completed": {
         const session = event.data.object;
         if (session.mode !== "payment" || session.payment_status !== "paid") return { kind: "ignored", id: event.id, type: event.type };
+        const orderId = session.metadata?.["orderId"];
+        if (orderId) {
+          const intent = session.payment_intent;
+          return {
+            kind: "order.paid",
+            id: event.id,
+            orderId,
+            paymentRef: (typeof intent === "string" ? intent : intent?.id) ?? session.id,
+            amountCents: session.amount_total ?? 0,
+          };
+        }
         return {
           kind: "payment.completed",
           id: event.id,

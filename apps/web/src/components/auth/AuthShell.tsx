@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { LanguageSwitcher } from "../AppHeader";
 
 /** Centered card used by every sign-in related page. */
 export function AuthShell({ title, subtitle, children, footer }: { title: string; subtitle?: ReactNode; children: ReactNode; footer?: ReactNode }) {
@@ -10,6 +11,7 @@ export function AuthShell({ title, subtitle, children, footer }: { title: string
           <span className="grid size-8 place-items-center rounded-md bg-brand text-xs font-bold text-white">CV</span>
           <span className="text-base font-semibold tracking-tight text-stone-900">CV Builder</span>
         </Link>
+        <LanguageSwitcher className="ms-auto" />
       </header>
       <main className="flex flex-1 items-start justify-center px-4 pb-16 pt-6 sm:pt-12">
         <div className="w-full max-w-sm">

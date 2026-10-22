@@ -10,6 +10,10 @@ export const QUEUES = {
   maintenance: "maintenance",
   /** Reminders, weekly progress digests and job alerts (scheduled). */
   notifications: "notifications",
+  /** Agencies' bulk CV uploads: parse each file into a candidate CV. */
+  candidateImport: "candidate-import",
+  /** Expert orders: deadline warnings, auto-completion and payouts (scheduled). */
+  services: "services",
 } as const;
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
 
@@ -80,6 +84,18 @@ export const ResumeImportJobSchema = z.object({
 });
 export type ResumeImportJob = z.output<typeof ResumeImportJobSchema>;
 
+export const CandidateImportJobSchema = z.object({
+  candidateId: z.string(),
+  orgId: z.string(),
+  fileKey: z.string().min(1),
+  fileName: z.string().max(240),
+  mimeType: z.enum([
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ]),
+});
+export type CandidateImportJob = z.output<typeof CandidateImportJobSchema>;
+
 /** Daily clean-up: emptied trash, old upload files, expired sign-in tokens. */
 export const MaintenanceJobSchema = z.object({}).default({});
 export type MaintenanceJob = z.output<typeof MaintenanceJobSchema>;
@@ -89,7 +105,9 @@ export const JOBS = {
   [QUEUES.email]: { send: EmailJobSchema },
   [QUEUES.resumeImport]: { parse: ResumeImportJobSchema },
   [QUEUES.maintenance]: { purge: MaintenanceJobSchema },
+  [QUEUES.candidateImport]: { parse: CandidateImportJobSchema },
   [QUEUES.notifications]: { reminders: MaintenanceJobSchema, digest: MaintenanceJobSchema, alerts: MaintenanceJobSchema },
+  [QUEUES.services]: { deadlines: MaintenanceJobSchema, autocomplete: MaintenanceJobSchema },
 } as const;
 
 export type JobMap = typeof JOBS;

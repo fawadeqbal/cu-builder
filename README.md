@@ -1,6 +1,6 @@
 # CV Builder
 
-Write your CV once, switch between 12 templates, and download a clean PDF or Word file. Accounts keep CVs in the cloud with version history, share links with QR codes, CV import from PDF/Word, and paid plans. Growing into a job-seeker SaaS: see [`docs/SCOPE.md`](docs/SCOPE.md).
+Write your CV once, switch between 12 templates, and download a clean PDF or Word file. Accounts keep CVs in the cloud with version history, share links with analytics, CV import from PDF/Word, AI writing, ATS scores, job matching, an application tracker, interview prep, expert reviews, organisation accounts, portfolio sites and paid plans. Scope: [`docs/SCOPE.md`](docs/SCOPE.md).
 
 This is a **pnpm + Turborepo monorepo**: a Next.js web app, a NestJS API and a NestJS worker, sharing typed packages. Read [`ARCHITECTURE.md`](ARCHITECTURE.md) before adding code.
 
@@ -8,9 +8,9 @@ This is a **pnpm + Turborepo monorepo**: a Next.js web app, a NestJS API and a N
 
 | Path | What |
 | --- | --- |
-| `apps/web` | Next.js: builder, My CVs, jobs and job feed, application tracker, interview prep, letters, sharing, pricing, account and admin ([README](apps/web/README.md)) |
+| `apps/web` | Next.js: builder, My CVs, jobs and job feed, application tracker, interview prep, letters, sharing, expert marketplace, organisations (universities, agencies), portfolio sites, white label, English/Urdu/Arabic UI, pricing, account and admin ([README](apps/web/README.md)) |
 | `apps/api` | NestJS HTTP API at `/api/v1`, Better Auth at `/api/auth` |
-| `apps/worker` | NestJS BullMQ worker (email, CV import, reminders, digests, job alerts, daily clean-up) |
+| `apps/worker` | NestJS BullMQ worker (email, CV import, reminders, digests, job alerts, expert order upkeep, agency bulk import, daily clean-up) |
 | `apps/extension` | Chrome extension: save jobs, match score, form autofill ([README](apps/extension/README.md)) |
 | `packages/domain` | Business rules: resume model, CV checks, plans and entitlements |
 | `packages/contracts` | zod schemas for HTTP and queue payloads |

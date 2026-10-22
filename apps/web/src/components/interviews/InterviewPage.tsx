@@ -119,7 +119,7 @@ function Bank() {
       <ul className="flex flex-col gap-2" aria-label="Questions">
         {questions.map((q) => (
           <li key={q.id} className={`${card} overflow-hidden`}>
-            <button type="button" aria-expanded={open === q.id} className="flex w-full items-start gap-3 px-4 py-3 text-left" onClick={() => setOpen(open === q.id ? null : q.id)}>
+            <button type="button" aria-expanded={open === q.id} className="flex w-full items-start gap-3 px-4 py-3 text-start" onClick={() => setOpen(open === q.id ? null : q.id)}>
               <span className="flex-1 text-sm font-medium text-stone-900">{q.question}</span>
               <span className="shrink-0 rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-600">{q.competency}</span>
             </button>
@@ -155,7 +155,7 @@ function Practice({ onGate, initialRole, initialJobId }: { onGate: (g: Gate) => 
                 <button
                   type="button"
                   onClick={() => (setActive(s.id), setStarting(false))}
-                  className={`w-full rounded-xl border px-3 py-2.5 text-left text-sm transition ${active === s.id ? "border-brand/40 bg-brand/[0.04]" : "border-stone-200 bg-white hover:border-stone-300"}`}
+                  className={`w-full rounded-xl border px-3 py-2.5 text-start text-sm transition ${active === s.id ? "border-brand/40 bg-brand/[0.04]" : "border-stone-200 bg-white hover:border-stone-300"}`}
                 >
                   <div className="truncate font-semibold text-stone-900">{s.role}</div>
                   <div className="text-xs text-stone-500">
@@ -409,7 +409,7 @@ function SessionView({ session, onGate }: { session: InterviewSessionDto; onGate
       <div className="rounded-xl bg-stone-50 p-4 ring-1 ring-stone-200">
         <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-stone-500">
           {q.competency}
-          <button type="button" className="ml-auto normal-case text-brand hover:underline" onClick={speak}>
+          <button type="button" className="ms-auto normal-case text-brand hover:underline" onClick={speak}>
             Read aloud
           </button>
         </div>
@@ -434,7 +434,7 @@ function SessionView({ session, onGate }: { session: InterviewSessionDto; onGate
             {busy ? "Scoring…" : answered ? "✦ Score again" : "✦ Get feedback"}
           </button>
           {index < session.questions.length - 1 && (
-            <button type="button" className={`${btn.ghost} ml-auto`} onClick={() => go(index + 1)}>
+            <button type="button" className={`${btn.ghost} ms-auto`} onClick={() => go(index + 1)}>
               Next question →
             </button>
           )}
@@ -481,7 +481,7 @@ function Stories({ onGate }: { onGate: (g: Gate) => void }) {
       <ul className="grid gap-3 md:grid-cols-2">
         {stories.data?.map((s) => (
           <li key={s.id}>
-            <button type="button" className={`${card} block h-full w-full p-4 text-left hover:border-stone-300`} onClick={() => setEditing({ id: s.id, body: toBody(s) })}>
+            <button type="button" className={`${card} block h-full w-full p-4 text-start hover:border-stone-300`} onClick={() => setEditing({ id: s.id, body: toBody(s) })}>
               <h3 className="font-semibold text-stone-900">{s.title}</h3>
               <p className="mt-1 line-clamp-3 text-sm text-stone-600">{[s.situation, s.action, s.result].filter(Boolean).join(" ")}</p>
             </button>
@@ -624,7 +624,7 @@ function BulletPicker({ onClose, onGate, onDraft }: { onClose: () => void; onGat
           <ul className="flex max-h-[50dvh] flex-col gap-1.5 overflow-y-auto">
             {lines.map((l) => (
               <li key={`${l.company}-${l.bullet}`}>
-                <button type="button" disabled={busy !== null} onClick={() => void draft(l)} className="w-full rounded-lg px-3 py-2 text-left text-sm ring-1 ring-stone-200 hover:bg-stone-50 disabled:opacity-60">
+                <button type="button" disabled={busy !== null} onClick={() => void draft(l)} className="w-full rounded-lg px-3 py-2 text-start text-sm ring-1 ring-stone-200 hover:bg-stone-50 disabled:opacity-60">
                   <span className="text-stone-900">{l.bullet}</span>
                   <span className="block text-xs text-stone-500">
                     {busy === l.bullet ? "Writing the story…" : [l.role, l.company].filter(Boolean).join(" · ")}

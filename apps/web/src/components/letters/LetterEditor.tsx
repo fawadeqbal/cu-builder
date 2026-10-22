@@ -175,7 +175,7 @@ function Editor({ initial }: { initial: CoverLetterDto }) {
       </header>
 
       <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(22rem,30rem)_1fr]">
-        <div className="min-h-0 overflow-y-auto border-r border-stone-200 bg-stone-50/70 p-5">
+        <div className="min-h-0 overflow-y-auto border-e border-stone-200 bg-stone-50/70 p-5">
           <div className="flex flex-col gap-5">
             <section className="grid gap-3 rounded-2xl border border-stone-200 bg-white p-4">
               <div className="grid gap-3 sm:grid-cols-2">
@@ -306,7 +306,7 @@ function Editor({ initial }: { initial: CoverLetterDto }) {
                   onClick={() => patch({ shareEnabled: !letter.shareEnabled }, true)}
                   className={`relative h-6 w-11 rounded-full transition ${letter.shareEnabled ? "bg-emerald-500" : "bg-stone-300"}`}
                 >
-                  <span className={`absolute top-0.5 size-5 rounded-full bg-white shadow transition ${letter.shareEnabled ? "left-[22px]" : "left-0.5"}`} />
+                  <span className={`absolute top-0.5 size-5 rounded-full bg-white shadow transition ${letter.shareEnabled ? "start-[22px]" : "start-0.5"}`} />
                 </button>
               </div>
               {letter.shareEnabled && shareUrl && (

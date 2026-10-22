@@ -1,5 +1,6 @@
 import { clean, linkHref, linkLabel, type CV, type StepId } from "@cvb/domain";
 import type { ReactNode } from "react";
+import { cvLabels, Photo, PersonalDetailsList } from "./shared";
 
 /**
  * Classic — a Europass-style layout: section labels in a narrow left column,
@@ -7,6 +8,7 @@ import type { ReactNode } from "react";
  */
 export function ClassicTemplate({ cv }: { cv: CV }) {
   const p = cv.personal;
+  const tr = cvLabels(cv);
 
   const contactRow1: ReactNode[] = [
     p.phone && <span key="phone">{p.phone}</span>,
@@ -30,15 +32,17 @@ export function ClassicTemplate({ cv }: { cv: CV }) {
   return (
     <div className="tpl-classic">
       <header data-step="personal" className="c-header">
-        <div className="c-name">{p.name || "Your Name"}</div>
+        <Photo cv={cv} />
+        <div className="c-name">{p.name || tr("Your Name")}</div>
         {p.headline && <div className="c-headline">{p.headline}</div>}
         {p.tagline && <div className="c-tagline">{p.tagline}</div>}
         {contactRow1.length > 0 && <div className="c-contact">{contactRow1}</div>}
         {contactRow2.length > 0 && <div className="c-contact">{contactRow2}</div>}
+        <PersonalDetailsList cv={cv} tr={tr} />
       </header>
 
       {cv.summary.trim() && (
-        <Section step="summary" label="About me">
+        <Section step="summary" label={tr("About me")}>
           <p>{cv.summary}</p>
         </Section>
       )}
@@ -48,9 +52,9 @@ export function ClassicTemplate({ cv }: { cv: CV }) {
           step="experience"
           label={
             <>
-              Work
+              {tr("Work")}
               <br />
-              experience
+              {tr("experience")}
             </>
           }
         >
@@ -72,13 +76,14 @@ export function ClassicTemplate({ cv }: { cv: CV }) {
               sub={e.location}
               bullets={e.bullets}
               stack={e.stack}
+              stackLabel={tr("Stack:")}
             />
           ))}
         </Section>
       )}
 
       {cv.skills.length > 0 && (
-        <Section step="skills" label="Skills">
+        <Section step="skills" label={tr("Skills")}>
           <div className="c-skills">
             {cv.skills.map((s) => (
               <div key={s.id} className="c-skill-row">
@@ -91,7 +96,7 @@ export function ClassicTemplate({ cv }: { cv: CV }) {
       )}
 
       {cv.projects.length > 0 && (
-        <Section step="projects" label="Projects">
+        <Section step="projects" label={tr("Projects")}>
           {cv.projects.map((pr) => {
             const links = clean(pr.links);
             return (
@@ -111,6 +116,7 @@ export function ClassicTemplate({ cv }: { cv: CV }) {
                 }
                 bullets={pr.bullets}
                 stack={pr.stack}
+                stackLabel={tr("Stack:")}
               />
             );
           })}
@@ -122,9 +128,9 @@ export function ClassicTemplate({ cv }: { cv: CV }) {
           step="education"
           label={
             <>
-              Education
+              {tr("Education")}
               <br />
-              and training
+              {tr("and training")}
             </>
           }
         >
@@ -150,7 +156,7 @@ export function ClassicTemplate({ cv }: { cv: CV }) {
       )}
 
       {cv.certificates.length > 0 && (
-        <Section step="extras" label="Certificates">
+        <Section step="extras" label={tr("Certificates")}>
           <ul className="c-compact">
             {cv.certificates.map((c) => (
               <li key={c.id}>
@@ -163,7 +169,7 @@ export function ClassicTemplate({ cv }: { cv: CV }) {
       )}
 
       {cv.languages.length > 0 && (
-        <Section step="extras" label="Languages">
+        <Section step="extras" label={tr("Languages")}>
           <p className="c-left">
             {cv.languages.map((l, i) => (
               <span key={l.id}>
@@ -194,12 +200,14 @@ function Entry({
   sub,
   bullets = [],
   stack,
+  stackLabel = "Stack:",
 }: {
   title: ReactNode;
   meta?: string;
   sub?: ReactNode;
   bullets?: string[];
   stack?: string;
+  stackLabel?: string;
 }) {
   const items = clean(bullets);
   return (
@@ -218,7 +226,7 @@ function Entry({
       )}
       {stack && (
         <div className="c-stack">
-          <b>Stack:</b> {stack}
+          <b>{stackLabel}</b> {stack}
         </div>
       )}
     </div>
