@@ -2,6 +2,8 @@
  * Interface text. English is the source: every key lives here, and Urdu and Arabic may leave
  * keys out (the English text shows instead). `{name}` placeholders are filled by `t()`.
  */
+import { landingAr, landingEn, landingUr } from "./landing";
+
 export const en = {
   // Navigation and account menu
   "nav.myCvs": "My CVs",
@@ -12,6 +14,8 @@ export const en = {
   "nav.letters": "Letters",
   "nav.templates": "Templates",
   "nav.pricing": "Pricing",
+  "nav.examples": "CV examples",
+  "nav.tools": "Free tools",
   "nav.admin": "Admin",
   "nav.upgrade": "Upgrade",
   "nav.planBadge": "{plan} plan",
@@ -235,12 +239,20 @@ export const en = {
   "dash.newCv": "Start a new CV",
   "dash.newCvDesc": "Answer a few short steps and watch it take shape.",
   "dash.uploadCv": "Upload your current CV",
-  "dash.uploadCvDesc": "PDF, Word, OpenDocument, RTF, text, HTML or a JSON backup (up to 5 MB). AI sorts it into sections, keeping your own words, for you to check. A LinkedIn “Save to PDF” works too.",
+  "dash.uploadCvDesc": "PDF, Word, OpenDocument, RTF, text, HTML or a JSON backup (up to 5 MB). AI sorts it into sections, keeping your own words, for you to check. LinkedIn's “Save to PDF” and data export ZIP work too.",
   "dash.tailored": "Tailored copies",
   "dash.trashEmpty": "Trash is empty. Deleted CVs stay here for 30 days.",
   "dash.movedToTrash": "Moved to trash. You can restore it for 30 days.",
   "dash.migrated": "The CV from this browser is now saved in your account.",
   "dash.tooLarge": "That file is larger than 5 MB.",
+  "dash.tooLargeZip": "That ZIP is larger than 25 MB. On LinkedIn, ask for only the files you need: Profile, Positions, Education and Skills.",
+  // Importing from LinkedIn
+  "li.title": "From LinkedIn",
+  "li.exportTitle": "Your full profile (best)",
+  "li.exportSteps": "On LinkedIn, open Settings & Privacy → Data privacy → Get a copy of your data. Choose the files you want (Profile, Positions, Education, Skills; Languages, Certifications and Projects are useful too) and request the archive. LinkedIn emails you when it's ready; upload the ZIP here as it is.",
+  "li.exportNote": "Up to 25 MB. We keep only the files your CV needs, never your messages or connections.",
+  "li.pdfTitle": "Quick: your profile as a PDF",
+  "li.pdfSteps": "Open your LinkedIn profile, click More (or Resources) → Save to PDF, and upload that PDF. It has less detail: LinkedIn includes only your top three skills.",
 
   // Welcome (guest landing)
   "welcome.title": "Make a professional CV in a few easy steps",
@@ -291,6 +303,31 @@ export const en = {
   "pricing.buyPass": "Buy pass",
   "pricing.credits": "AI credit packs",
   "pricing.creditsDesc": "Extra credits on top of your monthly allowance. They never expire and are used after the monthly ones.",
+  "pricing.currency": "Currency",
+  "pricing.period": "Billing period",
+  "pricing.yearlySave": "Yearly · save up to {pct}%",
+  "pricing.yearlyOnly": "Yearly",
+  "pricing.plansTitle": "Plans for a longer search",
+  "pricing.plansDesc": "Pay monthly or yearly. Change or cancel whenever you like.",
+  "pricing.forever": "forever",
+  "pricing.aMonth": "a month",
+  "pricing.billedYearly": "a month, {total} billed yearly",
+  "pricing.billedYearlySave": "a month, {total} billed yearly (save {pct}%)",
+  "pricing.once": "{price} once",
+  "pricing.buy": "Buy",
+  "pricing.soon": "Soon",
+  "pricing.footnote": "Prices are in {currency}. Card payments are handled by Stripe. Every template stays free to preview.",
+  "pricing.trustLabel": "Before you pay",
+  "pricing.trustTrials": "No trials that turn into a subscription. You only pay when you choose to.",
+  "pricing.trustPasses": "Passes are paid once and never renew.",
+  "pricing.trustCancel": "Cancel a subscription any time from Plan and billing in your account. It stays active until the end of the period you paid for.",
+  "pricing.passBadge": "Best for students and short job hunts",
+  "pricing.passDesc": "Everything in Premium for 7 or 30 days, paid once. It never renews, so there's nothing to cancel.",
+  "pricing.passPoint1": "All templates, Premium and Executive included",
+  "pricing.passPoint2": "Job match, one-click tailoring and AI cover letters",
+  "pricing.passPoint3": "Mock interviews with AI feedback",
+  "pricing.passDays": "{days} days of Premium",
+  "pricing.passOnce": "paid once, never renews",
 
   // Account
   "account.title": "Account",
@@ -310,12 +347,16 @@ export const en = {
   "account.exportDesc": "Download everything we store about you, including every CV and its history, as one JSON file.",
   "account.deleteAccount": "Delete account",
   "account.deleteMine": "Delete my account",
+
+  // Landing page, reviews and WhatsApp help (see ./landing.ts)
+  ...landingEn,
 } as const;
 
 export type MessageKey = keyof typeof en;
 export type Messages = Partial<Record<MessageKey, string>>;
 
 export const ur: Messages = {
+  ...landingUr,
   "nav.myCvs": "میری سی ویز",
   "nav.jobs": "نوکریاں",
   "nav.tracker": "درخواستیں",
@@ -324,6 +365,8 @@ export const ur: Messages = {
   "nav.letters": "خطوط",
   "nav.templates": "ٹیمپلیٹس",
   "nav.pricing": "قیمتیں",
+  "nav.examples": "سی وی کی مثالیں",
+  "nav.tools": "مفت ٹولز",
   "nav.admin": "ایڈمن",
   "nav.upgrade": "اپ گریڈ",
   "nav.planBadge": "{plan} پلان",
@@ -612,6 +655,7 @@ export const ur: Messages = {
 };
 
 export const ar: Messages = {
+  ...landingAr,
   "nav.myCvs": "سيرتي الذاتية",
   "nav.jobs": "الوظائف",
   "nav.tracker": "الطلبات",
@@ -620,6 +664,8 @@ export const ar: Messages = {
   "nav.letters": "الخطابات",
   "nav.templates": "القوالب",
   "nav.pricing": "الأسعار",
+  "nav.examples": "أمثلة السير",
+  "nav.tools": "أدوات مجانية",
   "nav.admin": "الإدارة",
   "nav.upgrade": "ترقية",
   "nav.planBadge": "خطة {plan}",

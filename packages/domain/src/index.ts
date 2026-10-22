@@ -7,3 +7,5 @@ export * from "./sharing/analytics";
 export * from "./services";
 export * from "./orgs";
 export * from "./portfolio";
+export * from "./talent";
+export * from "./trust";

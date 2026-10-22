@@ -117,6 +117,14 @@ export function FinishStep({ cv, onChange, template, onTemplate, accent, onAccen
 
       <AtsPanel report={ats.report} full={ats.full} onUnlock={ats.onUnlock} onOptimise={ats.onOptimise} onFix={(step) => onGoTo(STEPS.findIndex((s) => s.id === step))} />
 
+      {actions.onLinkedIn && (
+        <Card title="Bring it to LinkedIn" description="AI turns this CV into a LinkedIn headline, About and job descriptions, each ready to copy.">
+          <Button icon="sparkle" onClick={actions.onLinkedIn}>
+            Write my LinkedIn profile
+          </Button>
+        </Card>
+      )}
+
       <Card>
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center justify-between gap-3">

@@ -29,6 +29,11 @@
       .actions { display: flex; gap: 8px; margin-top: 14px; }
       .actions button { flex: 1; }
       #message { margin: 10px 14px 14px; min-height: 1em; }
+      button.block { display: flex; width: 100%; margin-top: 12px; }
+      #tailorNote { margin: 6px 0 0; }
+      .steps { margin: 8px 0 0; padding-inline-start: 20px; color: var(--ink-2); }
+      .steps li { margin: 4px 0; }
+      code { font: 12px/16px var(--font-mono, monospace); }
     </style>
   </head>
   <body>
@@ -39,7 +44,13 @@
 
     <main>
     <section id="setup" hidden>
-      <p id="setupText">Connect the extension to your account: create a key in <b>Account → Browser extension</b> and paste it in settings.</p>
+      <p id="setupText">Connect the extension to your CV Builder account to save jobs and tailor your CV.</p>
+      <ol id="setupSteps" class="steps">
+        <li>Sign in to CV Builder and open <a id="accountLink" href="#" target="_blank" rel="noreferrer">Account → Browser extension</a>.</li>
+        <li>Create a key and copy it (it starts with <code>cvb_</code>).</li>
+        <li>Paste it in the extension's settings.</li>
+      </ol>
+      <div class="actions"><button id="setupSettings" type="button" class="primary">Open settings</button></div>
       <p class="muted">You only do this once.</p>
     </section>
 
@@ -56,23 +67,25 @@
       </div>
       <label for="url">Link</label>
       <input id="url" type="url" maxlength="2000" />
-      <details>
+      <details id="descDetails">
         <summary>Description <span id="descCount" class="muted"></span></summary>
         <textarea id="description" maxlength="30000" aria-label="Job description"></textarea>
       </details>
 
       <div class="card">
-        <label for="cv" style="margin-top:0">Match against</label>
+        <label for="cv" style="margin-top:0">Your CV</label>
         <select id="cv"><option value="">Loading your CVs…</option></select>
         <div id="match" hidden>
           <div id="score" class="score"></div>
           <div id="missing" class="muted"></div>
         </div>
+        <button id="tailor" type="button" class="primary block" title="Saves the job and opens CV Builder to review the suggested changes">Tailor my CV for this job</button>
+        <p id="tailorNote" class="muted">Saves the job, then opens CV Builder to review AI suggestions in a new copy of your CV. Your original isn't changed.</p>
       </div>
 
       <div class="actions">
         <button id="fill" type="button" title="Shows what it will fill first; never submits">Fill application form</button>
-        <button id="save" type="button" class="primary">Save to tracker</button>
+        <button id="save" type="button">Save to tracker</button>
       </div>
     </section>
     </main>

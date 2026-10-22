@@ -1,4 +1,4 @@
-import { CURRENCY, offerById, type OfferId, type Plan, type SubscriptionState } from "@cvb/domain";
+import { DEFAULT_CURRENCY, offerById, type OfferId, type Plan, type SubscriptionState } from "@cvb/domain";
 import { ValidationError } from "@cvb/shared";
 import Stripe from "stripe";
 import type { BillingEvent, CheckoutRequest, PaymentGateway } from "./payment-gateway.js";
@@ -11,7 +11,13 @@ const toStatus = (s: Stripe.Subscription.Status): SubscriptionState["status"] =>
   return "incomplete";
 };
 
-/** Stripe Checkout + Billing Portal. Prices come from the domain offers (no dashboard setup needed). */
+/** Bump when the portal features below change, so a new configuration is created. */
+const PORTAL_VERSION = "cvb-portal-1";
+
+/**
+ * Stripe Checkout + Billing Portal. Prices come from the domain offers and admin overrides, sent
+ * inline per Checkout session in the chosen currency (no dashboard setup needed).
+ */
 export class StripeGateway implements PaymentGateway {
   readonly id = "stripe" as const;
   readonly available = true;
@@ -24,7 +30,9 @@ export class StripeGateway implements PaymentGateway {
     this.stripe = new Stripe(secretKey);
   }
 
-  async createCheckout({ offer, customer, successUrl, cancelUrl }: CheckoutRequest) {
+  private portalConfig: Promise<string> | null = null;
+
+  async createCheckout({ offer, price, customer, successUrl, cancelUrl }: CheckoutRequest) {
     let customerRef = customer.stripeCustomerId ?? undefined;
     if (!customerRef) {
       const created = await this.stripe.customers.create({
@@ -34,7 +42,12 @@ export class StripeGateway implements PaymentGateway {
       });
       customerRef = created.id;
     }
-    const metadata = { userId: customer.userId, offer: offer.id, ...(offer.kind === "credits" ? {} : { plan: offer.plan }) };
+    const metadata = {
+      userId: customer.userId,
+      offer: offer.id,
+      currency: price.currency,
+      ...(offer.kind === "credits" ? {} : { plan: offer.plan }),
+    };
     const productName =
       offer.kind === "pass"
         ? `${PLAN_NAMES[offer.plan]} pass — ${offer.days} days`
@@ -54,8 +67,8 @@ export class StripeGateway implements PaymentGateway {
         {
           quantity: 1,
           price_data: {
-            currency: CURRENCY,
-            unit_amount: offer.priceCents,
+            currency: price.currency,
+            unit_amount: price.amount,
             product_data: { name: productName },
             ...(offer.kind === "subscription" ? { recurring: { interval: offer.interval } } : {}),
           },
@@ -68,8 +81,37 @@ export class StripeGateway implements PaymentGateway {
   }
 
   async createPortal(customerRef: string, returnUrl: string) {
-    const portal = await this.stripe.billingPortal.sessions.create({ customer: customerRef, return_url: returnUrl });
+    const configuration = await this.portalConfiguration();
+    const portal = await this.stripe.billingPortal.sessions.create({ customer: customerRef, return_url: returnUrl, configuration });
     return { url: portal.url };
+  }
+
+  /**
+   * Our own portal configuration, so cancelling from the account always works whatever the
+   * dashboard defaults are: cancel at period end, update the card, see invoices. Found by
+   * metadata, created once.
+   */
+  private portalConfiguration(): Promise<string> {
+    this.portalConfig ??= (async () => {
+      const existing = await this.stripe.billingPortal.configurations.list({ active: true, limit: 100 });
+      const found = existing.data.find((c) => c.metadata?.["cvb"] === PORTAL_VERSION);
+      if (found) return found.id;
+      const created = await this.stripe.billingPortal.configurations.create({
+        name: "CV Builder",
+        metadata: { cvb: PORTAL_VERSION },
+        features: {
+          subscription_cancel: { enabled: true, mode: "at_period_end", proration_behavior: "none" },
+          payment_method_update: { enabled: true },
+          invoice_history: { enabled: true },
+          customer_update: { enabled: true, allowed_updates: ["email", "name", "address"] },
+        },
+      });
+      return created.id;
+    })().catch((e: unknown) => {
+      this.portalConfig = null;
+      throw e;
+    });
+    return this.portalConfig;
   }
 
   async parseWebhook(rawBody: Buffer, signature: string | undefined): Promise<BillingEvent> {
@@ -99,6 +141,7 @@ export class StripeGateway implements PaymentGateway {
           status: event.type === "customer.subscription.deleted" ? "canceled" : toStatus(sub.status),
           currentPeriodEnd: new Date(periodEnd * 1000),
           cancelAtPeriodEnd: sub.cancel_at_period_end,
+          currency: sub.currency ?? sub.metadata["currency"] ?? DEFAULT_CURRENCY,
         };
       }
       case "checkout.session.completed": {
@@ -122,7 +165,7 @@ export class StripeGateway implements PaymentGateway {
           offer: session.metadata?.["offer"] as OfferId,
           paymentRef: session.id,
           amountCents: session.amount_total ?? 0,
-          currency: session.currency ?? CURRENCY,
+          currency: session.currency ?? session.metadata?.["currency"] ?? DEFAULT_CURRENCY,
         };
       }
       default:

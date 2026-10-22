@@ -69,6 +69,17 @@ export const EmailJobSchema = z.discriminatedUnion("template", [
     lines: z.array(z.string().max(1000)).min(1).max(12),
     action: z.object({ label: z.string().max(60), url: z.url() }).optional(),
   }),
+  /** A recruiter's message through talent search; replies go straight to the recruiter. */
+  z.object({
+    template: z.literal("talent-contact"),
+    to: z.email(),
+    name: z.string().max(120),
+    recruiterName: z.string().max(120),
+    orgName: z.string().max(120),
+    message: z.string().max(2000),
+    /** The recruiter's address, used as Reply-To and for the reply button. */
+    replyTo: z.email(),
+  }),
 ]);
 export type EmailJob = z.output<typeof EmailJobSchema>;
 

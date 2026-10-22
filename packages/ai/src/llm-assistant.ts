@@ -1,5 +1,6 @@
-import { cleanLine, cvText, groundCv, guardNumbers, newId, normalizeCV, parseResumeText, splitList, type CV } from "@cvb/domain";
+import { cleanLine, cvText, groundCv, guardNumbers, isLinkedInPdfText, LINKEDIN_LIMITS, newId, normalizeCV, parseLinkedInPdfText, parseResumeText, splitList, type CV } from "@cvb/domain";
 import { z } from "zod";
+import { finishLinkedInProfile } from "./linkedin";
 import {
   AiOutputError,
   type AnswerFeedback,
@@ -8,6 +9,7 @@ import {
   type InterviewQuestion,
   type JobInput,
   type LetterDraft,
+  type LinkedInProfile,
   type LetterLength,
   type LetterTone,
   type ModelTier,
@@ -135,6 +137,13 @@ const keywordRule = (keywords: string[]) =>
   `Job advert keywords: ${keywords.slice(0, 20).join(", ")}. Where the facts given already support one of these, use the advert's exact wording (ATS systems match words). Never add a keyword the facts don't support.`;
 
 const Bullets = z.object({ bullets: z.array(z.string()).min(1).max(10) });
+const LinkedIn = z.object({
+  headline: z.string().min(3),
+  headlineOptions: z.array(z.string()).max(5),
+  about: z.array(z.string()).min(1).max(5),
+  experience: z.array(z.object({ id: z.string(), description: z.string() })),
+  skills: z.array(z.string()).max(10),
+});
 const Groups = z.object({ groups: z.array(z.object({ category: z.string(), skills: z.array(z.string()) })).min(1).max(12) });
 
 /** The Assistant backed by a language model (Claude in production, or a local Ollama model). */
@@ -323,7 +332,7 @@ Return {"questionsToAsk": ["..."], "themes": ["..."]}.`,
   async parseCv({ text }: { text: string }) {
     const source = text.slice(0, 16_000);
     const out = await this.json(ParsedCvShape, `CV text:\n"""\n${source}\n"""`, "smart", 6000, PARSE_SYSTEM);
-    const fallback = parseResumeText(source).cv;
+    const fallback = (isLinkedInPdfText(source) ? parseLinkedInPdfText(source) : parseResumeText(source)).cv;
     const { cv } = groundCv(normalizeCV(out), source, fallback);
     // Sections the model missed but the rule-based reading found are taken from it.
     for (const key of ["experience", "education", "projects", "skills", "certificates", "languages"] as const) {
@@ -358,6 +367,32 @@ Notes: """${(notes ?? "").slice(0, 3000)}"""`;
       .filter((b) => b.length > 3 && !seen.has(b.toLowerCase()) && seen.add(b.toLowerCase()));
     if (!result.length) throw new AiOutputError();
     return { bullets: result };
+  }
+
+  async linkedinProfile({ cv, targetTitle }: { cv: CV; targetTitle?: string }): Promise<LinkedInProfile> {
+    const L = LINKEDIN_LIMITS;
+    const out = await this.json(
+      LinkedIn,
+      `Write this person's LinkedIn profile from their CV${targetTitle ? `, aimed at ${targetTitle} roles` : ""}. Use only facts from the CV.
+- "headline": at most ${L.headline} characters: their role and the 2-3 skills or areas recruiters search for, separated by " | ". No emoji, no hashtags.
+- "headlineOptions": ${L.headlineOptions} different alternative headlines, each at most ${L.headline} characters.
+- "about": exactly 3 short paragraphs in the first person ("I…"), together at most ${L.about} characters: who they are and what they do; their strongest achievements from the CV; what they work with and what they're open to (use a placeholder like [the roles you're looking for] if the CV doesn't say).
+- "experience": one item per job, with the job's id, and a "description" of at most ${L.experience} characters: one short opening sentence, then the achievements as lines starting with "• ". Keep every fact and number exactly as in the CV.
+- "skills": the ${L.skills} skills from the CV that matter most for their target roles, spelled as on the CV.
+Never add employers, titles, dates, tools, skills or numbers that aren't in the CV; where a line would need a number they didn't give, write [number] or [%].
+CV:
+${cvForPrompt(cv, true)}
+Return {"headline": "...", "headlineOptions": ["...", "...", "..."], "about": ["...", "...", "..."], "experience": [{"id": "...", "description": "..."}], "skills": ["..."]}.`,
+      "smart",
+      3500,
+    );
+    const source = cvForPrompt(cv);
+    return finishLinkedInProfile(
+      { headline: out.headline, headlineOptions: out.headlineOptions, about: out.about.map((p) => p.trim()).filter(Boolean).join("\n\n"), experience: out.experience.map((e) => ({ ...e, role: "", company: "" })), skills: out.skills },
+      cv,
+      (text) => guardNumbers(text, source),
+      targetTitle,
+    );
   }
 
   async organiseSkills({ skills, extra, targetTitle }: { skills: SkillGroupInput[]; extra?: string; targetTitle?: string }) {

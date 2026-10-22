@@ -31,6 +31,11 @@ import { DomainsModule } from "./modules/domains/domains.module.js";
 import { PortfolioModule } from "./modules/portfolio/portfolio.module.js";
 import { OrgsModule } from "./modules/orgs/orgs.module.js";
 import { CandidatesModule } from "./modules/candidates/candidates.module.js";
+import { PublicToolsModule } from "./modules/public-tools/public-tools.module.js";
+import { TalentModule } from "./modules/talent/talent.module.js";
+import { PublicStatsModule } from "./modules/public-stats/public-stats.module.js";
+import { ReviewsModule } from "./modules/reviews/reviews.module.js";
+import { SiteSettingsModule } from "./modules/site-settings/site-settings.module.js";
 
 /**
  * Composition root: infrastructure first (config, database, queues, storage, auth, rate
@@ -63,6 +68,7 @@ import { CandidatesModule } from "./modules/candidates/candidates.module.js";
     PortfolioModule,
     OrgsModule,
     CandidatesModule,
+    TalentModule,
     ResumesModule,
     ShareLinksModule,
     ImportsModule,
@@ -75,6 +81,10 @@ import { CandidatesModule } from "./modules/candidates/candidates.module.js";
     CommentsModule,
     AdminModule,
     AnalyticsModule,
+    PublicToolsModule,
+    PublicStatsModule,
+    ReviewsModule,
+    SiteSettingsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

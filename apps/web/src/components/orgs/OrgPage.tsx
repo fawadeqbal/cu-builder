@@ -11,8 +11,9 @@ import { CandidatesTab } from "./CandidatesTab";
 import { CohortTab } from "./CohortTab";
 import { MembersTab } from "./MembersTab";
 import { SettingsTab } from "./SettingsTab";
+import { TalentTab } from "./TalentTab";
 
-type TabId = "overview" | "candidates" | "members" | "settings";
+type TabId = "overview" | "candidates" | "talent" | "members" | "settings";
 const TABS: { id: TabId; label: (o: OrgDto) => string; icon: string; action: OrgAction; kinds: OrgDto["kind"][] }[] = [
   {
     id: "overview",
@@ -27,6 +28,13 @@ const TABS: { id: TabId; label: (o: OrgDto) => string; icon: string; action: Org
     icon: "briefcase",
     action: "candidates.view",
     kinds: ["agency", "partner"],
+  },
+  {
+    id: "talent",
+    label: () => "Talent",
+    icon: "search",
+    action: "candidates.view",
+    kinds: ["agency"],
   },
   {
     id: "members",
@@ -130,6 +138,7 @@ function Org({ id, siteAdmin }: { id: string; siteAdmin: boolean }) {
                   <div className="flex min-w-0 flex-1 flex-col gap-6">
                     {tab?.id === "overview" && <CohortTab org={o} canExport={can("cohort.export")} />}
                     {tab?.id === "candidates" && <CandidatesTab org={o} canManage={can("candidates.manage")} />}
+                    {tab?.id === "talent" && <TalentTab org={o} />}
                     {tab?.id === "members" && (
                       <MembersTab org={o} canManage={can("members.manage")} canInvite={can("invites.send")} />
                     )}

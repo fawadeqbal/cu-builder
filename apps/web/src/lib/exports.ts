@@ -13,6 +13,8 @@ export type ExportActions = {
   onPageSize: (size: PageSize) => void;
   /** Where "Browse all templates" goes (the gallery knows which CV to change). */
   templatesHref: string;
+  /** Opens "LinkedIn profile" (AI writes the profile from this CV). */
+  onLinkedIn?: () => void;
 };
 
 export const EXPORT_LABEL: Record<ExportFormat, string> = {

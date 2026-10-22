@@ -36,5 +36,24 @@ describe("renderEmail", () => {
     );
     expect(a.html).toContain("82% match");
   });
-});
 
+  it("renders a recruiter's message with a reply button and without the candidate's address", () => {
+    const r = renderEmail(
+      {
+        template: "talent-contact",
+        to: "ayesha@example.com",
+        name: "Ayesha",
+        recruiterName: "Bilal",
+        orgName: "Hire & Co",
+        message: "Hi Ayesha,\n\nWe have a React role in Lahore.",
+        replyTo: "bilal@hire.example",
+      },
+      "https://app.test",
+    );
+    expect(r.subject).toBe("Bilal from Hire & Co would like to talk");
+    expect(r.html).toContain("mailto:bilal@hire.example?subject=Re%3A%20Bilal%20from%20Hire%20%26%20Co");
+    expect(r.html).toContain("Hire &#38; Co");
+    expect(r.text).toContain("We have a React role in Lahore.");
+    expect(r.text).toContain("https://app.test/account#talent");
+  });
+});

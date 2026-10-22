@@ -58,6 +58,7 @@ export class PrismaBillingRepository implements BillingRepository {
       status: STATUS_TO_DB[input.status],
       currentPeriodEnd: input.currentPeriodEnd,
       cancelAtPeriodEnd: input.cancelAtPeriodEnd,
+      currency: input.currency,
     };
     await this.db.subscription.upsert({
       where: { providerRef: input.providerRef },
@@ -82,13 +83,15 @@ export class PrismaBillingRepository implements BillingRepository {
         endsAt: input.endsAt,
         provider: "STRIPE",
         providerRef: input.providerRef,
+        amountCents: input.amountCents,
+        currency: input.currency,
       },
     });
   }
 
-  async markEventProcessed(id: string, type: string): Promise<boolean> {
+  async markEventProcessed(id: string, type: string, payment?: { amountCents: number; currency: string }): Promise<boolean> {
     try {
-      await this.db.billingEvent.create({ data: { id, type, provider: "STRIPE" } });
+      await this.db.billingEvent.create({ data: { id, type, provider: "STRIPE", ...(payment ?? {}) } });
       return true;
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") return false;

@@ -38,8 +38,11 @@ import { AppHeader } from "../AppHeader";
 import { RequireAuth } from "../RequireAuth";
 import { OrgsAdmin } from "./OrgsAdmin";
 import { ExpertsAdmin } from "./ExpertsAdmin";
+import { PricingAdmin } from "./PricingAdmin";
+import { ReviewsAdmin } from "./ReviewsAdmin";
+import { SiteSettingsAdmin } from "./SiteSettingsAdmin";
 
-const TABS = ["overview", "users", "templates", "organisations", "experts"] as const;
+const TABS = ["overview", "users", "templates", "organisations", "experts", "pricing", "reviews", "settings"] as const;
 type Tab = (typeof TABS)[number];
 const TAB_LABEL: Record<Tab, string> = {
   overview: "Overview",
@@ -47,6 +50,9 @@ const TAB_LABEL: Record<Tab, string> = {
   templates: "Templates",
   organisations: "Organisations",
   experts: "Experts",
+  pricing: "Pricing",
+  reviews: "Reviews",
+  settings: "Site settings",
 };
 
 /** Internal console: numbers, users and the template catalog. Every call is checked by the API (role admin). */
@@ -72,6 +78,9 @@ export function AdminPage() {
               {tab === "templates" && <Templates />}
               {tab === "organisations" && <OrgsAdmin />}
               {tab === "experts" && <ExpertsAdmin />}
+              {tab === "pricing" && <PricingAdmin />}
+              {tab === "reviews" && <ReviewsAdmin />}
+              {tab === "settings" && <SiteSettingsAdmin />}
             </div>
           </main>
         </div>

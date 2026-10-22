@@ -1,5 +1,6 @@
-import { matchJob, normalizeCV, type CV } from "@cvb/domain";
+import { AI_TASKS, matchJob, normalizeCV, type CV } from "@cvb/domain";
 import { createApi, explain, type ResumeSummary } from "./lib/api";
+import { startTailoring, tailorProblem } from "./lib/tailor";
 import { valuesFromCV } from "./lib/fields";
 import { loadSettings, originPattern } from "./lib/settings";
 import type { ExtractedJob, Settings } from "./lib/types";
@@ -103,6 +104,7 @@ async function loadResumes() {
   try {
     items = await createApi(settings).resumes();
   } catch (e) {
+    select.replaceChildren(Object.assign(document.createElement("option"), { value: "", textContent: "Couldn't load your CVs" }));
     showError(e);
     return;
   }
@@ -130,6 +132,30 @@ async function save() {
   }
 }
 
+/** Saves the job, then opens the web app's tailoring review for the chosen CV in a new tab. */
+async function tailor() {
+  const resumeId = $<HTMLSelectElement>("cv").value;
+  const job = readForm();
+  const problem = tailorProblem(job, resumeId);
+  if (problem) {
+    if (problem.problem === "no-description") $<HTMLDetailsElement>("descDetails").open = true;
+    return message(problem.text, "err", problem.problem === "no-cv" ? { label: "Open CV Builder", href: `${settings.appUrl}/app` } : undefined);
+  }
+  const button = $<HTMLButtonElement>("tailor");
+  button.disabled = true;
+  button.textContent = "Saving the job…";
+  try {
+    const url = await startTailoring(createApi(settings), settings.appUrl, job, resumeId);
+    message("Opening CV Builder… If you aren't signed in there, sign in and you'll come straight back to this job.", "ok");
+    await chrome.tabs.create({ url });
+  } catch (e) {
+    showError(e);
+  } finally {
+    button.disabled = false;
+    button.textContent = "Tailor my CV for this job";
+  }
+}
+
 async function fill() {
   if (!cv) return message("Choose the CV to fill the form from.", "err");
   try {
@@ -144,6 +170,8 @@ async function fill() {
 async function init() {
   settings = await loadSettings();
   $("openSettings").addEventListener("click", () => void chrome.runtime.openOptionsPage());
+  $("setupSettings").addEventListener("click", () => void chrome.runtime.openOptionsPage());
+  $<HTMLAnchorElement>("accountLink").href = `${settings.appUrl}/account`;
   if (!settings.token) {
     $("setup").hidden = false;
     return;
@@ -151,7 +179,8 @@ async function init() {
   const allowed = await chrome.permissions.contains({ origins: [originPattern(settings.appUrl)] });
   if (!allowed) {
     $("setup").hidden = false;
-    $("setupText").textContent = `Allow the extension to reach ${new URL(settings.appUrl).host} in settings.`;
+    $("setupSteps").hidden = true;
+    $("setupText").textContent = `Allow the extension to reach ${new URL(settings.appUrl).host}: open settings and click Save and test connection.`;
     return;
   }
   $("main").hidden = false;
@@ -166,6 +195,8 @@ async function init() {
     message("This page can't be read. Fill in the details yourself.", "");
   }
   $("save").addEventListener("click", () => void save());
+  $("tailor").addEventListener("click", () => void tailor());
+  $("tailorNote").textContent = `Saves the job, then opens CV Builder to review AI suggestions in a new copy of your CV (${AI_TASKS.tailor} AI credits). Your original isn't changed.`;
   $("fill").addEventListener("click", () => void fill());
   $<HTMLSelectElement>("cv").addEventListener("change", (e) => {
     const id = (e.target as HTMLSelectElement).value;

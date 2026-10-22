@@ -13,6 +13,7 @@ export class ApiError extends Error {
 export type Me = { id: string; email: string; name: string; plan: string };
 export type ResumeSummary = { id: string; title: string; updatedAt?: string };
 export type SavedApplication = { id: string; status: string; job: { id: string; title: string } };
+export type SavedJob = { id: string; title: string; company: string };
 
 /** Calls the CV Builder API with the personal access token. */
 export function createApi(settings: Settings, http: typeof fetch = fetch.bind(globalThis)) {
@@ -36,19 +37,25 @@ export function createApi(settings: Settings, http: typeof fetch = fetch.bind(gl
     me: async () => (await request<{ user: Me | null }>("GET", "/session")).user,
     resumes: async () => (await request<{ items: ResumeSummary[] }>("GET", "/resumes")).items,
     resume: (id: string) => request<{ id: string; title: string; data: unknown }>("GET", `/resumes/${encodeURIComponent(id)}`),
-    saveJob: (job: ExtractedJob) =>
-      request<SavedApplication>("POST", "/applications", {
-        job: {
-          title: job.title.trim().slice(0, 200) || "Job",
-          company: job.company.trim().slice(0, 200),
-          location: job.location.trim().slice(0, 200),
-          url: job.url || undefined,
-          description: job.description.slice(0, 30_000),
-          salary: job.salary.trim().slice(0, 120),
-          remote: job.remote,
-          source: "extension",
-        },
-      }),
+    saveJob: (job: ExtractedJob) => request<SavedApplication>("POST", "/applications", { job: jobPayload(job) }),
+    /** Saves the posting to "Saved jobs" (the same link is never saved twice). */
+    createJob: (job: ExtractedJob) => request<SavedJob>("POST", "/jobs", jobPayload(job)),
+  };
+}
+
+export type Api = ReturnType<typeof createApi>;
+
+/** An extracted posting as the API's CreateJobSchema expects it. */
+export function jobPayload(job: ExtractedJob) {
+  return {
+    title: job.title.trim().slice(0, 200) || "Job",
+    company: job.company.trim().slice(0, 200),
+    location: job.location.trim().slice(0, 200),
+    url: /^https?:\/\//i.test(job.url) ? job.url.slice(0, 2000) : undefined,
+    description: job.description.slice(0, 30_000),
+    salary: job.salary.trim().slice(0, 120),
+    remote: job.remote,
+    source: "extension" as const,
   };
 }
 

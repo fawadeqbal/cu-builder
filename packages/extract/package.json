@@ -1,0 +1,39 @@
+{
+  "name": "@cvb/extract",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Text from CV files: file-type sniffing and plain-text extraction for PDF, Word, OpenDocument, RTF, HTML and text. No framework; used by the worker (imports) and the API (free ATS check).",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "fflate": "0.8.3",
+    "mammoth": "1.13.0",
+    "unpdf": "1.8.1"
+  },
+  "devDependencies": {
+    "@cvb/eslint-config": "workspace:*",
+    "@cvb/tsconfig": "workspace:*",
+    "@types/node": "22.20.5",
+    "eslint": "9.39.5",
+    "tsup": "8.5.1",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}

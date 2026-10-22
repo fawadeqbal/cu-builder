@@ -26,13 +26,14 @@ describe("StripeGateway.parseWebhook", () => {
           customer: "cus_123",
           status: "active",
           cancel_at_period_end: false,
-          metadata: { userId: "u1", offer: "premium_monthly", plan: "premium" },
+          currency: "pkr",
+          metadata: { userId: "u1", offer: "premium_monthly", plan: "premium", currency: "pkr" },
           items: { data: [{ current_period_end: periodEnd }] },
         },
       },
     });
     const event = await gateway.parseWebhook(body, header);
-    expect(event).toMatchObject({ kind: "subscription.changed", userId: "u1", plan: "premium", status: "active", subscriptionRef: "sub_123" });
+    expect(event).toMatchObject({ kind: "subscription.changed", userId: "u1", plan: "premium", status: "active", subscriptionRef: "sub_123", currency: "pkr" });
   });
 
   it("normalises a paid pass checkout", async () => {

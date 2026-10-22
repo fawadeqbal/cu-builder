@@ -14,6 +14,7 @@ export const AI_TASKS = {
   "interview-feedback": 1,
   "star-story": 1,
   "company-brief": 1,
+  "linkedin-profile": 2,
 } as const;
 
 export type AiTask = keyof typeof AI_TASKS;

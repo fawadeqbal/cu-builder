@@ -1,4 +1,4 @@
-import { IMPORT_MAX_BYTES, IdParamSchema } from "@cvb/contracts";
+import { IMPORT_ZIP_MAX_BYTES, IdParamSchema } from "@cvb/contracts";
 import { Controller, Get, Param, Post, UploadedFile, UseInterceptors } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import type { AuthUser } from "../../common/auth/auth.types.js";
@@ -10,9 +10,9 @@ import { ImportsService, type UploadedFile as Upload } from "./imports.service.j
 export class ImportsController {
   constructor(private readonly imports: ImportsService) {}
 
-  /** multipart/form-data with a `file` field. Kept in memory (≤5 MB), then stored. */
+  /** multipart/form-data with a `file` field. Kept in memory (≤5 MB; LinkedIn export ZIPs ≤25 MB), then stored. */
   @Post()
-  @UseInterceptors(FileInterceptor("file", { limits: { fileSize: IMPORT_MAX_BYTES + 1, files: 1 } }))
+  @UseInterceptors(FileInterceptor("file", { limits: { fileSize: IMPORT_ZIP_MAX_BYTES + 1, files: 1 } }))
   start(@CurrentUser() user: AuthUser, @UploadedFile() file: Upload | undefined) {
     return this.imports.start(user, file);
   }

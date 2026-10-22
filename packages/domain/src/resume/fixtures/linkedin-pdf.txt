@@ -1,0 +1,58 @@
+Contact
+ayesha.khan@example.com
++92 300 1234567 (Mobile)
+www.linkedin.com/in/ayesha-khan-
+dev (LinkedIn)
+ayeshakhan.dev (Personal)
+github.com/ayeshakhan (Portfolio)
+Top Skills
+TypeScript
+Node.js
+PostgreSQL
+Languages
+English (Full Professional)
+Urdu (Native or Bilingual)
+Certifications
+AWS Certified Developer – Associate
+Professional Scrum Master I
+Honors-Awards
+Dean's Honour List
+Ayesha Khan
+Senior Software Engineer at Systems Ltd | Node.js,
+TypeScript, AWS
+Lahore, Punjab, Pakistan
+Summary
+I build backend services that stay fast as they grow. Over six years I have
+worked on payments, billing and internal tools for teams in Pakistan and the
+UK.
+I enjoy mentoring and turning messy processes into simple ones.
+Experience
+Systems Ltd
+3 years 5 months
+Senior Software Engineer
+July 2023 - Present (1 year 4 months)
+Lahore, Punjab, Pakistan
+Led the move of the billing service from a monolith to three Node.js
+services, cutting deploy time from 40 minutes to 6.
+Mentored four junior engineers through code review and pairing.
+Software Engineer
+June 2021 - June 2023 (2 years 1 month)
+Lahore, Pakistan
+- Built REST APIs in TypeScript and PostgreSQL for the payments team.
+- Wrote the alerting runbook used by on-call engineers.
+Page 1 of 2
+Arbisoft
+Associate Software Engineer
+August 2019 - May 2021 (1 year 10 months)
+Lahore
+Worked on a learning platform used by universities, mostly on the
+Django back end.
+Freelance
+Web Developer
+January 2018 - July 2019 (1 year 7 months)
+Education
+University of the Punjab
+Bachelor of Science - BS, Computer Science · (2015 - 2019)
+Punjab Group of Colleges
+Intermediate, Pre-Engineering · (2013 - 2015)
+Page 2 of 2

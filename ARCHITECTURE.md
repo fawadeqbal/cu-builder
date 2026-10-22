@@ -41,6 +41,7 @@ cu-builder/
 │   ├── db/             Prisma schema, migrations, client factory, Nest DatabaseModule
 │   ├── queue/          JobProducer port, BullMQ adapter, Nest QueueModule
 │   ├── storage/        FileStorage port: local disk adapter (S3-compatible later), in-memory double
+│   ├── extract/        Text from CV files (PDF, DOCX, ODT, RTF, HTML, text) and file-type sniffing
 │   ├── ai/             Assistant port: task prompts, JSON parsing, no-invention guard, Claude adapter, offline fallback
 │   ├── templates/      CV templates (React), template catalog, print stylesheet
 │   ├── ui/             Shared React icons and small components
@@ -81,6 +82,7 @@ Arrows mean "may import". Anything not drawn is forbidden.
 ```
 
 - `domain` imports only `shared`.
+- `extract` imports no internal package (only its file readers); `api` and `worker` use it, `web` never does.
 - `contracts` imports `domain` (to prove schemas match domain types) and `zod`.
 - `db`, `queue`, `templates`, `ui` import `domain`/`contracts`/`shared` as needed, never each other except where drawn.
 - Apps import packages through their **public entry point** (`@cvb/db`, `@cvb/db/nest`), never `src/` or `dist/` paths; ESLint enforces this.
@@ -101,6 +103,7 @@ Arrows mean "may import". Anything not drawn is forbidden.
 | `@cvb/queue` | Background jobs | `JobProducer`, `JOB_PRODUCER`, `BullMqJobProducer`, `InMemoryJobProducer`, `parseJob`; `@cvb/queue/nest`: `QueueModule` | tsup |
 | `@cvb/ai` | AI writing | `Assistant` (improve bullet, summary, rewrite, skills, tailor, cover letter, interview, STAR, company brief), `LlmAssistant` over a `TextModel` port, `OfflineAssistant`, `ASSISTANT`; `@cvb/ai/anthropic`: `AnthropicTextModel` | tsup |
 | `@cvb/jobfeed` | Job board adapters | `JobFeedProvider` port; `RemotiveProvider` (no key), `JoobleProvider`, `AdzunaProvider` (+ `salaryRange`); `JobFeed` (merge, dedupe, survive a failing board); `createJobFeed(config)`, `JOB_FEED` | tsup |
+| `@cvb/extract` | CV file text | `sniff` (file type from bytes), `extractText` (PDF via unpdf with page count, DOCX via mammoth, ODT, RTF, HTML, text), `markupToText`, `rtfToText`, `ExtractError`, `hasReadableText`; used by the worker (imports) and the API (free ATS check) | tsup |
 | `@cvb/storage` | Files | `FileStorage`, `FILE_STORAGE`, `LocalDiskStorage`, `InMemoryStorage` | tsup |
 | `@cvb/templates` | CV rendering | `CVDocument`, all templates; `@cvb/templates/catalog`: `TEMPLATES`, `TIERS`, `ACCENTS`, `templateMeta`, `applyOverrides`; `@cvb/templates/styles.css` (A4 and US Letter sheets) | tsup + CSS copy |
 | `@cvb/ui` | Shared React UI | Icons, `TierBadge` | tsup |
@@ -154,7 +157,7 @@ Errors anywhere ─▶ AppExceptionFilter ─▶ { error: { code, message, detai
 | Errors | Throw `AppError` subclasses from `@cvb/shared`; `AppExceptionFilter` maps codes to HTTP status (e.g. `PLAN_REQUIRED` → 402). Never throw raw HTTP exceptions from services. |
 | Auth | **Better Auth** (`modules/auth/better-auth.ts`) is mounted at `/api/auth` and owns sign-up, sign-in (password, magic link, Google, LinkedIn), sessions, email verification, password reset, account deletion and the admin plugin, storing everything in our Prisma tables. The global `AuthGuard` turns the session cookie into an `AuthUser` (role from the database, plan from `EntitlementsService`); `@Public()` opts out, `@Roles("admin")` restricts, `@CurrentUser()` / `@OptionalUser()` inject. The `x-dev-user` header works only with `DEV_AUTH=true` outside production. |
 | Plan gating | The effective plan is `effectivePlan()` over the base plan, live subscriptions and running passes. Services call `can()`, `LIMITS` and the template catalog's tier; denial throws `PlanRequiredError` (402), which the web app turns into an upgrade prompt. |
-| Rate limits | `@nestjs/throttler` globally (300/min per IP), tighter on analytics and share-link password attempts; Better Auth's own limiter in production. |
+| Rate limits | `@nestjs/throttler` globally (300/min per IP), tighter on analytics, share-link password attempts and the free tools; Better Auth's own limiter in production. 429s carry the `RATE_LIMITED` code. Daily allowances (free AI tools) use the `UsageQuota` port with a Redis adapter. |
 | Tracing | `x-request-id` on every request and response, included in error bodies and logs. |
 | Health | `GET /health/live` (process up), `GET /health/ready` (Postgres and Redis reachable). |
 | Versioning | All routes under `/api/v1`. Breaking changes go to `/api/v2` alongside v1. |
@@ -169,8 +172,9 @@ All under `/api/v1` except Better Auth (`/api/auth/*`).
 | Account | `GET session` (public: user or null), `GET me`, `PATCH me`, `GET me/export` (all data as JSON), `GET auth-providers` (public) |
 | Resumes | `GET resumes`, `POST resumes`, `GET/PATCH/DELETE resumes/:id`, `POST resumes/:id/duplicate`, `GET resumes/trash`, `POST resumes/:id/restore`, `GET/POST resumes/:id/versions`, `POST resumes/:id/versions/:versionId/restore` |
 | Sharing | `GET/POST resumes/:id/share-links`, `PATCH/DELETE share-links/:id`, `GET share-links/:id/analytics`, `GET public/r/:slug`, `POST public/r/:slug/unlock` and `POST public/r/:slug/ping` (public) |
-| Import | `POST imports` (multipart, PDF/DOCX ≤ 5 MB), `GET imports`, `GET imports/:id` |
-| AI | `GET ai/credits`, `POST ai/improve-bullet`, `POST ai/write-summary`, `POST ai/rewrite`, `POST ai/suggest-skills` (metered by credits, throttled) |
+| Import | `POST imports` (multipart: PDF, Word, ODT, RTF, text, HTML, JSON ≤ 5 MB; LinkedIn data export ZIP ≤ 25 MB, stored with only its CV files), `GET imports`, `GET imports/:id` |
+| Free tools (public) | `POST public/ats-check` (multipart file or JSON text, optional job advert; no AI, nothing stored, 10/hour per IP), `GET public/ai/usage`, `POST public/ai/write-summary`, `POST public/ai/improve-bullet` (same assistant and guards as `ai/*`; 3 a day per visitor, counted in Redis by hashed IP) |
+| AI | `GET ai/credits`, `POST ai/improve-bullet`, `POST ai/write-summary`, `POST ai/rewrite`, `POST ai/suggest-skills`, `POST ai/linkedin-profile` (metered by credits, throttled) |
 | Jobs | `GET/POST jobs`, `POST jobs/import` (read a posting from a link, SSRF-safe), `GET/PATCH/DELETE jobs/:id`, `POST jobs/:id/match`, `POST jobs/:id/tailor` |
 | Tracker | `GET/PUT tracker/board`, `GET/POST applications`, `GET/PATCH/DELETE applications/:id`, `POST applications/:id/move`, `POST applications/:id/share-link`, `POST applications/:id/brief` (AI), `GET/POST reminders`, `PATCH/DELETE reminders/:id` |
 | Job feed | `GET feed`, `GET/PUT feed/preferences`, `POST feed/save`, `GET feed/salary` |
@@ -182,9 +186,11 @@ All under `/api/v1` except Better Auth (`/api/auth/*`).
 | Portfolio | `GET/PUT/DELETE portfolio`, `PUT portfolio/domain`, `POST portfolio/domain/verify`, `GET portfolio/messages`, `PATCH/DELETE portfolio/messages/:id`, `GET public/sites/:slug`, `GET public/sites/by-host`, `POST public/sites/:slug/contact` |
 | Extension keys | `GET/POST tokens`, `DELETE tokens/:id` (`Authorization: Bearer cvb_…` then works on every signed-in route) |
 | Cover letters | `GET/POST cover-letters`, `POST cover-letters/draft`, `GET/PATCH/DELETE cover-letters/:id`, `GET public/l/:slug` (public) |
-| Billing | `GET billing/offers` (public), `GET billing/status`, `POST billing/checkout`, `POST billing/portal`, `POST billing/webhooks/:provider` (public, raw body, signature-checked, idempotent) |
+| Billing | `GET billing/offers?currency=usd\|pkr` (public), `GET billing/status`, `POST billing/checkout` (offer, currency), `POST billing/portal`, `POST billing/webhooks/:provider` (public, raw body, signature-checked, idempotent); admin `GET admin/prices`, `PUT/DELETE admin/prices/:offer/:currency` |
+| Talent search | `GET/PUT/DELETE talent/profile` (opt-in "Let recruiters find me"), agencies: `GET orgs/:id/talent?q&location&role&cursor`, `GET orgs/:id/talent/contacts`, `GET orgs/:id/talent/:profileId`, `POST orgs/:id/talent/:profileId/contact` (20 per member per day, once a week per organisation and person) |
 | Templates | `GET templates/settings` (public: admin overrides) |
 | Analytics | `POST events` (public, batched, throttled) |
+| Trust | `GET public/stats` (real counts, null under thresholds, cached 10 min), `GET/PUT/DELETE reviews/me`, `GET public/reviews` (approved, paginated), `GET public/site-settings` (WhatsApp help number); admin `GET admin/reviews`, `PATCH admin/reviews/:id`, `GET/PUT admin/site-settings` |
 | Admin | `GET admin/metrics`, `GET admin/users`, `PATCH admin/users/:id`, `GET admin/templates`, `PATCH admin/templates/:templateId` (role admin) |
 
 --- | --- | --- |
@@ -233,8 +239,11 @@ A Next.js server (`output: "standalone"`) on the same origin as the API: Caddy s
 
 ```
 web/src/
-├── app/                 Routes: / (guest builder), /app (My CVs), /edit/[id], /templates, /r/[slug],
-│                        /pricing, /account, /account/billing, /admin, /sign-in, /sign-up, password pages
+├── app/                 Routes: / (landing), /builder (guest builder), /app (My CVs), /edit/[id], /templates,
+│                        /r/[slug], /pricing, /account, /account/billing, /admin, /sign-in, /sign-up, password
+│                        pages; free tools /ats-checker, /tools, /tools/summary-generator,
+│                        /tools/bullet-improver; /cv-examples and /cv-examples/[slug]; sitemap.ts, robots.ts,
+│                        opengraph-image.tsx
 ├── components/          Builder (the editor), dialogs (Share, History, Upgrade), dashboard, auth, billing, admin
 └── lib/
     ├── document.ts      DocumentController port: useGuestDocument (localStorage) and useCloudDocument (API)
@@ -244,7 +253,10 @@ web/src/
     ├── access.ts        usePlan(), isUnlocked(), hasFeature() over @cvb/domain
     ├── catalog.ts       useCatalog(): template catalog with admin overrides
     ├── pdf.ts, docx.ts  Client-side PDF (modern-screenshot + jsPDF, text layer, links) and Word exports
-    └── guest-migration.ts  Moves a guest's CV into the account after sign-in
+    ├── guest-migration.ts  Moves a guest's CV into the account after sign-in
+    ├── handoff.ts       Opens a CV from a public page (example, ATS check) in the guest builder or the account
+    ├── examples/        CV example data (typed with the domain CV; fictional people and companies)
+    └── seo.ts           siteUrl() from APP_URL, JSON-LD builders (WebApplication, FAQPage, landingJsonLd)
 ```
 
 - **One editor, two stores.** `Builder` only knows a `DocumentController`. Guests get browser storage; signed-in users get autosave to the API (debounced), an offline queue in `localStorage` that flushes when the connection returns, polling for changes from other devices, and a "newer version on another device" choice when both sides changed (last write wins).

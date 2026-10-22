@@ -79,5 +79,6 @@ export const gateTitle = (g: Gate): string =>
       ? `${g.name} is a ${PLAN_LABEL[planForGate(g)]} template`
       : `Get ${g.what.toLowerCase()} with ${PLAN_LABEL[g.plan]}`;
 
+/** Minor units ("cents" for any currency) → "$7", "$19.50", "Rs 990". */
 export const formatPrice = (cents: number, currency = "usd") =>
-  new Intl.NumberFormat("en", { style: "currency", currency, minimumFractionDigits: cents % 100 ? 2 : 0 }).format(cents / 100);
+  new Intl.NumberFormat("en", { style: "currency", currency, currencyDisplay: "narrowSymbol", minimumFractionDigits: cents % 100 ? 2 : 0 }).format(cents / 100);

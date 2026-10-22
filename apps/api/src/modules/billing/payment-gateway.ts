@@ -1,7 +1,9 @@
-import type { Offer, OfferId, Plan, SubscriptionState } from "@cvb/domain";
+import type { Currency, Offer, OfferId, Plan, SubscriptionState } from "@cvb/domain";
 
 export type CheckoutRequest = {
   offer: Offer;
+  /** What to charge, resolved from defaults and admin overrides (minor units). */
+  price: { amount: number; currency: Currency };
   customer: { userId: string; email: string; name: string; stripeCustomerId: string | null };
   successUrl: string;
   cancelUrl: string;
@@ -19,6 +21,8 @@ export type BillingEvent =
       status: SubscriptionState["status"];
       currentPeriodEnd: Date;
       cancelAtPeriodEnd: boolean;
+      /** Lower-case ISO code ("usd", "pkr"). */
+      currency: string;
     }
   | {
       /** A one-off payment (a pass or a credit pack); what it buys comes from the offer. */

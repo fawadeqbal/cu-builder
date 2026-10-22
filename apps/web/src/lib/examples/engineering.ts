@@ -1,0 +1,315 @@
+import { exampleCv, type CvExample } from "./types";
+
+export const ENGINEERING: CvExample[] = [
+  {
+    slug: "civil-engineer",
+    role: "Civil engineer",
+    category: "Engineering",
+    description: "A civil engineer CV example for site and project roles in Pakistan and the Gulf, with project values, safety records and software skills.",
+    intro: "Construction employers want to know the projects you've built, their size and your exact role on site. Give them those facts up front.",
+    template: "classic",
+    accent: "#334155",
+    cv: exampleCv("civil-engineer", {
+      name: "Ali Hassan",
+      headline: "Civil Engineer, Site Execution",
+      tagline: "High-rise · Infrastructure · Quality and safety",
+      email: "ali.hassan@example.com",
+      phone: "+974 5598 7654",
+      location: "Doha, Qatar",
+      summary:
+        "Civil engineer with seven years of site experience on high-rise buildings and road infrastructure in Qatar and Pakistan. Plans daily work for subcontractors, checks quality against drawings and specifications, and keeps sites safe. PEC-registered and approved by the Qatar engineering authority (UPDA).",
+      experience: [
+        {
+          role: "Site Engineer",
+          company: "Dunecrest Contracting WLL",
+          location: "Doha, Qatar",
+          date: "May 2021 – Present",
+          bullets: [
+            "Supervise structural works on a 32-storey residential tower (contract value QAR 410 million) with 6 subcontractors and up to 250 workers.",
+            "Recovered a 5-week slab delay in 4 months by re-sequencing formwork and adding a second pour crew.",
+            "Run inspections and test requests with the consultant; 96% of inspection requests approved on first submission.",
+            "Site record of 1.2 million work hours without a lost-time injury in my zone.",
+          ],
+        },
+        {
+          role: "Junior Civil Engineer",
+          company: "Margalla Infrastructure Builders",
+          location: "Islamabad, Pakistan",
+          date: "Aug 2018 – Apr 2021",
+          bullets: [
+            "Worked on a 22 km dual carriageway: earthworks, culverts and asphalt layers, including levels and quantity surveys.",
+            "Prepared monthly bills of quantities and measurement sheets for interim payments worth PKR 900 million.",
+          ],
+        },
+      ],
+      skills: {
+        "Site and project": "Site supervision, method statements, inspection and test plans, quantity surveying, planning",
+        Technical: "Reinforced concrete, formwork systems, earthworks, road pavements, surveying (total station, levels)",
+        Software: "AutoCAD, Primavera P6, MS Project, ETABS (basic), Excel",
+        "Health and safety": "Toolbox talks, permit to work, NEBOSH IGC principles",
+      },
+      education: [{ degree: "BSc Civil Engineering", school: "Northfield University of Engineering", date: "2014 – 2018", details: "Final-year project: design of a two-span bridge" }],
+      certificates: [
+        { name: "Registered Engineer", issuer: "Pakistan Engineering Council (PEC)", year: "2018" },
+        { name: "UPDA engineer approval (Grade B)", issuer: "Qatar UPDA", year: "2022" },
+        { name: "NEBOSH International General Certificate", issuer: "NEBOSH", year: "2023" },
+      ],
+      languages: [
+        ["English", "Fluent"],
+        ["Urdu", "Native"],
+        ["Arabic", "Basic"],
+      ],
+      details: { nationality: "Pakistani", visaStatus: "Qatar residence permit (NOC available)", drivingLicence: "Qatar driving licence" },
+      settings: { region: "gulf" },
+    }),
+    tips: [
+      { title: "Describe each project in one line first", text: "Type, size and value (“32-storey tower, QAR 410 million”) let a reader place your experience before reading the details." },
+      { title: "Be clear about your role", text: "Say what you personally supervised, designed or measured. Recruiters can tell when a CV describes the whole project instead of the person." },
+      { title: "Show safety and quality results", text: "Hours without lost-time injuries and first-time inspection approvals are the numbers site managers trust." },
+      { title: "List registrations and approvals", text: "PEC, UPDA, Saudi Council of Engineers or UAE municipality approvals are filters for many Gulf jobs. Put them in certificates with the grade." },
+      { title: "Name the software you actually use", text: "AutoCAD and Primavera P6 are common keywords. Only add design software like ETABS or SAP2000 if you can use it on the job." },
+    ],
+    skills: ["Site supervision", "Reinforced concrete", "Quantity surveying", "AutoCAD", "Primavera P6", "Method statements", "Quality control (ITPs)", "Health and safety", "Subcontractor coordination", "Reading drawings and specifications"],
+    sampleSummary: {
+      label: "For a graduate civil engineer",
+      text: "Civil engineering graduate with a six-month site internship on a commercial building. Comfortable with levelling, reading structural drawings and AutoCAD, and keen to grow into a site engineer role. PEC registration in progress.",
+    },
+    faqs: [
+      { q: "Should I include the value of each project?", a: "Yes, when you're allowed to share it. A contract value shows scale instantly. If it's confidential, use size instead: floors, kilometres or square metres." },
+      { q: "What is NOC on a Gulf CV?", a: "A no-objection certificate from your current sponsor, which some employers need to hire you. Mention it only if you have one or can get one." },
+    ],
+  },
+  {
+    slug: "mechanical-engineer",
+    role: "Mechanical engineer",
+    category: "Engineering",
+    description: "A mechanical engineer CV example for maintenance and HVAC roles, with uptime, cost and safety results and tips on showing hands-on skills.",
+    intro: "Plant and facility managers hire mechanical engineers who keep equipment running. Show uptime, savings and the systems you know inside out.",
+    template: "compact",
+    accent: "#1f2a44",
+    cv: exampleCv("mechanical-engineer", {
+      name: "Kashif Mehmood",
+      headline: "Mechanical Engineer, Maintenance and HVAC",
+      email: "kashif.mehmood@example.com",
+      phone: "+966 55 123 4567",
+      location: "Dammam, Saudi Arabia",
+      summary:
+        "Mechanical engineer with eight years of experience maintaining HVAC, pumps and rotating equipment in manufacturing plants and large buildings. Plans preventive maintenance, leads technician teams and finds the root cause of repeat failures. Member of the Saudi Council of Engineers.",
+      experience: [
+        {
+          role: "Maintenance Engineer (Mechanical)",
+          company: "Eastgate Facilities Management",
+          location: "Dammam, Saudi Arabia",
+          date: "Jan 2020 – Present",
+          bullets: [
+            "Lead a team of 14 technicians maintaining chillers, AHUs, pumps and fire-fighting systems across a 9-building business park.",
+            "Moved the site from breakdown repairs to planned maintenance in the CMMS; planned work rose from 35% to 80% of all jobs.",
+            "Cut chiller plant energy use by 14% by resetting setpoints, cleaning condensers on schedule and fixing VFD settings.",
+            "Ran root-cause analysis on repeated pump seal failures and changed the alignment procedure; failures fell from 11 to 2 a year.",
+          ],
+        },
+        {
+          role: "Mechanical Engineer",
+          company: "Fairfield Textile Mills",
+          location: "Faisalabad, Pakistan",
+          date: "Jul 2016 – Dec 2019",
+          bullets: [
+            "Maintained boilers, compressors and spinning machines in a plant running 24/7.",
+            "Raised equipment availability from 91% to 96% through a lubrication plan and spare-parts stocking.",
+          ],
+        },
+      ],
+      skills: {
+        Equipment: "Chillers, AHUs, FCUs, pumps, compressors, boilers, fire-fighting systems",
+        Maintenance: "Preventive and predictive maintenance, root-cause analysis, vibration analysis basics, alignment",
+        Systems: "CMMS (Maximo), AutoCAD, MS Excel",
+        Safety: "Permit to work, lockout/tagout, risk assessment",
+      },
+      education: [{ degree: "BSc Mechanical Engineering", school: "Lyallpur Institute of Engineering", date: "2012 – 2016" }],
+      certificates: [
+        { name: "Saudi Council of Engineers membership", issuer: "SCE", year: "2020" },
+        { name: "Registered Engineer", issuer: "Pakistan Engineering Council (PEC)", year: "2016" },
+        { name: "OSHA 30-Hour General Industry", issuer: "OSHA Training Institute Education Center", year: "2021" },
+      ],
+      languages: [
+        ["English", "Fluent"],
+        ["Urdu", "Native"],
+        ["Arabic", "Conversational"],
+      ],
+      details: { nationality: "Pakistani", visaStatus: "Saudi iqama (transferable)", drivingLicence: "Saudi driving licence" },
+      settings: { region: "gulf" },
+    }),
+    tips: [
+      { title: "Name the equipment you've worked on", text: "Chillers, compressors, turbines or CNC machines: recruiters search for equipment types, so list them in your skills and bullets." },
+      { title: "Measure reliability and cost", text: "Uptime, availability, mean time between failures, energy saved and spare-parts cost are the numbers maintenance managers report every month." },
+      { title: "Show you lead technicians", text: "Team size, shift patterns and contractors managed tell a reader you can run a maintenance operation, not just fix a machine." },
+      { title: "Mention CMMS and planned maintenance", text: "Maximo, SAP PM or any CMMS shows you work in a structured way. It's also a common keyword in Gulf facility-management jobs." },
+    ],
+    skills: ["Preventive maintenance", "HVAC systems", "Root-cause analysis", "Rotating equipment", "CMMS (Maximo, SAP PM)", "AutoCAD", "Energy efficiency", "Team leadership", "Lockout/tagout", "Spare-parts planning"],
+    sampleSummary: {
+      label: "For a design-focused engineer",
+      text: "Mechanical design engineer with three years of experience in SolidWorks and GD&T, designing sheet-metal enclosures and brackets for production. Works closely with the shop floor to make parts easier and cheaper to build.",
+    },
+    faqs: [
+      { q: "Should I separate maintenance and design experience?", a: "If you've done both, yes. Lead with the one closest to the job and keep the other to a line or two per role." },
+      { q: "Is OSHA certification useful outside the US?", a: "Many Gulf employers recognise OSHA, NEBOSH and IOSH. List whichever you have; they show you take site safety seriously." },
+    ],
+  },
+  {
+    slug: "electrical-engineer",
+    role: "Electrical engineer",
+    category: "Engineering",
+    description: "An electrical engineer CV example for power, substations and building services, with commissioning results and tips on standards and licences.",
+    intro: "Electrical roles are filtered by voltage level, standards and licences. Make those obvious, then show what you delivered.",
+    template: "simple",
+    accent: "#0e7490",
+    cv: exampleCv("electrical-engineer", {
+      name: "Bilal Ahmed",
+      headline: "Electrical Engineer, Substations and MEP",
+      tagline: "11/0.4 kV distribution · Testing and commissioning",
+      email: "bilal.ahmed@example.com",
+      phone: "+971 52 123 4567",
+      location: "Abu Dhabi, UAE",
+      summary:
+        "Electrical engineer with six years of experience in medium-voltage distribution, substations and building electrical systems. Reviews designs, supervises installation and leads testing and commissioning with the utility. Works to IEC standards and local authority regulations.",
+      experience: [
+        {
+          role: "Electrical Engineer (MEP)",
+          company: "Saltmarsh MEP Contracting",
+          location: "Abu Dhabi, UAE",
+          date: "Feb 2022 – Present",
+          bullets: [
+            "Lead electrical works on a 1,200-unit residential community: four 11/0.4 kV substations, LV panels and 30 km of cabling.",
+            "Coordinated testing and commissioning with the utility; all four substations energised on the planned date.",
+            "Reviewed shop drawings and load calculations from subcontractors, catching cable sizing errors before installation and saving about AED 260,000.",
+          ],
+        },
+        {
+          role: "Electrical Engineer",
+          company: "Jhelum Power Services",
+          location: "Lahore, Pakistan",
+          date: "Jun 2019 – Jan 2022",
+          bullets: [
+            "Tested and maintained 132 kV and 11 kV grid equipment: transformers, breakers and protection relays.",
+            "Introduced thermal imaging checks on feeders, finding 40 hot spots before they caused outages.",
+          ],
+        },
+      ],
+      skills: {
+        Power: "MV/LV distribution, substations, transformers, protection relays, power factor correction",
+        "Building services": "LV panels, lighting, earthing and lightning protection, fire alarm interfaces",
+        Software: "ETAP, DIALux, AutoCAD, MS Project",
+        Standards: "IEC, BS 7671, ADDC and DEWA regulations",
+      },
+      education: [{ degree: "BSc Electrical Engineering (Power)", school: "Ravi University of Engineering", date: "2015 – 2019" }],
+      certificates: [
+        { name: "Registered Engineer", issuer: "Pakistan Engineering Council (PEC)", year: "2019" },
+        { name: "Certified Energy Manager (CEM)", issuer: "Association of Energy Engineers", year: "2023" },
+      ],
+      languages: [
+        ["English", "Fluent"],
+        ["Urdu", "Native"],
+      ],
+      details: { nationality: "Pakistani", visaStatus: "UAE employment visa", drivingLicence: "UAE driving licence" },
+      settings: { region: "gulf" },
+    }),
+    tips: [
+      { title: "Put voltage levels in your headline or summary", text: "“11/0.4 kV” or “132 kV” tells a recruiter at a glance whether you fit an LV building job or a grid role." },
+      { title: "Name the standards and authorities", text: "IEC, BS 7671, NEC, DEWA or utility approvals are common filters. Add the ones you've worked to." },
+      { title: "Show commissioning results", text: "Energised on time, passed first inspection, zero snags at handover: these are what project managers want to read." },
+      { title: "List design and calculation software", text: "ETAP, DIALux, AutoCAD Electrical or Revit MEP show you can check designs, not just install them." },
+    ],
+    skills: ["MV/LV distribution", "Substations", "Testing and commissioning", "Protection relays", "Load calculations", "ETAP", "AutoCAD", "IEC standards", "MEP coordination", "Electrical safety"],
+    sampleSummary: {
+      label: "For a fresh electrical engineer",
+      text: "Electrical engineering graduate (power) with a three-month internship at a grid station. Knows protection basics, transformer testing and AutoCAD, and is keen to join a substation or MEP team.",
+    },
+    faqs: [
+      { q: "Should I mention which utility approvals I hold?", a: "Yes. In the Gulf, approvals from authorities such as DEWA or ADDC can decide a shortlist. Name the grade and the year." },
+      { q: "How do I show design skills on a site-focused CV?", a: "Add one line per job about calculations or drawings you reviewed, and list the software in your skills." },
+    ],
+  },
+  {
+    slug: "project-manager",
+    role: "Project manager",
+    category: "Engineering",
+    description: "A project manager CV example with budgets, timelines and teams, written for IT and construction projects, plus tips on PMP and delivery results.",
+    intro: "Project managers are judged on delivery. Lead every role with what you delivered, how big it was, and whether it landed on time and on budget.",
+    template: "classic",
+    accent: "#4338ca",
+    cv: exampleCv("project-manager", {
+      name: "Nadia Farooq",
+      headline: "Project Manager (PMP)",
+      tagline: "Digital transformation · Agile and waterfall · Vendor management",
+      email: "nadia.farooq@example.com",
+      phone: "+1 416 555 0142",
+      location: "Toronto, Canada",
+      summary:
+        "PMP-certified project manager with nine years of experience delivering software and process projects for banks and telecoms in Pakistan and Canada. Runs projects of up to CAD 4 million with in-house and vendor teams, keeps sponsors informed with honest status reports, and lands work on time.",
+      experience: [
+        {
+          role: "Project Manager",
+          company: "Lakeshore Digital Services",
+          location: "Toronto, Canada",
+          date: "Sep 2022 – Present",
+          bullets: [
+            "Delivered a CAD 3.8 million customer-portal replacement for a credit union in 14 months, two weeks ahead of plan and 4% under budget.",
+            "Manage a team of 22 across two vendors and three internal departments using a hybrid agile approach.",
+            "Introduced a RAID log and fortnightly steering reviews that reduced late change requests by half.",
+          ],
+        },
+        {
+          role: "Project Manager",
+          company: "Margalla Telecom Services",
+          location: "Islamabad, Pakistan",
+          date: "Mar 2018 – Aug 2022",
+          bullets: [
+            "Led the roll-out of a new billing system to 9 million subscribers with no unplanned downtime at cut-over.",
+            "Ran 11 smaller projects a year in parallel, from network upgrades to CRM changes, with a total budget of PKR 600 million.",
+          ],
+        },
+        {
+          role: "Business Analyst",
+          company: "Seaview Software House",
+          location: "Karachi, Pakistan",
+          date: "Jul 2015 – Feb 2018",
+          bullets: ["Wrote requirements and test plans for core banking modules used by four banks."],
+        },
+      ],
+      skills: {
+        Delivery: "Project planning, scheduling, budgeting, risk and issue management, change control",
+        Methods: "Agile (Scrum), waterfall, hybrid, PRINCE2 principles",
+        Stakeholders: "Steering committees, vendor management, status reporting, workshops",
+        Tools: "Jira, Confluence, MS Project, Smartsheet, Power BI",
+      },
+      education: [
+        { degree: "MBA", school: "Seaview Business School", date: "2013 – 2015" },
+        { degree: "BS Computer Science", school: "Federal Valley University", date: "2009 – 2013" },
+      ],
+      certificates: [
+        { name: "Project Management Professional (PMP)", issuer: "PMI", year: "2019" },
+        { name: "Professional Scrum Master I (PSM I)", issuer: "Scrum.org", year: "2021" },
+      ],
+      languages: [
+        ["English", "Fluent"],
+        ["Urdu", "Native"],
+      ],
+    }),
+    tips: [
+      { title: "Lead with budget, size and outcome", text: "“CAD 3.8 million portal, 14 months, 4% under budget” says more than a paragraph about your responsibilities." },
+      { title: "Show the team and the stakeholders", text: "People managed, vendors and departments involved show the complexity you can handle." },
+      { title: "Name your methods and tools", text: "Agile, Scrum, waterfall, PRINCE2, Jira and MS Project are the keywords most project manager jobs filter on." },
+      { title: "Put certifications next to your title", text: "PMP, PRINCE2 or PSM in the headline gets you past the first screen for many roles." },
+      { title: "Be honest about how projects went", text: "If a project ran late, focus on what you recovered or learned. Interviewers ask, and a straight answer builds trust." },
+    ],
+    skills: ["Project planning", "Budget management", "Risk management", "Stakeholder management", "Agile and Scrum", "Vendor management", "Change control", "Status reporting", "Jira and MS Project", "Leadership"],
+    sampleSummary: {
+      label: "For a first project manager role",
+      text: "Project coordinator with three years of experience supporting IT projects: plans, RAID logs, status reports and vendor follow-ups. CAPM certified and ready to run small projects end to end.",
+    },
+    faqs: [
+      { q: "Is PMP worth putting on a CV?", a: "Yes. Many employers filter on it, especially in the Gulf and North America. If you're studying for it, write “PMP (exam booked for March 2026)”." },
+      { q: "Should I list every project?", a: "No. Pick the three to five largest or most relevant, and summarise the rest in one line with the total number and budget." },
+    ],
+  },
+];

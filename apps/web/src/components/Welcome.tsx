@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useLayoutEffect, useRef, useState } from "react";
-import { TEMPLATES, TIERS, type TemplateId } from "@cvb/templates/catalog";
-import { sampleCV, type CV } from "@cvb/domain";
-import { CVDocument } from "@cvb/templates";
+import { TEMPLATES, TIERS } from "@cvb/templates/catalog";
+import { sampleCV } from "@cvb/domain";
 import { Button, Icon, PaperSheet, PreviewCanvas, TierBadge } from "@cvb/ui";
 import { useCatalog } from "@/lib/catalog";
 import { useT } from "@/lib/i18n";
 import { AppHeader } from "./AppHeader";
+import { ScaledCV } from "./cv/ScaledCV";
+import { WhatsAppHelp } from "./trust/WhatsAppHelp";
 
 type Props = {
   onStart: () => void;
@@ -23,35 +23,7 @@ const POINTS = [
   { title: "welcome.f3", text: "welcome.f3d", icon: "download" },
 ] as const;
 
-const A4_PX = 793.7; // 210mm at 96dpi
-
-/** The CV page scaled to the width of the sheet it sits in. */
-function ScaledCV({ cv, template, accent }: { cv: CV; template: TemplateId; accent?: string | null }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(0);
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const measure = () => setScale(el.clientWidth / A4_PX);
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  return (
-    <div ref={ref} className="absolute inset-0" dir="ltr">
-      {scale > 0 && (
-        <div className="absolute start-0 top-0 w-[210mm] origin-top-left" style={{ transform: `scale(${scale})` }}>
-          <div className="paper !shadow-none">
-            <CVDocument cv={cv} template={template} accent={accent} />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** The signed-out landing (and a signed-in person's empty guest builder): what it is, how it works, start. */
+/** The builder's start screen (/builder): start fresh, open the example or import, and a look at the templates. */
 export function Welcome({ onStart, onExample, onImport, signedIn }: Props) {
   const t = useT();
   const { templates } = useCatalog();
@@ -168,6 +140,7 @@ export function Welcome({ onStart, onExample, onImport, signedIn }: Props) {
           </div>
         </section>
       </main>
+      <WhatsAppHelp />
     </div>
   );
 }

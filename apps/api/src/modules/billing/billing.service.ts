@@ -1,6 +1,16 @@
-import type { BillingStatusDto, OfferDto } from "@cvb/contracts";
+import type { BillingStatusDto, OfferDto, PriceSettingDto } from "@cvb/contracts";
 import { QUEUES } from "@cvb/contracts";
-import { CURRENCY, OFFERS, effectivePlan, offerById, type OfferId } from "@cvb/domain";
+import {
+  DEFAULT_CURRENCY,
+  checkPrice,
+  effectivePlan,
+  offerById,
+  offersIn,
+  priceTable,
+  resolvePrice,
+  type Currency,
+  type OfferId,
+} from "@cvb/domain";
 import { JOB_PRODUCER, type JobProducer } from "@cvb/queue";
 import { NotFoundError, ValidationError } from "@cvb/shared";
 import { Inject, Injectable, Logger } from "@nestjs/common";
@@ -8,6 +18,7 @@ import { APP_CONFIG, type AppConfig } from "../../config/app-config.js";
 import type { AuthUser } from "../../common/auth/auth.types.js";
 import { BILLING_REPOSITORY, type BillingRepository } from "./billing.repository.js";
 import { PAYMENT_GATEWAYS, type BillingEvent, type PaymentGateway } from "./payment-gateway.js";
+import { PRICE_SETTINGS, type PriceSettingsRepository } from "./price-settings.repository.js";
 
 const DAY = 24 * 3600 * 1000;
 
@@ -22,6 +33,7 @@ export class BillingService {
     @Inject(PAYMENT_GATEWAYS) private readonly gateways: Record<"stripe" | "local", PaymentGateway>,
     @Inject(JOB_PRODUCER) private readonly jobs: JobProducer,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
+    @Inject(PRICE_SETTINGS) private readonly prices: PriceSettingsRepository,
   ) {}
 
   /** Expert services register here to hear about paid orders (keeps billing free of service code). */
@@ -29,8 +41,10 @@ export class BillingService {
     this.orderPaid = handler;
   }
 
-  offers(): OfferDto[] {
-    return OFFERS.map((o) => ({
+  /** Every offer priced in `currency` (defaults, or the admin's overrides). */
+  async offers(currency: Currency = DEFAULT_CURRENCY): Promise<OfferDto[]> {
+    const overrides = await this.prices.list();
+    return offersIn(currency, overrides).map((o) => ({
       id: o.id,
       kind: o.kind,
       plan: o.kind === "credits" ? undefined : o.plan,
@@ -38,9 +52,41 @@ export class BillingService {
       interval: o.kind === "subscription" ? o.interval : undefined,
       days: o.kind === "pass" ? o.days : undefined,
       priceCents: o.priceCents,
-      currency: CURRENCY,
+      currency,
       available: this.gateways.stripe.available,
     }));
+  }
+
+  // ─── Admin: prices ────────────────────────────────────────────────────────
+
+  /** Every offer in every currency, with what's overridden. */
+  async priceSettings(): Promise<PriceSettingDto[]> {
+    const rows = await this.prices.list();
+    return priceTable(rows).map((p) => {
+      const row = p.overridden ? rows.find((r) => r.offer === p.offer && r.currency === p.currency) : undefined;
+      return { ...p, updatedAt: row?.updatedAt.toISOString() ?? null, updatedBy: row?.updatedBy ?? null };
+    });
+  }
+
+  /** Sets one price. New checkouts use it at once; running subscriptions keep what they pay. */
+  async setPrice(actor: AuthUser, offer: OfferId, currency: Currency, amount: number): Promise<PriceSettingDto> {
+    const problem = checkPrice(currency, amount);
+    if (problem) throw new ValidationError(problem);
+    offerById(offer);
+    await this.prices.upsert({ offer, currency, amount, updatedBy: actor.id });
+    this.logger.log(`Price of ${offer} in ${currency} set to ${amount} by ${actor.id}`);
+    return this.priceSetting(offer, currency);
+  }
+
+  /** Removes the override, back to the default price. */
+  async resetPrice(actor: AuthUser, offer: OfferId, currency: Currency): Promise<PriceSettingDto> {
+    if (await this.prices.remove(offer, currency)) this.logger.log(`Price of ${offer} in ${currency} reset by ${actor.id}`);
+    return this.priceSetting(offer, currency);
+  }
+
+  private async priceSetting(offer: OfferId, currency: Currency): Promise<PriceSettingDto> {
+    const all = await this.priceSettings();
+    return all.find((p) => p.offer === offer && p.currency === currency)!;
   }
 
   async status(user: AuthUser): Promise<BillingStatusDto> {
@@ -65,13 +111,20 @@ export class BillingService {
     };
   }
 
-  async checkout(user: AuthUser, offerId: OfferId, provider: "stripe" | "local"): Promise<{ url: string }> {
+  async checkout(
+    user: AuthUser,
+    offerId: OfferId,
+    provider: "stripe" | "local",
+    currency: Currency = DEFAULT_CURRENCY,
+  ): Promise<{ url: string }> {
     const profile = await this.billing.profile(user.id);
     if (!profile) throw new NotFoundError("User", user.id);
-    const offer = offerById(offerId);
+    const { amount } = resolvePrice(offerId, currency, await this.prices.list());
+    const offer = { ...offerById(offerId), priceCents: amount };
     const gateway = this.gateways[provider];
     const { url, customerRef } = await gateway.createCheckout({
       offer,
+      price: { amount, currency },
       customer: { userId: user.id, email: profile.email, name: profile.name, stripeCustomerId: profile.stripeCustomerId },
       successUrl: `${this.config.APP_URL}/account/billing?checkout=success`,
       cancelUrl: `${this.config.APP_URL}/pricing?checkout=cancelled`,
@@ -91,7 +144,8 @@ export class BillingService {
   async handleWebhook(provider: "stripe" | "local", rawBody: Buffer, signature: string | undefined): Promise<void> {
     const event = await this.gateways[provider].parseWebhook(rawBody, signature);
     if (event.kind === "ignored") return;
-    if (!(await this.billing.markEventProcessed(event.id, event.kind))) {
+    const payment = event.kind === "payment.completed" ? { amountCents: event.amountCents, currency: event.currency.toLowerCase() } : undefined;
+    if (!(await this.billing.markEventProcessed(event.id, event.kind, payment))) {
       this.logger.log(`Skipping already processed event ${event.id}`);
       return;
     }
@@ -110,6 +164,7 @@ export class BillingService {
         status: event.status,
         currentPeriodEnd: event.currentPeriodEnd,
         cancelAtPeriodEnd: event.cancelAtPeriodEnd,
+        currency: event.currency,
       });
       return;
     }
@@ -131,6 +186,8 @@ export class BillingService {
         endsAt: new Date(startsAt.getTime() + offer.days * DAY),
         providerRef: event.paymentRef,
         offer: offer.id,
+        amountCents: event.amountCents,
+        currency: event.currency.toLowerCase(),
       });
       description = `${offer.plan[0]!.toUpperCase()}${offer.plan.slice(1)} pass, ${offer.days} days`;
     } else if (offer.kind === "credits") {

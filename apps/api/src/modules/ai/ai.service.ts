@@ -52,4 +52,8 @@ export class AiService {
   organiseSkills(user: AuthUser, input: z.output<typeof OrganiseSkillsSchema>) {
     return this.credits.charge(user, "organise-skills", () => this.call("organise-skills", () => this.ai.organiseSkills(input)));
   }
+
+  linkedinProfile(user: AuthUser, input: { cv: CV; targetTitle?: string }) {
+    return this.credits.charge(user, "linkedin-profile", () => this.call("linkedin-profile", () => this.ai.linkedinProfile(input)));
+  }
 }

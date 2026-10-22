@@ -3,7 +3,7 @@
 import type { CoverLetterDto, JobDto, JobMatchDto, ResumeDto, TailorProposalDto } from "@cvb/contracts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Alert, Button, Card, EmptyState, IconButton, PageHeader, Select, Skeleton, Tabs } from "@cvb/ui";
 import { gateForError, useAiCall } from "@/lib/ai";
 import { api } from "@/lib/api";
@@ -115,13 +115,17 @@ function JobDetail({ job, onGate }: { job: JobDto; onGate: (g: Gate) => void }) 
   const router = useRouter();
   const resumes = useResumes();
   const { call } = useAiCall();
-  const [resumeId, setResumeId] = useState("");
+  const params = useSearchParams();
+  // Links like /jobs?tab=saved&job=…&resume=…&tailor=1 (from the browser extension) pick the CV and start tailoring.
+  const linked = params.get("job") === job.id;
+  const [resumeId, setResumeId] = useState(linked ? (params.get("resume") ?? "") : "");
   const [match, setMatch] = useState<JobMatchDto | null>(null);
   const [busy, setBusy] = useState<"match" | "tailor" | "letter" | null>(null);
   const [error, setError] = useState("");
   const [tailor, setTailor] = useState<{ base: ResumeDto; proposal: TailorProposalDto } | null>(null);
   const [showAll, setShowAll] = useState(false);
   const chosen = resumeId || resumes.data?.items[0]?.id || "";
+  const autoTailor = useRef(linked && params.get("tailor") === "1");
 
   const remove = useMutation({
     mutationFn: () => api.delete(`/jobs/${job.id}`),
@@ -160,6 +164,16 @@ function JobDetail({ job, onGate }: { job: JobDto; onGate: (g: Gate) => void }) 
       setBusy(null);
     }
   }
+
+  useEffect(() => {
+    if (!autoTailor.current || !resumes.data) return;
+    autoTailor.current = false;
+    // Drop the flag first, so reloading the page doesn't tailor (and spend credits) again.
+    router.replace(`/jobs?tab=saved&job=${encodeURIComponent(job.id)}`, { scroll: false });
+    const found = resumes.data.items.some((r) => r.id === chosen);
+    void Promise.resolve().then(() => (found ? act("tailor") : (setResumeId(""), setError("That CV isn't in your account any more. Pick a CV and click Tailor CV."))));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the CVs have loaded
+  }, [resumes.data]);
 
   const description = job.description.trim();
   return (
@@ -200,6 +214,11 @@ function JobDetail({ job, onGate }: { job: JobDto; onGate: (g: Gate) => void }) 
           {busy === "tailor" ? "Tailoring…" : "Tailor CV"}
         </Button>
       </div>
+      {busy === "tailor" && (
+        <p className="cvb-caption" role="status">
+          AI is tailoring your CV for this job. You&apos;ll review each change before anything is saved.
+        </p>
+      )}
       {error && <Alert tone="danger">{error}</Alert>}
       {match && <MatchResult match={match} onUnlock={() => onGate({ kind: "feature", feature: "jobMatch" })} />}
 

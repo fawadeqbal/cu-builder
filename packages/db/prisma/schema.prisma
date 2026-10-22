@@ -89,6 +89,9 @@ model User {
   memberships   Membership[]
   candidates    Candidate[]
   portfolio     PortfolioSite?
+  talentProfile TalentProfile?
+  talentContacts TalentContact[]
+  review        Review?
 
   @@map("users")
 }
@@ -179,6 +182,7 @@ model Resume {
   orders       ServiceOrder[]
   comments     ReviewComment[]
   portfolios   PortfolioSite[]
+  talentProfiles TalentProfile[]
 
   @@index([userId, updatedAt(sort: Desc)])
   @@map("resumes")
@@ -261,6 +265,8 @@ model Subscription {
   providerRef       String             @unique @map("provider_ref")
   currentPeriodEnd  DateTime           @map("current_period_end")
   cancelAtPeriodEnd Boolean            @default(false) @map("cancel_at_period_end")
+  /// Billing currency ("usd", "pkr").
+  currency          String             @default("usd")
   createdAt         DateTime           @default(now()) @map("created_at")
   updatedAt         DateTime           @updatedAt @map("updated_at")
 
@@ -275,6 +281,9 @@ model BillingEvent {
   id          String          @id
   provider    BillingProvider
   type        String
+  /// For payments: the amount (minor units) and currency charged.
+  amountCents Int?            @map("amount_cents")
+  currency    String?
   processedAt DateTime        @default(now()) @map("processed_at")
 
   @@map("billing_events")
@@ -290,6 +299,9 @@ model Pass {
   endsAt      DateTime        @map("ends_at")
   provider    BillingProvider
   providerRef String?         @unique @map("provider_ref")
+  /// What was paid, in the currency's minor unit.
+  amountCents Int?            @map("amount_cents")
+  currency    String          @default("usd")
   createdAt   DateTime        @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -323,6 +335,21 @@ model TemplateSetting {
   updatedAt  DateTime @updatedAt @map("updated_at")
 
   @@map("template_settings")
+}
+
+/// Admin price overrides per offer and currency; defaults live in @cvb/domain (DEFAULT_PRICES).
+model PriceSetting {
+  offerId   String   @map("offer_id")
+  /// "usd" | "pkr"
+  currency  String
+  /// Minor units (cents, paisa).
+  amount    Int
+  updatedAt DateTime @updatedAt @map("updated_at")
+  /// The admin who set it (user id; kept if that account goes).
+  updatedBy String?  @map("updated_by")
+
+  @@id([offerId, currency])
+  @@map("price_settings")
 }
 
 /// Privacy-friendly product events: an anonymous id, no personal data in `props`.
@@ -743,6 +770,7 @@ model Organization {
   invites    OrgInvite[]
   candidates Candidate[]
   comments   ReviewComment[]
+  talentContacts TalentContact[]
 
   @@map("organizations")
 }
@@ -853,4 +881,89 @@ model ContactMessage {
 
   @@index([siteId, createdAt(sort: Desc)])
   @@map("contact_messages")
+}
+
+// ---------------------------------------------------------------- Talent search (opt-in)
+
+/// "Let recruiters find me": what a job seeker chose to show agency recruiters.
+model TalentProfile {
+  id         String   @id @default(cuid())
+  userId     String   @unique @map("user_id")
+  /// The CV shown; null if it was deleted (then the profile is hidden until another is chosen).
+  resumeId   String?  @map("resume_id")
+  /// Off by default; switching off hides the profile at once.
+  visible    Boolean  @default(false)
+  headline   String
+  location   String   @default("")
+  /// Roles they're open to.
+  roles      String[]
+  /// full | summary
+  share      String   @default("summary")
+  /// Job titles and skills taken from the CV for search, refreshed when the CV changes.
+  titles     String[]
+  skills     String[]
+  searchText String   @default("") @map("search_text")
+  syncedAt   DateTime @default(now()) @map("synced_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resume   Resume?         @relation(fields: [resumeId], references: [id], onDelete: SetNull)
+  contacts TalentContact[]
+
+  @@index([visible, updatedAt(sort: Desc)])
+  @@map("talent_profiles")
+}
+
+/// A recruiter's message to a talent profile, emailed through the platform. Also the rate-limit log.
+model TalentContact {
+  id        String   @id @default(cuid())
+  orgId     String   @map("org_id")
+  senderId  String   @map("sender_id")
+  profileId String   @map("profile_id")
+  message   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  org     Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  sender  User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  profile TalentProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([senderId, createdAt])
+  @@index([orgId, profileId, createdAt])
+  @@index([orgId, createdAt(sort: Desc)])
+  @@map("talent_contacts")
+}
+
+// ---------------------------------------------------------------- Trust: reviews and site settings
+
+/// A user's review of the product, shown on the landing page once a moderator approves it.
+model Review {
+  id          String    @id @default(cuid())
+  /// One review per account; the author can edit it.
+  userId      String    @unique @map("user_id")
+  /// 1 to 5 stars.
+  rating      Int
+  /// Up to 600 characters.
+  text        String
+  displayName String    @map("display_name")
+  jobTitle    String?   @map("job_title")
+  /// "pending", "approved" or "rejected". New and edited reviews start as pending.
+  status      String    @default("pending")
+  moderatedAt DateTime? @map("moderated_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt(sort: Desc)])
+  @@map("reviews")
+}
+
+/// Site-wide settings managed in the admin console, one row per key (e.g. "whatsapp.number").
+model SiteSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("site_settings")
 }

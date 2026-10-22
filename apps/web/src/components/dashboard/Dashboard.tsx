@@ -1,7 +1,7 @@
 "use client";
 
 import type { MeDto, ResumeDto, ResumeImportDto, ResumeSummary } from "@cvb/contracts";
-import { IMPORT_ACCEPT, IMPORT_MAX_BYTES } from "@cvb/contracts";
+import { IMPORT_ACCEPT, IMPORT_MAX_BYTES, importLimitFor } from "@cvb/contracts";
 import { normalizeCV } from "@cvb/domain";
 import { CVDocument } from "@cvb/templates";
 import { isTemplateId } from "@cvb/templates/catalog";
@@ -32,6 +32,7 @@ import { paperSizeAttr } from "@/lib/page";
 import { PLAN_LABEL, type Gate } from "@/lib/plans";
 import { keys, useImports, useResume, useResumes, useTrash } from "@/lib/queries";
 import { UpgradeDialog } from "../UpgradeDialog";
+import { LinkedInImportHelp } from "./LinkedInImportHelp";
 import { useT } from "@/lib/i18n";
 
 /** "My CVs": every CV in the account, imports in progress, and the trash. */
@@ -102,7 +103,7 @@ export function Dashboard({ me }: { me: MeDto }) {
 
   function pickFile(file: File | undefined) {
     if (!file) return;
-    if (file.size > IMPORT_MAX_BYTES) return setNotice(t("dash.tooLarge"));
+    if (file.size > importLimitFor(file.name)) return setNotice(t(importLimitFor(file.name) > IMPORT_MAX_BYTES ? "dash.tooLargeZip" : "dash.tooLarge"));
     if (atLimit) return setGate({ kind: "feature", feature: "resume.multiple" });
     upload.mutate(file);
   }
@@ -504,7 +505,9 @@ function UploadDrop({ onFile, className }: { onFile: (f: File | undefined) => vo
       button={t("dash.upload")}
       accept={IMPORT_ACCEPT}
       onFiles={(files) => onFile(files[0])}
-    />
+    >
+      <LinkedInImportHelp className="mt-1" />
+    </FileDrop>
   );
 }
 

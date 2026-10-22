@@ -81,6 +81,13 @@ export class PrismaUsersRepository implements UsersRepository {
         stories: { select: { title: true, situation: true, task: true, action: true, result: true, sourceBullet: true, tags: true, createdAt: true } },
         apiTokens: { select: { name: true, prefix: true, lastUsedAt: true, createdAt: true } },
         credits: { select: { delta: true, reason: true, createdAt: true } },
+        talentProfile: {
+          select: {
+            visible: true, resumeId: true, headline: true, location: true, roles: true, share: true, createdAt: true, updatedAt: true,
+            contacts: { select: { message: true, createdAt: true, org: { select: { name: true } }, sender: { select: { name: true } } } },
+          },
+        },
+        review: { select: { rating: true, text: true, displayName: true, jobTitle: true, status: true, createdAt: true, updatedAt: true } },
       },
     });
     return { exportedAt: new Date().toISOString(), ...user };

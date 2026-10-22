@@ -35,6 +35,17 @@ export const OrganiseSkillsSchema = z.object({
 export const BulletsResultSchema = z.object({ bullets: z.array(z.string()) });
 export const SkillGroupsResultSchema = z.object({ skills: z.array(z.object({ category: z.string(), items: z.string() })) });
 
+/** A LinkedIn profile (headline, About, one description per job, top skills) written from a CV. */
+export const LinkedInProfileRequestSchema = z.object({ cv: ResumeDataSchema, targetTitle: z.string().max(160).optional() });
+export const LinkedInProfileSchema = z.object({
+  headline: z.string(),
+  headlineOptions: z.array(z.string()),
+  about: z.string(),
+  experience: z.array(z.object({ id: z.string(), role: z.string(), company: z.string(), description: z.string() })),
+  skills: z.array(z.string()),
+});
+export type LinkedInProfileDto = z.output<typeof LinkedInProfileSchema>;
+
 export const OptionsSchema = z.object({ options: z.array(z.string()) });
 export const TextResultSchema = z.object({ text: z.string() });
 export const SkillsResultSchema = z.object({ skills: z.array(z.string()) });

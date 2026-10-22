@@ -65,7 +65,9 @@ function Billing() {
             <>
               {s.canManage && (
                 <Button icon="credit" loading={portal.isPending} onClick={() => portal.mutate()}>
-                  Manage billing, invoices and card
+                  {s.subscription && !s.subscription.cancelAtPeriodEnd
+                    ? "Manage or cancel subscription"
+                    : "Manage billing, invoices and card"}
                 </Button>
               )}
               <Button variant="primary" href="/pricing">

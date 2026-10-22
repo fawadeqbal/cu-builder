@@ -1,37 +1,39 @@
 "use client";
 
 import type { OfferDto, RedirectDto } from "@cvb/contracts";
-import type { OfferId, Plan } from "@cvb/domain";
+import { yearlySaving, type Currency, type Plan } from "@cvb/domain";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
-import { Alert, Badge, Button, Chip, Icon, SegmentedControl } from "@cvb/ui";
+import { Alert, Badge, Button, Icon, SegmentedControl, type IconName } from "@cvb/ui";
 import { track } from "@/lib/analytics";
 import { api } from "@/lib/api";
+import { CURRENCY_LABEL, CURRENCY_NAME, useCurrency, useOfferPrices } from "@/lib/currency";
 import { formatPrice, PLAN_LABEL, PLAN_POINTS } from "@/lib/plans";
-import { useBillingStatus, useMe, useOffers } from "@/lib/queries";
+import { useBillingStatus, useMe } from "@/lib/queries";
 import { AppHeader } from "../AppHeader";
+import { WhatsAppHelp } from "../trust/WhatsAppHelp";
 import { useT } from "@/lib/i18n";
 
 const PAID: Exclude<Plan, "free">[] = ["standard", "premium", "executive"];
-type Provider = "stripe" | "local";
 
-/** Plans, yearly discount and Job-Hunt Passes, with checkout through the chosen payment method. */
+/** Plans with a yearly discount and Job-Hunt Passes, priced and paid in US dollars or rupees. */
 export function PricingPage() {
   const t = useT();
   const params = useSearchParams();
   const router = useRouter();
   const me = useMe();
-  const offers = useOffers();
+  const [currency, setCurrency] = useCurrency();
+  const offers = useOfferPrices(currency);
   const billing = useBillingStatus(Boolean(me.data));
   const [interval, setBillingInterval] = useState<"month" | "year">("year");
-  const [provider, setProvider] = useState<Provider>("stripe");
   const highlight = (params.get("plan") as Plan | null) ?? "premium";
   const cancelled = params.get("checkout") === "cancelled";
 
   const checkout = useMutation({
-    mutationFn: (offer: OfferId) => api.post<RedirectDto>("/billing/checkout", { offer, provider }),
-    onMutate: (offer) => track("checkout_started", { offer, provider }),
+    mutationFn: (offer: OfferDto) =>
+      api.post<RedirectDto>("/billing/checkout", { offer: offer.id, currency: offer.currency }),
+    onMutate: (offer) => track("checkout_started", { offer: offer.id, currency: offer.currency }),
     onSuccess: ({ url }) => {
       window.location.href = url;
     },
@@ -44,26 +46,29 @@ export function PricingPage() {
   });
 
   const list = offers.data ?? [];
-  const subFor = (plan: Plan) =>
-    list.find((o) => o.kind === "subscription" && o.plan === plan && o.interval === interval);
-  const monthly = (plan: Plan) =>
-    list.find((o) => o.kind === "subscription" && o.plan === plan && o.interval === "month");
+  const subFor = (plan: Plan, every: "month" | "year" = interval) =>
+    list.find((o) => o.kind === "subscription" && o.plan === plan && o.interval === every);
   const passes = list.filter((o) => o.kind === "pass");
   const packs = list.filter((o) => o.kind === "credits");
-  const current = me.data?.plan ?? "free";
+  // Only signed-in people have a current plan; visitors see the free plan as "included".
+  const current = me.data?.plan ?? null;
   const hasSubscription = Boolean(billing.data?.subscription);
-  const localAvailable = false; // the local gateway is not connected yet (see BillingModule)
+  const bestSaving = Math.max(0, ...PAID.map((p) => yearlySaving(subFor(p, "month")?.priceCents ?? 0, subFor(p, "year")?.priceCents ?? 0)));
+  const busy = checkout.isPending || portal.isPending;
 
   function buy(offer: OfferDto) {
-    if (!me.data) return router.push(`/sign-up?next=${encodeURIComponent(`/pricing?plan=${offer.plan ?? "premium"}`)}`);
+    if (!me.data) {
+      const next = offer.kind === "pass" ? "/pricing#pass" : `/pricing?plan=${offer.plan ?? "premium"}`;
+      return router.push(`/sign-up?next=${encodeURIComponent(next)}`);
+    }
     if (offer.kind === "subscription" && hasSubscription && billing.data?.canManage) return portal.mutate();
-    checkout.mutate(offer.id);
+    checkout.mutate(offer);
   }
 
   return (
     <div className="min-h-dvh bg-canvas">
       <AppHeader />
-      <main className="mx-auto flex w-full max-w-(--layout-lg) flex-col gap-12 px-4 pb-20 pt-10 sm:gap-16 sm:px-6 sm:pt-16">
+      <main className="mx-auto flex w-full max-w-(--layout-lg) flex-col gap-10 px-4 pb-20 pt-10 sm:gap-14 sm:px-6 sm:pt-16">
         <header className="mx-auto flex max-w-2xl flex-col items-center gap-6 text-center">
           <div className="flex flex-col gap-3">
             <h1 className="font-display text-[32px]/[38px] font-bold tracking-tight text-balance text-ink sm:text-[38px]/[44px]">
@@ -73,121 +78,191 @@ export function PricingPage() {
           </div>
 
           {cancelled && <Alert className="w-full max-w-md text-start">{t("pricing.cancelled")}</Alert>}
-          {checkout.error && (
+          {(checkout.error || portal.error) && (
             <Alert tone="danger" className="w-full max-w-md text-start">
-              {checkout.error.message}
+              {(checkout.error ?? portal.error)?.message}
             </Alert>
           )}
 
-          <div className="flex max-w-full flex-col items-center gap-3">
+          <div className="flex max-w-full flex-wrap items-center justify-center gap-3">
+            <SegmentedControl<Currency>
+              label={t("pricing.currency")}
+              value={currency}
+              onChange={setCurrency}
+              options={[
+                { value: "pkr", label: CURRENCY_LABEL.pkr },
+                { value: "usd", label: CURRENCY_LABEL.usd },
+              ]}
+            />
             <SegmentedControl
-              label="Billing period"
+              label={t("pricing.period")}
               value={interval}
               onChange={setBillingInterval}
               options={[
                 { value: "month", label: t("pricing.monthly") },
-                { value: "year", label: t("pricing.yearly") },
+                {
+                  value: "year",
+                  label: bestSaving > 0 ? t("pricing.yearlySave", { pct: bestSaving }) : t("pricing.yearlyOnly"),
+                },
               ]}
             />
-            <div role="group" aria-label="Payment method" className="flex flex-wrap justify-center gap-2">
-              <Chip icon="credit" selected={provider === "stripe"} onClick={() => setProvider("stripe")}>
-                Card (Visa, Mastercard)
-              </Chip>
-              <Chip
-                selected={provider === "local"}
-                disabled={!localAvailable}
-                onClick={() => setProvider("local")}
-                title={localAvailable ? undefined : "Coming soon"}
-              >
-                JazzCash / Easypaisa · coming soon
-              </Chip>
-            </div>
           </div>
         </header>
 
-        <div className="grid gap-6 pt-3 md:grid-cols-2 lg:grid-cols-4">
-          <PlanCard plan="free" price="$0" note="forever" current={current === "free"} highlight={false}>
-            <Button block disabled>
-              {me.data ? t("pricing.yourPlan") : t("pricing.included")}
-            </Button>
-          </PlanCard>
-          {PAID.map((plan) => {
-            const offer = subFor(plan);
-            const m = monthly(plan);
-            const perMonth = offer ? (offer.interval === "year" ? offer.priceCents / 12 : offer.priceCents) : 0;
-            const saving =
-              offer && m && offer.interval === "year"
-                ? Math.round((1 - offer.priceCents / (m.priceCents * 12)) * 100)
-                : 0;
-            return (
-              <PlanCard
-                key={plan}
-                plan={plan}
-                price={offer ? formatPrice(Math.round(perMonth), offer.currency) : "…"}
-                note={
-                  offer?.interval === "year"
-                    ? `a month, ${formatPrice(offer.priceCents, offer.currency)} billed yearly${saving ? ` (save ${saving}%)` : ""}`
-                    : "a month"
-                }
-                current={current === plan}
-                highlight={highlight === plan}
-              >
-                <Button
-                  block
-                  variant={highlight === plan ? "primary" : "secondary"}
-                  disabled={!offer?.available || checkout.isPending || portal.isPending || current === plan}
-                  onClick={() => offer && buy(offer)}
-                >
-                  {current === plan
-                    ? t("pricing.yourPlan")
-                    : !offer?.available
-                      ? t("pricing.comingSoon")
-                      : hasSubscription
-                        ? t("pricing.changePlan")
-                        : `Get ${PLAN_LABEL[plan]}`}
-                </Button>
-              </PlanCard>
-            );
-          })}
-        </div>
+        <TrustLine />
 
-        <div className="flex flex-col gap-6">
-          <OfferBand
-            title={t("pricing.pass")}
-            description="Everything in Premium for a set time, paid once. No subscription to remember to cancel."
+        <PassBand passes={passes} busy={busy} onBuy={buy} />
+
+        <section aria-labelledby="plans-heading" className="flex flex-col gap-6">
+          <div className="flex flex-col gap-1">
+            <h2 id="plans-heading" className="cvb-h2">
+              {t("pricing.plansTitle")}
+            </h2>
+            <p className="text-ink-2">{t("pricing.plansDesc")}</p>
+          </div>
+          <div className="grid gap-6 pt-3 md:grid-cols-2 lg:grid-cols-4">
+            <PlanCard plan="free" price={formatPrice(0, currency)} note={t("pricing.forever")} current={current === "free"} highlight={false}>
+              <Button block disabled>
+                {me.data ? t("pricing.yourPlan") : t("pricing.included")}
+              </Button>
+            </PlanCard>
+            {PAID.map((plan) => {
+              const offer = subFor(plan);
+              const m = subFor(plan, "month");
+              const yearly = offer?.interval === "year";
+              const perMonth = offer ? (yearly ? offer.priceCents / 12 : offer.priceCents) : 0;
+              const saving = offer && m && yearly ? yearlySaving(m.priceCents, offer.priceCents) : 0;
+              return (
+                <PlanCard
+                  key={plan}
+                  plan={plan}
+                  price={offer ? formatPrice(roundMinor(perMonth, currency), offer.currency) : "…"}
+                  note={
+                    offer && yearly
+                      ? t(saving ? "pricing.billedYearlySave" : "pricing.billedYearly", {
+                          total: formatPrice(offer.priceCents, offer.currency),
+                          pct: saving,
+                        })
+                      : t("pricing.aMonth")
+                  }
+                  current={current === plan}
+                  highlight={highlight === plan}
+                >
+                  <Button
+                    block
+                    variant={highlight === plan ? "primary" : "secondary"}
+                    disabled={!offer?.available || busy || current === plan}
+                    onClick={() => offer && buy(offer)}
+                  >
+                    {current === plan
+                      ? t("pricing.yourPlan")
+                      : !offer?.available
+                        ? t("pricing.comingSoon")
+                        : hasSubscription
+                          ? t("pricing.changePlan")
+                          : `Get ${PLAN_LABEL[plan]}`}
+                  </Button>
+                </PlanCard>
+              );
+            })}
+          </div>
+        </section>
+
+        {packs.length > 0 && (
+          <section
+            id="credits"
+            className="cvb-card grid scroll-mt-20 gap-6 p-5 sm:p-6 md:grid-cols-[1.2fr_2fr] md:items-center"
           >
-            {passes.map((p) => (
-              <OfferTile key={p.id} name={`${p.days} days`} price={`${formatPrice(p.priceCents, p.currency)} once`}>
-                <Button size="sm" disabled={!p.available || checkout.isPending} onClick={() => buy(p)}>
-                  {p.available ? t("pricing.buyPass") : "Soon"}
-                </Button>
-              </OfferTile>
-            ))}
-          </OfferBand>
-
-          {packs.length > 0 && (
-            <OfferBand id="credits" title={t("pricing.credits")} description={t("pricing.creditsDesc")}>
+            <div className="flex flex-col gap-1">
+              <h2 className="cvb-h2">{t("pricing.credits")}</h2>
+              <p className="text-ink-2">{t("pricing.creditsDesc")}</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
               {packs.map((p) => (
-                <OfferTile
-                  key={p.id}
-                  name={`${p.credits} credits`}
-                  price={`${formatPrice(p.priceCents, p.currency)} once`}
-                >
-                  <Button size="sm" disabled={!p.available || checkout.isPending} onClick={() => buy(p)}>
-                    {p.available ? "Buy" : "Soon"}
+                <OfferTile key={p.id} name={`${p.credits} credits`} price={t("pricing.once", { price: formatPrice(p.priceCents, p.currency) })}>
+                  <Button size="sm" disabled={!p.available || busy} onClick={() => buy(p)}>
+                    {p.available ? t("pricing.buy") : t("pricing.soon")}
                   </Button>
                 </OfferTile>
               ))}
-            </OfferBand>
-          )}
-        </div>
+            </div>
+          </section>
+        )}
 
-        <p className="cvb-caption mx-auto max-w-2xl text-center">
-          Prices in US dollars. Cancel any time; you keep your plan until the end of the period you paid for. Every
-          template stays free to preview.
-        </p>
+        <p className="cvb-caption mx-auto max-w-2xl text-center">{t("pricing.footnote", { currency: CURRENCY_NAME[currency] })}</p>
       </main>
+      <WhatsAppHelp />
     </div>
+  );
+}
+
+/** Whole rupees, or cents for dollars, when a yearly price is shown per month. */
+const roundMinor = (amount: number, currency: Currency) => (currency === "pkr" ? Math.round(amount / 100) * 100 : Math.round(amount));
+
+/** What people worry about before paying, answered plainly. */
+function TrustLine() {
+  const t = useT();
+  const items: [IconName, string][] = [
+    ["check-circle", t("pricing.trustTrials")],
+    ["clock", t("pricing.trustPasses")],
+    ["undo", t("pricing.trustCancel")],
+  ];
+  return (
+    <ul aria-label={t("pricing.trustLabel")} className="mx-auto grid w-full max-w-4xl gap-3 sm:grid-cols-3">
+      {items.map(([icon, text]) => (
+        <li key={icon} className="flex items-start gap-2 rounded-lg border border-line bg-surface px-4 py-3 text-sm text-ink-2">
+          <Icon name={icon} size={18} className="mt-0.5 shrink-0 text-success" />
+          <span>{text}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** The Job-Hunt Pass, up front: the simplest choice for students and a few weeks of applying. */
+function PassBand({ passes, busy, onBuy }: { passes: OfferDto[]; busy: boolean; onBuy: (o: OfferDto) => void }) {
+  const t = useT();
+  return (
+    <section
+      id="pass"
+      aria-labelledby="pass-heading"
+      className="grid scroll-mt-20 gap-6 rounded-xl border border-gold bg-gold-soft p-5 sm:p-7 md:grid-cols-[1.1fr_1.6fr] md:items-center"
+    >
+      <div className="flex flex-col items-start gap-3">
+        <Badge tone="highlight" variant="solid" pill icon="star">
+          {t("pricing.passBadge")}
+        </Badge>
+        <h2 id="pass-heading" className="cvb-h2 text-ink">
+          {t("pricing.pass")}
+        </h2>
+        <p className="text-gold-ink">{t("pricing.passDesc")}</p>
+        <ul className="flex flex-col gap-1.5 text-sm text-gold-ink">
+          {[t("pricing.passPoint1"), t("pricing.passPoint2"), t("pricing.passPoint3")].map((p) => (
+            <li key={p} className="flex items-start gap-2">
+              <Icon name="check" size={16} className="mt-0.5 shrink-0" /> {p}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {passes.length === 0
+          ? [0, 1].map((i) => <div key={i} className="h-28 animate-pulse rounded-lg bg-surface/60" aria-hidden="true" />)
+          : passes.map((p) => (
+              <div key={p.id} className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4 text-ink">
+                <div className="flex flex-col">
+                  <span className="cvb-overline">{t("pricing.passDays", { days: p.days ?? 0 })}</span>
+                  <span className="font-display text-[28px]/[34px] font-bold tracking-tight [font-variant-numeric:lining-nums]" dir="ltr">
+                    {formatPrice(p.priceCents, p.currency)}
+                  </span>
+                  <span className="cvb-caption">{t("pricing.passOnce")}</span>
+                </div>
+                <Button variant={p.days === 30 ? "primary" : "secondary"} block disabled={!p.available || busy} onClick={() => onBuy(p)}>
+                  {p.available ? t("pricing.buyPass") : t("pricing.soon")}
+                </Button>
+              </div>
+            ))}
+      </div>
+    </section>
   );
 }
 
@@ -218,7 +293,7 @@ function PlanCard({
       )}
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="cvb-h3">{PLAN_LABEL[plan]}</h2>
+          <h3 className="cvb-h3">{PLAN_LABEL[plan]}</h3>
           {current && (
             <Badge tone="success" icon="check-circle">
               {t("pricing.current")}
@@ -241,28 +316,6 @@ function PlanCard({
         ))}
       </ul>
     </div>
-  );
-}
-
-function OfferBand({
-  id,
-  title,
-  description,
-  children,
-}: {
-  id?: string;
-  title: string;
-  description: string;
-  children: ReactNode;
-}) {
-  return (
-    <section id={id} className="cvb-card grid scroll-mt-20 gap-6 p-5 sm:p-6 md:grid-cols-[1.2fr_2fr] md:items-center">
-      <div className="flex flex-col gap-1">
-        <h2 className="cvb-h2">{title}</h2>
-        <p className="text-ink-2">{description}</p>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2">{children}</div>
-    </section>
   );
 }
 

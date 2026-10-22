@@ -22,6 +22,7 @@ Rebuild after changes and click the reload icon on the extension's card.
 | Action | How |
 | --- | --- |
 | Save to tracker | Reads the page when you open the popup: site layouts for LinkedIn, Indeed, Rozee.pk and Bayt, then schema.org `JobPosting` JSON-LD, then Open Graph tags. You can edit every field before `POST /api/v1/applications` (the job is saved with source `extension`). Free-plan limits show a link to the pricing page. |
+| Tailor my CV for this job | Saves the posting to Saved jobs (`POST /api/v1/jobs`, source `extension`; the same link isn't saved twice), then opens `<address>/jobs?tab=saved&job=…&resume=…&tailor=1` in a new tab. The Jobs page starts the usual tailoring review for the CV picked in the popup (3 AI credits); nothing changes until you accept changes and create the tailored copy. If you aren't signed in to the web app, it asks you to sign in and brings you back. |
 | Match % | Pick one of your CVs; the score and missing keywords are computed in the popup with `matchJob` from `@cvb/domain`, the same rules the app uses. |
 | Fill application form | Finds name, email, phone, city/location, LinkedIn, GitHub, website and current-title fields by `autocomplete`, type, name, id, label and placeholder. An on-page panel lists each field and value with a checkbox (fields you already typed in start unticked); only ticked fields are filled, and filled fields are highlighted. It never clicks submit. |
 
@@ -35,6 +36,7 @@ Rebuild after changes and click the reload icon on the extension's card.
 
 - `src/lib/extract.ts`, `jsonld.ts`, `text.ts`: page reading (pure functions on a `Document`).
 - `src/lib/fields.ts`: which form field asks for what, and the values a CV gives.
+- `src/lib/tailor.ts`: the checks and link behind "Tailor my CV for this job".
 - `src/content/`: the injected script (`fill.ts` plans and sets values; `panel.ts` is the review panel in a shadow root).
 - `src/popup.ts`, `src/options.ts`, `src/background.ts`, `static/`: the extension pages and manifest.
 - `build.mjs`: esbuild bundle plus generated PNG icons.

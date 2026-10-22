@@ -13,6 +13,7 @@ import { useTheme } from "@/lib/theme";
 import { LanguageSwitcher } from "../AppHeader";
 import { AccountLayout, Section } from "./AccountLayout";
 import { ExtensionKeys } from "./ExtensionKeys";
+import { TalentSettings } from "./TalentSettings";
 
 const LOCALES = [
   ["en", "English"],
@@ -35,6 +36,7 @@ export function AccountPage() {
           <Password />
           <Sessions />
           <ExtensionKeys />
+          <TalentSettings />
           <DataControls me={me} />
         </>
       )}

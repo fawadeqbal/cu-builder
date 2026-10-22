@@ -7,11 +7,13 @@ import { AppBar, Avatar, Button, Drawer, Dropdown, IconButton, LanguageSwitcher 
 import { authClient } from "@/lib/auth-client";
 import { PLAN_LABEL } from "@/lib/plans";
 import { LOCALES, useI18n, type MessageKey } from "@/lib/i18n";
+import { useHydrated } from "@/lib/hydrated";
 import { useMe } from "@/lib/queries";
 import { useTheme } from "@/lib/theme";
 import { useBranding } from "./branding/BrandingProvider";
 
-const NAV: { href: string; label: MessageKey; auth: boolean; icon: string }[] = [
+/** `auth`: only when signed in; `guest`: only when signed out (keeps the bar short once signed in). */
+const NAV: { href: string; label: MessageKey; auth: boolean; guest?: boolean; icon: string }[] = [
   { href: "/app", label: "nav.myCvs", auth: true, icon: "files" },
   { href: "/jobs", label: "nav.jobs", auth: true, icon: "briefcase" },
   { href: "/tracker", label: "nav.tracker", auth: true, icon: "kanban" },
@@ -19,6 +21,8 @@ const NAV: { href: string; label: MessageKey; auth: boolean; icon: string }[] = 
   { href: "/experts", label: "nav.experts", auth: false, icon: "users" },
   { href: "/letters", label: "nav.letters", auth: true, icon: "mail" },
   { href: "/templates", label: "nav.templates", auth: false, icon: "template" },
+  { href: "/cv-examples", label: "nav.examples", auth: false, guest: true, icon: "files" },
+  { href: "/tools", label: "nav.tools", auth: false, guest: true, icon: "sparkle" },
   { href: "/pricing", label: "nav.pricing", auth: false, icon: "credit" },
 ];
 
@@ -33,7 +37,8 @@ export function AppHeader() {
   const path = usePathname();
   const router = useRouter();
   const qc = useQueryClient();
-  const user = me.data;
+  const hydrated = useHydrated();
+  const user = hydrated ? me.data : undefined;
   const { t } = useI18n();
   const { choice, setChoice } = useTheme();
   const branding = useBranding();
@@ -45,7 +50,7 @@ export function AppHeader() {
     router.replace("/");
   }
 
-  const links = NAV.filter((n) => !n.auth || user).map((n) => ({ href: n.href, label: t(n.label), icon: n.icon, current: isCurrent(path, n.href) }));
+  const links = NAV.filter((n) => (user ? !n.guest : !n.auth)).map((n) => ({ href: n.href, label: t(n.label), icon: n.icon, current: isCurrent(path, n.href) }));
   if (user?.role === "admin") links.push({ href: "/admin", label: t("nav.admin"), icon: "settings", current: path.startsWith("/admin") });
 
   const accountItems: MenuItem[] = user
@@ -82,7 +87,7 @@ export function AppHeader() {
             <span className="hidden lg:inline-flex">
               <ThemeToggle value={choice} onChange={setChoice} />
             </span>
-            {me.isLoading ? null : user ? (
+            {!hydrated || me.isLoading ? null : user ? (
               <>
                 {user.plan === "free" && (
                   <span className="hidden sm:inline-flex">
@@ -106,9 +111,9 @@ export function AppHeader() {
                 <Button size="sm" variant="ghost" href={`/sign-in?next=${encodeURIComponent(path)}`}>
                   {t("nav.signIn")}
                 </Button>
-                {path !== "/" && (
+                {path !== "/builder" && (
                   <span className="hidden sm:inline-flex">
-                    <Button size="sm" variant="primary" href="/">
+                    <Button size="sm" variant="primary" href="/builder">
                       {t("nav.build")}
                     </Button>
                   </span>

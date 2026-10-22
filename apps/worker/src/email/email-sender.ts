@@ -40,6 +40,7 @@ export class SmtpEmailSender implements EmailSender {
 
   async send(message: EmailJob): Promise<void> {
     const { subject, text, html } = renderEmail(message, this.appUrl);
-    await this.transport.sendMail({ from: this.from, to: message.to, subject, text, html });
+    const replyTo = "replyTo" in message ? message.replyTo : undefined;
+    await this.transport.sendMail({ from: this.from, to: message.to, subject, text, html, ...(replyTo ? { replyTo } : {}) });
   }
 }

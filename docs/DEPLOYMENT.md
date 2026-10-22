@@ -122,7 +122,7 @@ Personal websites are served at `<slug>.<PORTFOLIO_DOMAIN>`; partners (white lab
 
 1. Pick a domain for sites (it can be the main one or a separate one, e.g. `cvbuilder.app`) and add a **wildcard DNS record** `*.cvbuilder.app → <server IP>` (A record).
 2. In `.env.production` set `PORTFOLIO_DOMAIN=cvbuilder.app`. Optionally set `CUSTOM_DOMAIN_TARGET` (the host people CNAME their domains to; default: the app's host) and `CUSTOM_DOMAIN_IPV4` (the server's public IPv4, for apex domains that can't use a CNAME).
-3. The web container gets `APP_URL`, `PORTFOLIO_DOMAIN` and `API_INTERNAL_URL` from `docker-compose.prod.yml`; its proxy (`apps/web/src/proxy.ts`) rewrites a site's host to `/p/<slug>` and serves the normal app on partner domains.
+3. The web container gets `APP_URL`, `PORTFOLIO_DOMAIN` and `API_INTERNAL_URL` from `docker-compose.prod.yml`. `APP_URL` is also the base for canonical links, share images, `/sitemap.xml` and `/robots.txt` (read at request time, so one image serves any domain; `NEXT_PUBLIC_APP_URL` works as a fallback). Its proxy (`apps/web/src/proxy.ts`) rewrites a site's host to `/p/<slug>` and serves the normal app on partner domains.
 4. Custom domains: the owner enters the domain in My website (or Organisation → Branding), adds the CNAME or A record shown, then presses **Check DNS**. Once verified, the first HTTPS visit gets a certificate automatically.
 
 Without `PORTFOLIO_DOMAIN`, sites are still available at `https://<domain>/p/<slug>`.

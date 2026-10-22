@@ -1,5 +1,5 @@
-import { CheckoutSchema, type CheckoutDto } from "@cvb/contracts";
-import { Body, Controller, Get, Headers, HttpCode, Param, Post, Req } from "@nestjs/common";
+import { CheckoutSchema, OffersQuerySchema, type CheckoutDto, type OffersQuery } from "@cvb/contracts";
+import { Body, Controller, Get, Headers, HttpCode, Param, Post, Query, Req } from "@nestjs/common";
 import type { Request } from "express";
 import type { AuthUser } from "../../common/auth/auth.types.js";
 import { CurrentUser, Public } from "../../common/auth/decorators.js";
@@ -12,8 +12,8 @@ export class BillingController {
 
   @Public()
   @Get("offers")
-  offers() {
-    return this.billing.offers();
+  offers(@Query(new ZodPipe(OffersQuerySchema)) query: OffersQuery) {
+    return this.billing.offers(query.currency);
   }
 
   @Get("status")
@@ -23,7 +23,7 @@ export class BillingController {
 
   @Post("checkout")
   checkout(@CurrentUser() user: AuthUser, @Body(new ZodPipe(CheckoutSchema)) dto: CheckoutDto) {
-    return this.billing.checkout(user, dto.offer, dto.provider);
+    return this.billing.checkout(user, dto.offer, dto.provider, dto.currency);
   }
 
   @Post("portal")

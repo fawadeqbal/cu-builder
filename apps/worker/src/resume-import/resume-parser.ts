@@ -1,12 +1,11 @@
 import { ASSISTANT, type Assistant } from "@cvb/ai";
 import type { ResumeImportJob } from "@cvb/contracts";
-import { emptyCV, normalizeCV, parseResumeText, type CV, type ParsedCV } from "@cvb/domain";
+import { emptyCV, isLinkedInExportFile, isLinkedInPdfText, linkedInExportToCv, normalizeCV, parseLinkedInPdfText, parseResumeText, type CV, type ParsedCV } from "@cvb/domain";
+import { extractText } from "@cvb/extract";
+import { strFromU8, unzipSync } from "fflate";
 import { FILE_STORAGE, type FileStorage } from "@cvb/storage";
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { UnrecoverableError } from "bullmq";
-import { strFromU8, unzipSync } from "fflate";
-import mammoth from "mammoth";
-import { extractText, getDocumentProxy } from "unpdf";
 
 /** Port: turns an uploaded file into a CV document plus review warnings. */
 export interface ResumeParser {
@@ -14,51 +13,6 @@ export interface ResumeParser {
 }
 
 export const RESUME_PARSER = Symbol.for("cvb.worker.ResumeParser");
-
-const decode = (s: string) =>
-  s
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;|&apos;/g, "'")
-    .replace(/&#(\d+);/g, (_, n: string) => String.fromCodePoint(Number(n)));
-
-/** HTML (or OpenDocument XML) to text with line breaks at blocks and list items. */
-export function markupToText(markup: string): string {
-  return decode(
-    markup
-      .replace(/<(script|style)[\s\S]*?<\/\1>/gi, " ")
-      .replace(/<br\s*\/?>|<text:line-break\/>/gi, "\n")
-      .replace(/<li[^>]*>|<text:list-item[^>]*>/gi, "\n- ")
-      .replace(/<\/(p|div|h[1-6]|li|tr|section|header)>|<\/text:(p|h)>/gi, "\n")
-      .replace(/<text:tab\/>/gi, "\t")
-      .replace(/<[^>]+>/g, ""),
-  )
-    .replace(/[ \t]+/g, " ")
-    .replace(/ *\n */g, "\n")
-    .replace(/\n{2,}/g, "\n")
-    .trim();
-}
-
-/** Windows-1252 characters 0x80–0x9F (curly quotes, dashes, bullet…); the rest map to Latin-1. */
-const CP1252 = "€\u0081‚ƒ„…†‡ˆ‰Š‹Œ\u008DŽ\u008F\u0090‘’“”•–—˜™š›œ\u009DžŸ";
-const cp1252 = (code: number) => (code >= 0x80 && code <= 0x9f ? CP1252[code - 0x80]! : String.fromCharCode(code));
-
-/** RTF to plain text: keeps paragraphs, drops control words, groups like fonts and colours. */
-export function rtfToText(rtf: string): string {
-  let out = rtf.replace(/\{\\\*[^{}]*\}|\{\\(fonttbl|colortbl|stylesheet|info)[\s\S]*?\}\s*\}?/g, "");
-  out = out
-    .replace(/\\par[d]?\b ?|\\line\b ?/g, "\n")
-    .replace(/\\tab\b ?/g, "\t")
-    .replace(/\\'([0-9a-f]{2})/gi, (_, h: string) => cp1252(parseInt(h, 16)))
-    .replace(/\\u(-?\d+)\??/g, (_, n: string) => String.fromCodePoint((Number(n) + 65536) % 65536))
-    .replace(/\\[a-z]+-?\d* ?/gi, "")
-    .replace(/[{}]/g, "")
-    .replace(/\\([\\{}])/g, "$1");
-  return out.replace(/[ \t]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim();
-}
 
 /** A JSON file: our own backup format (as exported by the editor) or a JSON Resume (jsonresume.org) file. */
 export function jsonToCv(raw: string): CV | null {
@@ -126,11 +80,24 @@ export class FileResumeParser implements ResumeParser {
       if (!cv) throw new UnrecoverableError("This JSON file isn't a CV backup or a JSON Resume file.");
       return { cv, warnings: [] };
     }
+    if (job.mimeType === "application/x-linkedin-export+zip") {
+      // A LinkedIn data export: its CSV files map straight onto the CV, no AI needed.
+      let parsed: ParsedCV | null;
+      try {
+        const files = unzipSync(bytes, { filter: (f) => isLinkedInExportFile(f.name) });
+        parsed = linkedInExportToCv(Object.fromEntries(Object.entries(files).map(([name, b]) => [name, strFromU8(b)])));
+      } catch {
+        throw new UnrecoverableError("This ZIP file couldn't be opened. Download your data from LinkedIn again.");
+      }
+      if (!parsed) throw new UnrecoverableError("This ZIP isn't a LinkedIn data export (it has no Profile.csv).");
+      return parsed;
+    }
     const text = await this.extract(bytes, job.mimeType);
     if (text.replace(/\s/g, "").length < 40) {
       throw new UnrecoverableError("We couldn't read any text in this file. If it's a scan, export it as a PDF with selectable text or a Word file.");
     }
-    const basic = parseResumeText(text);
+    // LinkedIn's "Save to PDF" layout has its own reader; it is also the fallback when AI is off or fails.
+    const basic = isLinkedInPdfText(text) ? parseLinkedInPdfText(text) : parseResumeText(text);
     if (this.ai.name === "offline") return basic;
     try {
       const { cv } = await this.ai.parseCv({ text });
@@ -143,29 +110,9 @@ export class FileResumeParser implements ResumeParser {
     }
   }
 
-  private async extract(bytes: Uint8Array, mimeType: ResumeImportJob["mimeType"]): Promise<string> {
+  private async extract(bytes: Uint8Array, mimeType: Exclude<ResumeImportJob["mimeType"], "application/x-linkedin-export+zip" | "application/json">): Promise<string> {
     try {
-      switch (mimeType) {
-        case "application/pdf": {
-          const pdf = await getDocumentProxy(bytes);
-          const { text } = await extractText(pdf, { mergePages: true });
-          return text;
-        }
-        case "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
-          const { value } = await mammoth.extractRawText({ buffer: Buffer.from(bytes) });
-          return value;
-        }
-        case "application/vnd.oasis.opendocument.text": {
-          const files = unzipSync(bytes, { filter: (f) => f.name === "content.xml" });
-          return markupToText(strFromU8(files["content.xml"] ?? new Uint8Array()));
-        }
-        case "application/rtf":
-          return rtfToText(new TextDecoder("latin1").decode(bytes));
-        case "text/html":
-          return markupToText(new TextDecoder().decode(bytes));
-        default:
-          return new TextDecoder().decode(bytes).replace(/^\uFEFF/, "").replace(/\r/g, "");
-      }
+      return (await extractText(bytes, mimeType)).text;
     } catch {
       throw new UnrecoverableError("This file couldn't be opened. Check it isn't password-protected or damaged.");
     }

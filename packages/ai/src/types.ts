@@ -45,6 +45,16 @@ export type AnswerFeedback = {
 
 export type StarStory = { situation: string; task: string; action: string; result: string };
 
+/** A LinkedIn profile written from a CV; lengths stay within LINKEDIN_LIMITS. */
+export type LinkedInProfile = {
+  headline: string;
+  headlineOptions: string[];
+  about: string;
+  /** One description per CV job, keyed by the job's id. */
+  experience: { id: string; role: string; company: string; description: string }[];
+  skills: string[];
+};
+
 /**
  * What the product can ask of AI. Two implementations: `LlmAssistant` (prompts over a TextModel,
  * e.g. Claude) and `OfflineAssistant` (deterministic, for development and tests without a key).
@@ -71,6 +81,8 @@ export interface Assistant {
   improveEntry(input: { kind: "experience" | "project"; title: string; organisation?: string; bullets: string[]; notes?: string; stack?: string; targetTitle?: string; keywords?: string[] }): Promise<{ bullets: string[] }>;
   /** Groups skills into clear categories (no new skills), most relevant first. */
   organiseSkills(input: { skills: SkillGroupInput[]; extra?: string; targetTitle?: string }): Promise<{ skills: SkillGroupInput[] }>;
+  /** Headline, About, one description per job and top skills for LinkedIn, from the CV's facts only. */
+  linkedinProfile(input: { cv: CV; targetTitle?: string }): Promise<LinkedInProfile>;
 }
 
 /** Thrown when the AI server can't be used as configured (not running, model not installed). The message says how to fix it. */

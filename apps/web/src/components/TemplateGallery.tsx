@@ -114,7 +114,7 @@ function Gallery({ resume }: { resume: ResumeDto | null }) {
     setQuery("");
   };
 
-  const backHref = resume ? `/edit/${resume.id}` : signedIn ? "/app" : "/";
+  const backHref = resume ? `/edit/${resume.id}` : signedIn ? "/app" : "/builder";
 
   async function choose(id: TemplateId) {
     const meta = TEMPLATES.find((t) => t.id === id);
@@ -129,7 +129,7 @@ function Gallery({ resume }: { resume: ResumeDto | null }) {
         router.push(`/edit/${created.id}`);
       } else {
         save({ ...saved, template: id, accent });
-        router.push("/");
+        router.push("/builder");
       }
     } catch (e) {
       if (isApiError(e, "PLAN_REQUIRED")) setGate({ kind: "feature", feature: "resume.multiple" });

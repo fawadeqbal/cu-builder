@@ -21,6 +21,7 @@ import { downloadCvPdf } from "@/lib/pdf";
 import type { Gate } from "@/lib/plans";
 import { PLAN_LABEL, planForGate } from "@/lib/plans";
 import { STEPS, type StepId } from "@/lib/steps";
+import { LinkedInDialog } from "./ai/LinkedInDialog";
 import { OptimiseDialog } from "./ai/OptimiseDialog";
 import { AtsPanel } from "./ats/AtsPanel";
 import { HistoryDialog } from "./HistoryDialog";
@@ -28,6 +29,7 @@ import { MatchDialog } from "./jobs/MatchDialog";
 import { Dialog } from "./ui/Dialog";
 import { MiniPreview, Preview } from "./Preview";
 import { ShareDialog } from "./ShareDialog";
+import { useReviewPrompt } from "./trust/ReviewPrompt";
 import { SplitView } from "./SplitView";
 import { UpgradeDialog } from "./UpgradeDialog";
 import { ViewSwitcher } from "./ViewSwitcher";
@@ -74,6 +76,7 @@ export default function Builder({ doc, cloud, banner }: Props) {
   const [matching, setMatching] = useState(false);
   const [atsOpen, setAtsOpen] = useState(false);
   const [optimising, setOptimising] = useState(false);
+  const [linkedin, setLinkedin] = useState(false);
   const [pages, setPages] = useState(1);
   const credits = useCredits(signedIn);
   const [gate, setGate] = useState<Gate | null>(null);
@@ -83,6 +86,7 @@ export default function Builder({ doc, cloud, banner }: Props) {
   const [trial, setTrial] = useState<TemplateId | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const isDesktop = useIsDesktop();
+  const reviewPrompt = useReviewPrompt(signedIn);
 
   // Once the plan covers the template being tried (say, after an upgrade in another tab), it is simply the template.
   const trying = trial && trial !== state.template && !isUnlocked(plan, catalog.meta(trial).tier) ? trial : null;
@@ -208,6 +212,7 @@ export default function Builder({ doc, cloud, banner }: Props) {
         });
         track("pdf_downloaded", { template, pageSize: state.pageSize });
         setNotice("PDF downloaded");
+        reviewPrompt.afterDownload();
       } else if (format === "docx") {
         const { buildCvDocx } = await import("@/lib/docx");
         downloadBlob(await buildCvDocx(state.cv, { accent: state.accent ?? templateMeta.accent, pageSize: state.pageSize }), `${slug}-cv.docx`);
@@ -250,6 +255,12 @@ export default function Builder({ doc, cloud, banner }: Props) {
     update({ cv: sampleCV, started: true, step: 0 });
   }
 
+  // AI writes from the CV on screen; any signed-in user can use it, guests get the sign-in prompt.
+  function openLinkedIn() {
+    if (signedIn) setLinkedin(true);
+    else setGate({ kind: "account", what: "write your LinkedIn profile" });
+  }
+
   const actions: ExportActions = {
     exportAs: (f) => void exportAs(f),
     busy,
@@ -257,6 +268,7 @@ export default function Builder({ doc, cloud, banner }: Props) {
     pageSize: state.pageSize,
     onPageSize: (pageSize: PageSize) => update({ pageSize }),
     templatesHref: cloud ? `/templates?resume=${cloud.resumeId}` : "/templates",
+    onLinkedIn: openLinkedIn,
   };
 
   const fileInput = (
@@ -438,6 +450,10 @@ export default function Builder({ doc, cloud, banner }: Props) {
                     <button type="button" role="menuitem" className={menuItem} onClick={run(optimise)}>
                       <Icon name="sparkle" size={18} className="text-brand-ink" />
                       <span className="cvb-menu-text">Optimise with AI</span>
+                    </button>
+                    <button type="button" role="menuitem" className={menuItem} onClick={run(openLinkedIn)}>
+                      <Icon name="briefcase" size={18} />
+                      <span className="cvb-menu-text">LinkedIn profile</span>
                     </button>
                     <button type="button" role="menuitem" className={`${menuItem} md:hidden`} onClick={run(share)}>
                       <Icon name="share" size={18} />
@@ -673,6 +689,7 @@ export default function Builder({ doc, cloud, banner }: Props) {
           }}
         />
       )}
+      {linkedin && <LinkedInDialog open onClose={() => setLinkedin(false)} cv={state.cv} creditsLeft={credits.data?.remaining} onGate={setGate} />}
       {cloud && (
         <>
           <ShareDialog resumeId={cloud.resumeId} open={sharing} onClose={() => setSharing(false)} onUpgrade={setGate} />
@@ -690,6 +707,7 @@ export default function Builder({ doc, cloud, banner }: Props) {
       )}
       {fileInput}
       {toast}
+      {reviewPrompt.element}
     </AiAssistContext.Provider>
   );
 }

@@ -81,4 +81,9 @@ export class UpstreamError extends AppError {
   readonly code = "UPSTREAM_FAILED" as const;
 }
 
+/** Too many attempts, or an allowance is used up for now (429). `details.retryAt` or `details.resetsAt` (ISO) says when it works again, when known. */
+export class RateLimitedError extends AppError {
+  readonly code = "RATE_LIMITED" as const;
+}
+
 export const isAppError = (e: unknown): e is AppError => e instanceof AppError;

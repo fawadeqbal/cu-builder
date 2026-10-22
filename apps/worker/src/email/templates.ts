@@ -137,6 +137,25 @@ export function renderEmail(message: EmailJob, appUrl: string): RenderedEmail {
         }),
       };
     }
+    case "talent-contact": {
+      const subject = `${message.recruiterName} from ${message.orgName} would like to talk`;
+      const reply = `mailto:${message.replyTo}?subject=${encodeURIComponent(`Re: ${subject}`)}`;
+      const settings = `${appUrl}/account#talent`;
+      const body = message.message.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+      const intro = `${message.recruiterName} (${message.orgName}) found your profile through CV Builder's talent search and wrote:`;
+      const privacy = "We haven't shared your email address. If you reply, they'll see it and can write to you directly.";
+      const footnote = `You get messages like this because you turned on "Let recruiters find me". Turn it off any time: ${settings}`;
+      return {
+        subject,
+        text: text([`Hi ${message.name || "there"},`, intro, ...body, privacy, `Reply to ${message.recruiterName}: ${message.replyTo}`, footnote]),
+        html: layout({
+          heading: subject,
+          paragraphs: [intro, ...body, privacy],
+          cta: { label: `Reply to ${message.recruiterName}`, url: reply },
+          footnote,
+        }),
+      };
+    }
     case "notice":
       return {
         subject: message.subject,

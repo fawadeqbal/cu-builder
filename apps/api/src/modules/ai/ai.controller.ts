@@ -1,6 +1,7 @@
 import {
   ImproveBulletSchema,
   ImproveEntrySchema,
+  LinkedInProfileRequestSchema,
   OrganiseSkillsSchema,
   RewriteSchema,
   SuggestSkillsSchema,
@@ -63,5 +64,11 @@ export class AiController {
   @HttpCode(200)
   organiseSkills(@CurrentUser() user: AuthUser, @Body(new ZodPipe(OrganiseSkillsSchema)) dto: z.output<typeof OrganiseSkillsSchema>) {
     return this.ai.organiseSkills(user, dto);
+  }
+
+  @Post("linkedin-profile")
+  @HttpCode(200)
+  linkedinProfile(@CurrentUser() user: AuthUser, @Body(new ZodPipe(LinkedInProfileRequestSchema)) dto: z.output<typeof LinkedInProfileRequestSchema>) {
+    return this.ai.linkedinProfile(user, dto);
   }
 }

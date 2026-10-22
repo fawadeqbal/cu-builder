@@ -21,6 +21,7 @@ import { useMe } from "@/lib/queries";
 import { SERVICE_LABEL, money, turnaround, useCatalog, useExperts } from "@/lib/services";
 import { AppHeader } from "../AppHeader";
 import { BookDialog } from "./BookDialog";
+import { WhatsAppHelp } from "../trust/WhatsAppHelp";
 
 /** An expert's rating with its count, or a "New" badge for experts without reviews yet. */
 export function Stars({ avg, count }: { avg: number; count: number }) {
@@ -189,6 +190,7 @@ export function ExpertsPage() {
         </section>
       </main>
       {booking && <BookDialog open onClose={() => setBooking(null)} expert={booking} />}
+      <WhatsAppHelp />
     </div>
   );
 }

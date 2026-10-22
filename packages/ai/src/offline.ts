@@ -1,4 +1,5 @@
-import { ACTION_VERBS, addKeyword, clean, cvText, isQuantified, newId, parseResumeText, splitList, type CV } from "@cvb/domain";
+import { ACTION_VERBS, addKeyword, clean, cvText, isLinkedInPdfText, isQuantified, newId, parseLinkedInPdfText, parseResumeText, splitList, type CV } from "@cvb/domain";
+import { draftLinkedInProfile } from "./linkedin";
 import type {
   AnswerFeedback,
   Assistant,
@@ -7,6 +8,7 @@ import type {
   LetterDraft,
   LetterLength,
   LetterTone,
+  LinkedInProfile,
   RewriteMode,
   SkillGroupInput,
   StarStory,
@@ -204,7 +206,7 @@ export class OfflineAssistant implements Assistant {
   }
 
   async parseCv({ text }: { text: string }) {
-    return { cv: parseResumeText(text).cv };
+    return { cv: (isLinkedInPdfText(text) ? parseLinkedInPdfText(text) : parseResumeText(text)).cv };
   }
 
   async improveEntry({ bullets, notes }: { bullets: string[]; notes?: string }) {
@@ -229,5 +231,9 @@ export class OfflineAssistant implements Assistant {
       }))
       .filter((g) => g.items);
     return { skills: groups };
+  }
+
+  async linkedinProfile({ cv, targetTitle }: { cv: CV; targetTitle?: string }): Promise<LinkedInProfile> {
+    return draftLinkedInProfile(cv, targetTitle);
   }
 }

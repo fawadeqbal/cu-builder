@@ -17,3 +17,6 @@ export * from "./tracker";
 export * from "./services";
 export * from "./orgs";
 export * from "./portfolio";
+export * from "./public-tools";
+export * from "./talent";
+export * from "./trust";

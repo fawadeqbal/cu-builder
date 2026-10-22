@@ -193,6 +193,9 @@ importers:
       '@cvb/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@cvb/extract':
+        specifier: workspace:*
+        version: link:../../packages/extract
       '@cvb/jobfeed':
         specifier: workspace:*
         version: link:../../packages/jobfeed
@@ -232,6 +235,12 @@ importers:
       express:
         specifier: 5.2.1
         version: 5.2.1(supports-color@7.2.0)
+      fflate:
+        specifier: 0.8.3
+        version: 0.8.3
+      ioredis:
+        specifier: 6.0.0
+        version: 6.0.0(supports-color@7.2.0)
       reflect-metadata:
         specifier: 0.2.2
         version: 0.2.2
@@ -418,6 +427,9 @@ importers:
       '@cvb/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@cvb/extract':
+        specifier: workspace:*
+        version: link:../../packages/extract
       '@cvb/jobfeed':
         specifier: workspace:*
         version: link:../../packages/jobfeed
@@ -445,9 +457,6 @@ importers:
       fflate:
         specifier: 0.8.3
         version: 0.8.3
-      mammoth:
-        specifier: 1.13.0
-        version: 1.13.0
       nodemailer:
         specifier: 10.0.16
         version: 10.0.16
@@ -460,9 +469,6 @@ importers:
       stripe:
         specifier: 23.0.0
         version: 23.0.0(@types/node@22.20.5)
-      unpdf:
-        specifier: 1.8.1
-        version: 1.8.1
       zod:
         specifier: 4.6.5
         version: 4.6.5
@@ -665,6 +671,40 @@ importers:
       '@cvb/shared':
         specifier: workspace:*
         version: link:../shared
+    devDependencies:
+      '@cvb/eslint-config':
+        specifier: workspace:*
+        version: link:../config-eslint
+      '@cvb/tsconfig':
+        specifier: workspace:*
+        version: link:../config-typescript
+      '@types/node':
+        specifier: 22.20.5
+        version: 22.20.5
+      eslint:
+        specifier: 9.39.5
+        version: 9.39.5(jiti@2.7.0)(supports-color@7.2.0)
+      tsup:
+        specifier: 8.5.1
+        version: 8.5.1(@swc/core@1.16.13(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.31)(supports-color@7.2.0)(tsx@4.23.15)(typescript@5.9.3)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@types/node@22.20.5)(happy-dom@20.14.5)(vite@8.3.4(@types/node@22.20.5)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
+
+  packages/extract:
+    dependencies:
+      fflate:
+        specifier: 0.8.3
+        version: 0.8.3
+      mammoth:
+        specifier: 1.13.0
+        version: 1.13.0
+      unpdf:
+        specifier: 1.8.1
+        version: 1.8.1
     devDependencies:
       '@cvb/eslint-config':
         specifier: workspace:*

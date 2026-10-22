@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans_Arabic, Instrument_Sans, Inter, JetBrains_Mono, Noto_Naskh_Arabic, Noto_Nastaliq_Urdu, Schibsted_Grotesk, Source_Serif_4 } from "next/font/google";
 import { cookies, headers } from "next/headers";
 import { dirOf, fromAcceptLanguage, LOCALE_COOKIE, supportedLocale } from "@/lib/i18n/core";
+import { siteUrl, SITE_NAME } from "@/lib/seo";
 import { THEME_COOKIE, themeChoice } from "@/lib/theme-core";
 import "./globals.css";
 import "@cvb/templates/styles.css";
@@ -68,8 +69,12 @@ const nastaliq = Noto_Nastaliq_Urdu({
 });
 
 export const metadata: Metadata = {
+  // Absolute URLs for canonical links and share images come from APP_URL (see lib/seo.ts).
+  metadataBase: new URL(siteUrl()),
   title: "CV Builder",
   description: "Write your CV once, pick a template and download a clean PDF or Word file.",
+  openGraph: { siteName: SITE_NAME, type: "website", locale: "en" },
+  twitter: { card: "summary_large_image" },
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

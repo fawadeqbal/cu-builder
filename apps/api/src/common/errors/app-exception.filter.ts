@@ -56,6 +56,10 @@ export class AppExceptionFilter implements ExceptionFilter {
         },
       };
     }
+    if (exception instanceof HttpException && exception.getStatus() === HttpStatus.TOO_MANY_REQUESTS) {
+      // The throttler's 429: the same stable code as RateLimitedError, so clients check one thing.
+      return { status: HttpStatus.TOO_MANY_REQUESTS, body: { error: { code: "RATE_LIMITED", message: "Too many requests. Please wait a little and try again." } } };
+    }
     if (exception instanceof HttpException) {
       return {
         status: exception.getStatus(),

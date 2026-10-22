@@ -1,8 +1,8 @@
 import { atLeast, type Plan } from "./plans";
 
 /**
- * What can be bought. Prices are defaults for display and for creating provider prices;
- * the payment provider remains the source of truth for what is charged.
+ * What can be bought. `priceCents` here is the default US dollar price; other currencies and
+ * admin overrides are resolved in `prices.ts` (`resolvePrice`, `offersIn`).
  */
 export type OfferId =
   | "standard_monthly"
@@ -21,6 +21,7 @@ export type Offer =
   /** An AI credit pack: credits that don't expire, on top of the monthly allowance. */
   | { id: OfferId; kind: "credits"; credits: number; priceCents: number };
 
+/** @deprecated The default currency; prices now come per currency from `resolvePrice`. */
 export const CURRENCY = "usd";
 
 export const OFFERS: readonly Offer[] = [
