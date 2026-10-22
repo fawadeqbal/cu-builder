@@ -6,6 +6,8 @@ export const AI_TASKS = {
   "write-summary": 1,
   rewrite: 1,
   "suggest-skills": 1,
+  "improve-entry": 1,
+  "organise-skills": 1,
   tailor: 3,
   "cover-letter": 3,
   "interview-questions": 1,

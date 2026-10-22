@@ -13,7 +13,7 @@ import { EXPORT_LABEL, type ExportActions } from "@/lib/exports";
 import { PAGE_SIZES, paperSizeAttr, type PageSize } from "@/lib/page";
 import { AtsPanel } from "./ats/AtsPanel";
 
-export type FinishAts = { report: AtsReport; full: boolean; onUnlock: () => void };
+export type FinishAts = { report: AtsReport; full: boolean; onUnlock: () => void; onOptimise?: () => void };
 
 type Props = {
   cv: CV;
@@ -115,7 +115,7 @@ export function FinishStep({ cv, onChange, template, onTemplate, accent, onAccen
 
       <FormatPanel cv={cv} onChange={onChange} actions={actions} template={template} onTemplate={onTemplate} />
 
-      <AtsPanel report={ats.report} full={ats.full} onUnlock={ats.onUnlock} onFix={(step) => onGoTo(STEPS.findIndex((s) => s.id === step))} />
+      <AtsPanel report={ats.report} full={ats.full} onUnlock={ats.onUnlock} onOptimise={ats.onOptimise} onFix={(step) => onGoTo(STEPS.findIndex((s) => s.id === step))} />
 
       <Card>
         <div className="flex flex-col gap-4">

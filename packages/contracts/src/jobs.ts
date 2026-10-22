@@ -1,3 +1,4 @@
+import { IMPORT_MIME_TYPES } from "./imports";
 import { z } from "zod";
 
 /**
@@ -74,13 +75,10 @@ export type EmailJob = z.output<typeof EmailJobSchema>;
 export const ResumeImportJobSchema = z.object({
   importId: z.string(),
   userId: z.string(),
-  /** Storage key of the uploaded PDF or DOCX. */
+  /** Storage key of the uploaded file (PDF, Word, OpenDocument, RTF, text, HTML or JSON). */
   fileKey: z.string().min(1),
   fileName: z.string().max(240),
-  mimeType: z.enum([
-    "application/pdf",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  ]),
+  mimeType: z.enum(IMPORT_MIME_TYPES),
 });
 export type ResumeImportJob = z.output<typeof ResumeImportJobSchema>;
 

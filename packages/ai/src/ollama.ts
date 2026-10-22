@@ -27,7 +27,7 @@ const base = (url: string) => url.trim().replace(/\/+$/, "");
 export class OllamaTextModel implements TextModel {
   constructor(private readonly options: OllamaOptions) {}
 
-  async complete({ system, messages, tier, maxTokens, json }: { system: string; messages: ChatMessage[]; tier: ModelTier; maxTokens: number; json?: boolean }): Promise<string> {
+  async complete({ system, messages, tier, maxTokens, json, schema }: { system: string; messages: ChatMessage[]; tier: ModelTier; maxTokens: number; json?: boolean; schema?: Record<string, unknown> }): Promise<string> {
     const model = this.options.models[tier];
     let res: Response;
     try {
@@ -38,7 +38,8 @@ export class OllamaTextModel implements TextModel {
         body: JSON.stringify({
           model,
           stream: false,
-          ...(json ? { format: "json" } : {}),
+          // Structured output: a JSON Schema makes even small models return exactly the expected shape.
+          ...(schema ? { format: schema } : json ? { format: "json" } : {}),
           messages: [{ role: "system", content: system }, ...messages],
           options: { temperature: 0.4, num_ctx: this.options.numCtx ?? 12_288, num_predict: maxTokens },
         }),

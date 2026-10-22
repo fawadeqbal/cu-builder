@@ -3,6 +3,7 @@
 import type { AtsReport } from "@cvb/domain";
 import type { StepId } from "@/lib/steps";
 import { Alert, Button, ProgressBar, ScoreRing } from "@cvb/ui";
+import { AiButton } from "../ai/AiButton";
 
 const GRADE = { excellent: "Excellent", good: "Good", fair: "Needs work", weak: "Weak" } as const;
 const SEVERITY = { high: "danger", medium: "warning", low: "info" } as const;
@@ -18,10 +19,12 @@ type Props = {
   compact?: boolean;
   /** Inside the ATS report dialog: no card around it and the large ring. */
   inDialog?: boolean;
+  /** Opens "Optimise with AI" (shown next to the score when given). */
+  onOptimise?: () => void;
 };
 
 /** The ATS score and report: sections with points, and every issue with a one-line fix. */
-export function AtsPanel({ report, full, onFix, onUnlock, compact = false, inDialog = false }: Props) {
+export function AtsPanel({ report, full, onFix, onUnlock, compact = false, inDialog = false, onOptimise }: Props) {
   const issues = full ? report.issues : report.issues.slice(0, PREVIEW);
   const hidden = report.issues.length - issues.length;
   return (
@@ -33,6 +36,13 @@ export function AtsPanel({ report, full, onFix, onUnlock, compact = false, inDia
           <p className="text-sm text-ink-3">
             How well tracking systems can read your CV and how strong it looks to a recruiter. {report.stats.quantified} of {report.stats.bullets} lines have a number.
           </p>
+          {onOptimise && (
+            <div className="-ms-2.5 mt-1">
+              <AiButton onClick={onOptimise} title="Rewrite your summary, lines and skills with AI, then review each change">
+                Optimise with AI
+              </AiButton>
+            </div>
+          )}
         </div>
       </div>
 

@@ -8,7 +8,8 @@ import { IMPORT_RESULTS, type ImportResults } from "./import-results.js";
 import { RESUME_PARSER, type ResumeParser } from "./resume-parser.js";
 
 /** Turns an uploaded CV into a new resume. Permanent problems fail at once; others retry. */
-@Processor(QUEUES.resumeImport)
+// A local model can take a minute or two on a long CV: hold the job's lock long enough.
+@Processor(QUEUES.resumeImport, { lockDuration: 5 * 60_000 })
 export class ResumeImportProcessor extends ConfiguredWorkerHost {
   private readonly logger = new Logger(ResumeImportProcessor.name);
 

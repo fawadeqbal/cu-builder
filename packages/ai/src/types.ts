@@ -11,8 +11,19 @@ export type ChatMessage = { role: "user" | "assistant"; content: string };
  * (adapters that can enforce it do; the prompt asks for it either way).
  */
 export interface TextModel {
-  complete(request: { system: string; messages: ChatMessage[]; tier: ModelTier; maxTokens: number; json?: boolean }): Promise<string>;
+  complete(request: {
+    system: string;
+    messages: ChatMessage[];
+    tier: ModelTier;
+    maxTokens: number;
+    json?: boolean;
+    /** JSON Schema of the expected answer; adapters that support structured output (Ollama) enforce it. */
+    schema?: Record<string, unknown>;
+  }): Promise<string>;
 }
+
+/** A group of skills as the CV shows them. */
+export type SkillGroupInput = { category: string; items: string };
 
 export type RewriteMode = "grammar" | "shorter" | "formal" | "confident";
 export type LetterTone = "formal" | "warm" | "concise";
@@ -42,7 +53,7 @@ export type StarStory = { situation: string; task: string; action: string; resul
 export interface Assistant {
   readonly name: string;
   improveBullet(input: { bullet: string; role?: string; company?: string }): Promise<{ options: string[] }>;
-  writeSummary(input: { cv: CV; targetTitle?: string }): Promise<{ options: string[] }>;
+  writeSummary(input: { cv: CV; targetTitle?: string; keywords?: string[] }): Promise<{ options: string[] }>;
   rewrite(input: { text: string; mode: RewriteMode }): Promise<{ text: string }>;
   suggestSkills(input: { cv: CV; targetTitle?: string }): Promise<{ skills: string[] }>;
   tailor(input: { cv: CV; job: JobInput; missing: string[] }): Promise<{ cv: CV; notes: string[] }>;
@@ -51,6 +62,15 @@ export interface Assistant {
   interviewFeedback(input: { role: string; question: string; answer: string }): Promise<AnswerFeedback>;
   starStory(input: { bullet: string; role: string; company: string }): Promise<StarStory>;
   companyBrief(input: { company: string; role: string; description?: string }): Promise<{ questionsToAsk: string[]; themes: string[] }>;
+  /** Reads a CV's text into sections, copying the person's own wording (import). */
+  parseCv(input: { text: string }): Promise<{ cv: CV }>;
+  /**
+   * Rewrites one job's or project's lines as strong, ATS-friendly achievements, or writes them
+   * from rough notes when there are no lines yet.
+   */
+  improveEntry(input: { kind: "experience" | "project"; title: string; organisation?: string; bullets: string[]; notes?: string; stack?: string; targetTitle?: string; keywords?: string[] }): Promise<{ bullets: string[] }>;
+  /** Groups skills into clear categories (no new skills), most relevant first. */
+  organiseSkills(input: { skills: SkillGroupInput[]; extra?: string; targetTitle?: string }): Promise<{ skills: SkillGroupInput[] }>;
 }
 
 /** Thrown when the AI server can't be used as configured (not running, model not installed). The message says how to fix it. */

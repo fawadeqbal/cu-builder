@@ -1,7 +1,9 @@
 import { ASSISTANT, AiOutputError, AiUnavailableError, type Assistant } from "@cvb/ai";
+import type { ImproveEntrySchema, OrganiseSkillsSchema } from "@cvb/contracts";
 import type { CV } from "@cvb/domain";
 import { UpstreamError } from "@cvb/shared";
 import { Inject, Injectable, Logger } from "@nestjs/common";
+import type { z } from "zod";
 import type { AuthUser } from "../../common/auth/auth.types.js";
 import { CreditsService } from "./credits.service.js";
 
@@ -31,7 +33,7 @@ export class AiService {
     return this.credits.charge(user, "improve-bullet", () => this.call("improve-bullet", () => this.ai.improveBullet(input)));
   }
 
-  writeSummary(user: AuthUser, input: { cv: CV; targetTitle?: string }) {
+  writeSummary(user: AuthUser, input: { cv: CV; targetTitle?: string; keywords?: string[] }) {
     return this.credits.charge(user, "write-summary", () => this.call("write-summary", () => this.ai.writeSummary(input)));
   }
 
@@ -41,5 +43,13 @@ export class AiService {
 
   suggestSkills(user: AuthUser, input: { cv: CV; targetTitle?: string }) {
     return this.credits.charge(user, "suggest-skills", () => this.call("suggest-skills", () => this.ai.suggestSkills(input)));
+  }
+
+  improveEntry(user: AuthUser, input: z.output<typeof ImproveEntrySchema>) {
+    return this.credits.charge(user, "improve-entry", () => this.call("improve-entry", () => this.ai.improveEntry(input)));
+  }
+
+  organiseSkills(user: AuthUser, input: z.output<typeof OrganiseSkillsSchema>) {
+    return this.credits.charge(user, "organise-skills", () => this.call("organise-skills", () => this.ai.organiseSkills(input)));
   }
 }

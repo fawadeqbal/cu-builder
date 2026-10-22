@@ -1,7 +1,7 @@
 "use client";
 
 import type { MeDto, ResumeDto, ResumeImportDto, ResumeSummary } from "@cvb/contracts";
-import { IMPORT_MAX_BYTES } from "@cvb/contracts";
+import { IMPORT_ACCEPT, IMPORT_MAX_BYTES } from "@cvb/contracts";
 import { normalizeCV } from "@cvb/domain";
 import { CVDocument } from "@cvb/templates";
 import { isTemplateId } from "@cvb/templates/catalog";
@@ -135,6 +135,13 @@ export function Dashboard({ me }: { me: MeDto }) {
               {upload.isPending ? t("dash.uploading") : t("dash.upload")}
             </Button>
             <Button
+              icon="sparkle"
+              title="Answer a few questions and AI writes your CV from them"
+              onClick={() => (atLimit ? setGate({ kind: "feature", feature: "resume.multiple" }) : router.push("/new"))}
+            >
+              Write with AI
+            </Button>
+            <Button
               variant="primary"
               icon="plus"
               disabled={create.isPending}
@@ -149,7 +156,7 @@ export function Dashboard({ me }: { me: MeDto }) {
         ref={fileRef}
         type="file"
         className="hidden"
-        accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        accept={IMPORT_ACCEPT}
         onChange={(e) => {
           pickFile(e.target.files?.[0]);
           e.target.value = "";
@@ -495,7 +502,7 @@ function UploadDrop({ onFile, className }: { onFile: (f: File | undefined) => vo
       title={t("dash.uploadCv")}
       hint={t("dash.uploadCvDesc")}
       button={t("dash.upload")}
-      accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      accept={IMPORT_ACCEPT}
       onFiles={(files) => onFile(files[0])}
     />
   );

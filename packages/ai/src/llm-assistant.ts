@@ -1,4 +1,4 @@
-import { cleanLine, cvText, guardNumbers, newId, normalizeCV, type CV } from "@cvb/domain";
+import { cleanLine, cvText, groundCv, guardNumbers, newId, normalizeCV, parseResumeText, splitList, type CV } from "@cvb/domain";
 import { z } from "zod";
 import {
   AiOutputError,
@@ -12,6 +12,7 @@ import {
   type LetterTone,
   type ModelTier,
   type RewriteMode,
+  type SkillGroupInput,
   type StarStory,
   type TextModel,
 } from "./types";
@@ -97,6 +98,45 @@ const Brief = z.object({ questionsToAsk: z.array(z.string()).min(1), themes: z.a
 
 const clamp = (n: number) => Math.max(1, Math.min(5, Math.round(n)));
 
+/** The JSON Schema of a zod shape, for models that enforce structured output; undefined if it can't be expressed. */
+function jsonSchema(schema: z.ZodType): Record<string, unknown> | undefined {
+  try {
+    return z.toJSONSchema(schema, { unrepresentable: "any" }) as Record<string, unknown>;
+  } catch {
+    return undefined;
+  }
+}
+
+const s = z.string();
+/** What reading a CV returns. Every field is required so small models fill the whole shape. */
+const ParsedCvShape = z.object({
+  personal: z.object({ name: s, headline: s, email: s, phone: s, location: s, website: s, linkedin: s, github: s }),
+  summary: s,
+  experience: z.array(z.object({ role: s, company: s, location: s, date: s, bullets: z.array(s), stack: s })),
+  education: z.array(z.object({ degree: s, school: s, date: s, details: s })),
+  skills: z.array(z.object({ category: s, items: s })),
+  projects: z.array(z.object({ name: s, date: s, links: z.array(s), bullets: z.array(s), stack: s })),
+  certificates: z.array(z.object({ name: s, issuer: s, year: s })),
+  languages: z.array(z.object({ name: s, level: s })),
+});
+
+const PARSE_SYSTEM = `You convert the text of a CV (resume) into JSON for a CV editor.
+- Copy the person's own wording exactly. Do not rewrite, summarise, translate or correct anything.
+- Every job, project and degree is a separate item. Each achievement or responsibility line is a separate bullet, without the bullet symbol.
+- "date" keeps the dates as written, e.g. "Oct 2025 – Present".
+- "headline" is the job title under the name, if there is one. "summary" is the profile / about / summary paragraph.
+- Skills: keep the CV's own groups (category + comma-separated items). If the CV has no groups, use one category "Skills".
+- "stack" is filled only when the CV lists tools for that specific job or project ("Stack: …", "Tools: …").
+- Spoken languages (English, Urdu, Arabic…) go in "languages", never in skills.
+- Use "" or [] for anything the CV doesn't contain. Never invent anything.`;
+
+/** ATS keywords from a job advert: use the advert's wording only where the person's facts already support it. */
+const keywordRule = (keywords: string[]) =>
+  `Job advert keywords: ${keywords.slice(0, 20).join(", ")}. Where the facts given already support one of these, use the advert's exact wording (ATS systems match words). Never add a keyword the facts don't support.`;
+
+const Bullets = z.object({ bullets: z.array(z.string()).min(1).max(10) });
+const Groups = z.object({ groups: z.array(z.object({ category: z.string(), skills: z.array(z.string()) })).min(1).max(12) });
+
 /** The Assistant backed by a language model (Claude in production, or a local Ollama model). */
 export class LlmAssistant implements Assistant {
   constructor(
@@ -105,10 +145,10 @@ export class LlmAssistant implements Assistant {
   ) {}
 
   /** Asks for JSON, validates it, and retries once with the error if it doesn't parse. */
-  private async json<T>(schema: z.ZodType<T>, prompt: string, tier: ModelTier, maxTokens: number): Promise<T> {
+  private async json<T>(schema: z.ZodType<T>, prompt: string, tier: ModelTier, maxTokens: number, system = AI_PRINCIPLES): Promise<T> {
     const messages: ChatMessage[] = [{ role: "user", content: `${prompt}\n\n${JSON_RULE}` }];
     for (let attempt = 0; attempt < 2; attempt++) {
-      const reply = await this.model.complete({ system: AI_PRINCIPLES, messages, tier, maxTokens, json: true });
+      const reply = await this.model.complete({ system, messages, tier, maxTokens, json: true, schema: jsonSchema(schema) });
       try {
         return schema.parse(extractJson(reply));
       } catch (e) {
@@ -131,11 +171,11 @@ Return {"options": ["...", "...", "..."]}.`,
     return { options: out.options.slice(0, 3).map((o) => guardNumbers(cleanLine(o), `${bullet} ${role ?? ""} ${company ?? ""}`)) };
   }
 
-  async writeSummary({ cv, targetTitle }: { cv: CV; targetTitle?: string }) {
+  async writeSummary({ cv, targetTitle, keywords }: { cv: CV; targetTitle?: string; keywords?: string[] }) {
     const out = await this.json(
       Options,
       `Write 2 alternative CV summaries (3-4 sentences, 45-80 words each, no "I") for this person${targetTitle ? `, aimed at a ${targetTitle} role` : ""}.
-Use only facts from the CV.
+Use only facts from the CV.${keywords?.length ? `\n${keywordRule(keywords)}` : ""}
 CV:
 ${cvForPrompt(cv)}
 Return {"options": ["...", "..."]}.`,
@@ -279,6 +319,76 @@ Return {"questionsToAsk": ["..."], "themes": ["..."]}.`,
       700,
     );
     return { questionsToAsk: out.questionsToAsk.slice(0, 6), themes: out.themes.slice(0, 6) };
+  }
+  async parseCv({ text }: { text: string }) {
+    const source = text.slice(0, 16_000);
+    const out = await this.json(ParsedCvShape, `CV text:\n"""\n${source}\n"""`, "smart", 6000, PARSE_SYSTEM);
+    const fallback = parseResumeText(source).cv;
+    const { cv } = groundCv(normalizeCV(out), source, fallback);
+    // Sections the model missed but the rule-based reading found are taken from it.
+    for (const key of ["experience", "education", "projects", "skills", "certificates", "languages"] as const) {
+      if (!cv[key].length && fallback[key].length) (cv[key] as unknown[]) = fallback[key];
+    }
+    if (!cv.summary && fallback.summary) cv.summary = fallback.summary;
+    return { cv };
+  }
+
+  async improveEntry({ kind, title, organisation, bullets, notes, stack, targetTitle, keywords }: { kind: "experience" | "project"; title: string; organisation?: string; bullets: string[]; notes?: string; stack?: string; targetTitle?: string; keywords?: string[] }) {
+    const lines = bullets.map((b) => b.trim()).filter(Boolean);
+    const what = kind === "experience" ? `Job: ${title}${organisation ? ` at ${organisation}` : ""}` : `Project: ${title}`;
+    const context = [what, stack && `Tools: ${stack}`, targetTitle && `Target job: ${targetTitle}`, keywords?.length && keywordRule(keywords)].filter(Boolean).join("\n");
+    const task = lines.length
+      ? `Rewrite these CV lines as strong achievement lines for an ATS-friendly CV. Keep every fact and every number exactly; do not add facts. Keep about the same number of lines (${lines.length}); merge duplicates, split lines that hold two achievements.
+Each line: starts with a past-tense action verb (Built, Led, Designed, Reduced…), one sentence, under 30 words, no "I", no full stop at the end, plain words recruiters search for.
+Where a result would need a number the person didn't give, add a placeholder like [number] or [%].
+
+${context}
+Lines:
+${lines.map((l) => `- ${l}`).join("\n")}`
+      : `Write 3 to 5 achievement lines for this ${kind === "experience" ? "job" : "project"} for an ATS-friendly CV, using only the facts in the notes.
+Each line: starts with a past-tense action verb, one sentence, under 30 words, no "I", no full stop at the end. Use placeholders like [number] or [%] where a result needs a number the notes don't give. Never invent tools, employers or results.
+
+${context}
+Notes: """${(notes ?? "").slice(0, 3000)}"""`;
+    const out = await this.json(Bullets, `${task}\n\nReply as {"bullets": ["…", "…"]}.`, "fast", 900);
+    const source = [title, organisation, stack, notes, ...lines].filter(Boolean).join("\n");
+    const seen = new Set<string>();
+    const result = out.bullets
+      .map((b) => guardNumbers(cleanLine(b).replace(/\.$/, ""), source).slice(0, 260))
+      .filter((b) => b.length > 3 && !seen.has(b.toLowerCase()) && seen.add(b.toLowerCase()));
+    if (!result.length) throw new AiOutputError();
+    return { bullets: result };
+  }
+
+  async organiseSkills({ skills, extra, targetTitle }: { skills: SkillGroupInput[]; extra?: string; targetTitle?: string }) {
+    const all = [...skills.flatMap((g) => splitList(g.items)), ...splitList(extra ?? "")];
+    const byKey = new Map<string, string>();
+    for (const item of all) if (!byKey.has(item.toLowerCase())) byKey.set(item.toLowerCase(), item);
+    if (byKey.size === 0) return { skills: [] };
+    const out = await this.json(
+      Groups,
+      `Group these skills for a CV into 3 to 8 categories with short, standard names (e.g. "Frontend", "Backend", "Databases", "Cloud & DevOps", "Tools", "Soft skills").
+Use only the skills listed, spelled exactly as given. Put every skill in exactly one category. Put the categories and skills most relevant to the target job first.
+${targetTitle ? `Target job: ${targetTitle}\n` : ""}Current groups (for reference): ${skills.map((g) => g.category).filter(Boolean).join(", ") || "none"}
+Skills: ${[...byKey.values()].join(", ")}
+
+Reply as {"groups": [{"category": "…", "skills": ["…"]}]}.`,
+      "fast",
+      1200,
+    );
+    const used = new Set<string>();
+    const groups = out.groups
+      .map((g) => ({
+        category: cleanLine(g.category).slice(0, 40) || "Skills",
+        items: g.skills
+          .map((x) => byKey.get(x.trim().toLowerCase()))
+          .filter((x): x is string => Boolean(x) && !used.has(x!.toLowerCase()) && Boolean(used.add(x!.toLowerCase())))
+          .join(", "),
+      }))
+      .filter((g) => g.items);
+    const missed = [...byKey.values()].filter((x) => !used.has(x.toLowerCase()));
+    if (missed.length) groups.push({ category: "Other", items: missed.join(", ") });
+    return { skills: groups };
   }
 }
 

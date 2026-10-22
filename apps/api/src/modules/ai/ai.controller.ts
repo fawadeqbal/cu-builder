@@ -1,5 +1,7 @@
 import {
   ImproveBulletSchema,
+  ImproveEntrySchema,
+  OrganiseSkillsSchema,
   RewriteSchema,
   SuggestSkillsSchema,
   WriteSummarySchema,
@@ -49,5 +51,17 @@ export class AiController {
   @HttpCode(200)
   suggestSkills(@CurrentUser() user: AuthUser, @Body(new ZodPipe(SuggestSkillsSchema)) dto: z.output<typeof SuggestSkillsSchema>) {
     return this.ai.suggestSkills(user, dto);
+  }
+
+  @Post("improve-entry")
+  @HttpCode(200)
+  improveEntry(@CurrentUser() user: AuthUser, @Body(new ZodPipe(ImproveEntrySchema)) dto: z.output<typeof ImproveEntrySchema>) {
+    return this.ai.improveEntry(user, dto);
+  }
+
+  @Post("organise-skills")
+  @HttpCode(200)
+  organiseSkills(@CurrentUser() user: AuthUser, @Body(new ZodPipe(OrganiseSkillsSchema)) dto: z.output<typeof OrganiseSkillsSchema>) {
+    return this.ai.organiseSkills(user, dto);
   }
 }

@@ -114,6 +114,7 @@ export type ApiEnv = z.output<typeof ApiEnvSchema>;
 
 export const WorkerEnvSchema = BaseEnvSchema.extend(DatabaseEnvSchema.shape)
   .extend(RedisEnvSchema.shape)
+  .extend(AiEnvSchema.shape)
   .extend(StorageEnvSchema.shape)
   .extend(AppUrlEnvSchema.shape)
   .extend(JobFeedEnvSchema.shape)

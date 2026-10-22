@@ -1,4 +1,4 @@
-import { ACTION_VERBS, addKeyword, clean, cvText, isQuantified, newId, type CV } from "@cvb/domain";
+import { ACTION_VERBS, addKeyword, clean, cvText, isQuantified, newId, parseResumeText, splitList, type CV } from "@cvb/domain";
 import type {
   AnswerFeedback,
   Assistant,
@@ -8,6 +8,7 @@ import type {
   LetterLength,
   LetterTone,
   RewriteMode,
+  SkillGroupInput,
   StarStory,
 } from "./types";
 
@@ -200,5 +201,33 @@ export class OfflineAssistant implements Assistant {
       ],
       themes: [`${company}'s products and customers`, "Recent news and announcements", "The team you would join", "How your experience maps to the job's top three needs"],
     };
+  }
+
+  async parseCv({ text }: { text: string }) {
+    return { cv: parseResumeText(text).cv };
+  }
+
+  async improveEntry({ bullets, notes }: { bullets: string[]; notes?: string }) {
+    const source = clean(bullets).length ? clean(bullets) : (notes ?? "").split(/\n|(?<=\.)\s+/).map((l) => l.trim()).filter((l) => l.length > 3);
+    return {
+      bullets: source.slice(0, 8).map((b, i) => {
+        const core = b.replace(WEAK, "").replace(/[.;]+$/, "");
+        const asPast = toPast(core);
+        return asPast ? sentence(asPast) : asAchievement(b, VERBS[i % VERBS.length]!);
+      }),
+    };
+  }
+
+  async organiseSkills({ skills, extra }: { skills: SkillGroupInput[]; extra?: string }) {
+    const seen = new Set<string>();
+    const groups = [...skills, ...(extra?.trim() ? [{ category: "Other", items: extra }] : [])]
+      .map((g) => ({
+        category: g.category.trim() || "Skills",
+        items: splitList(g.items)
+          .filter((x) => x && !seen.has(x.toLowerCase()) && seen.add(x.toLowerCase()))
+          .join(", "),
+      }))
+      .filter((g) => g.items);
+    return { skills: groups };
   }
 }

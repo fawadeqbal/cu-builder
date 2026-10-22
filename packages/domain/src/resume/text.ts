@@ -71,3 +71,23 @@ export function cvToText(cv: CV): string {
 
   return `${out.join("\n").trim()}\n`;
 }
+
+/**
+ * Splits a skills line into items on commas, semicolons, middots, bars and new lines, but not
+ * inside brackets: "AWS (EC2, S3), Docker" → ["AWS (EC2, S3)", "Docker"].
+ */
+export function splitList(text: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let cur = "";
+  for (const ch of text) {
+    if (ch === "(" || ch === "[") depth++;
+    else if ((ch === ")" || ch === "]") && depth > 0) depth--;
+    if (depth === 0 && /[,;·|\n]/.test(ch)) {
+      out.push(cur);
+      cur = "";
+    } else cur += ch;
+  }
+  out.push(cur);
+  return out.map((s) => s.trim()).filter(Boolean);
+}

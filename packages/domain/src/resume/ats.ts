@@ -84,7 +84,8 @@ export const isActionLed = (bullet: string): boolean => {
   return ACTION_VERBS.has(w) || (w.endsWith("ed") && w.length > 4 && !WEAK_OPENERS.test(bullet));
 };
 
-export const isQuantified = (bullet: string): boolean => HAS_NUMBER.test(bullet);
+/** True when the line holds a real number; placeholders like [number] or [%] don't count until filled in. */
+export const isQuantified = (bullet: string): boolean => HAS_NUMBER.test(bullet.replace(/\[[^\]]*\]/g, ""));
 
 /** Which date style an entry uses, to spot mixed formats ("Jan 2024" vs "01/2024" vs "2024"). */
 export function dateStyle(date: string): "month-name" | "numeric" | "year" | "other" | "none" {

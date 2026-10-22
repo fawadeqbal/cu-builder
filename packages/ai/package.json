@@ -16,6 +16,10 @@
     "./ollama": {
       "types": "./dist/ollama.d.ts",
       "import": "./dist/ollama.js"
+    },
+    "./factory": {
+      "types": "./dist/factory.d.ts",
+      "import": "./dist/factory.js"
     }
   },
   "files": [

@@ -21,6 +21,7 @@ import { downloadCvPdf } from "@/lib/pdf";
 import type { Gate } from "@/lib/plans";
 import { PLAN_LABEL, planForGate } from "@/lib/plans";
 import { STEPS, type StepId } from "@/lib/steps";
+import { OptimiseDialog } from "./ai/OptimiseDialog";
 import { AtsPanel } from "./ats/AtsPanel";
 import { HistoryDialog } from "./HistoryDialog";
 import { MatchDialog } from "./jobs/MatchDialog";
@@ -72,6 +73,7 @@ export default function Builder({ doc, cloud, banner }: Props) {
   const notice = toastState?.text ?? "";
   const [matching, setMatching] = useState(false);
   const [atsOpen, setAtsOpen] = useState(false);
+  const [optimising, setOptimising] = useState(false);
   const [pages, setPages] = useState(1);
   const credits = useCredits(signedIn);
   const [gate, setGate] = useState<Gate | null>(null);
@@ -315,6 +317,12 @@ export default function Builder({ doc, cloud, banner }: Props) {
   const menuItem = "cvb-menu-item w-full";
   const title = cloud?.title ?? (state.cv.personal.name.trim() ? `${state.cv.personal.name.trim()}'s CV` : "Untitled CV");
   const share = () => (cloud && hasFeature(plan, "share.link") ? setSharing(true) : setGate({ kind: "feature", feature: "share.link" }));
+  // Optimising writes into the account's CV, so it needs one; guests get the sign-in prompt.
+  const optimise = () => {
+    setAtsOpen(false);
+    if (signedIn && cloud) setOptimising(true);
+    else setGate({ kind: "account", what: "use AI writing" });
+  };
   const atsTone = report.score >= 80 ? "success" : report.score >= 50 ? "brand" : "warning";
 
   return (
@@ -427,6 +435,10 @@ export default function Builder({ doc, cloud, banner }: Props) {
                     </div>
                     <div className="cvb-menu-sep" role="separator" />
                     <MenuLabel>CV</MenuLabel>
+                    <button type="button" role="menuitem" className={menuItem} onClick={run(optimise)}>
+                      <Icon name="sparkle" size={18} className="text-brand-ink" />
+                      <span className="cvb-menu-text">Optimise with AI</span>
+                    </button>
                     <button type="button" role="menuitem" className={`${menuItem} md:hidden`} onClick={run(share)}>
                       <Icon name="share" size={18} />
                       <span className="cvb-menu-text">Share link</span>
@@ -555,7 +567,7 @@ export default function Builder({ doc, cloud, banner }: Props) {
               accent={state.accent}
               onAccent={setAccent}
               actions={actions}
-              ats={{ report, full: fullReport, onUnlock: () => setGate({ kind: "feature", feature: "ats.fullReport" }) }}
+              ats={{ report, full: fullReport, onUnlock: () => setGate({ kind: "feature", feature: "ats.fullReport" }), onOptimise: optimise }}
             />
           }
           preview={
@@ -635,6 +647,7 @@ export default function Builder({ doc, cloud, banner }: Props) {
           inDialog
           report={report}
           full={fullReport}
+          onOptimise={optimise}
           onFix={(step) => {
             setAtsOpen(false);
             editSection(step);
@@ -645,6 +658,21 @@ export default function Builder({ doc, cloud, banner }: Props) {
           }}
         />
       </Dialog>
+      {optimising && (
+        <OptimiseDialog
+          open
+          onClose={() => setOptimising(false)}
+          cv={state.cv}
+          score={(cv) => atsReport(cv, { templateAts: templateMeta.ats, pages }).score}
+          creditsLeft={credits.data?.remaining}
+          onGate={setGate}
+          onApply={(next, count) => {
+            const before = state.cv;
+            setCV(next);
+            setNotice(`${count} AI ${count === 1 ? "change" : "changes"} applied`, () => setCV(before));
+          }}
+        />
+      )}
       {cloud && (
         <>
           <ShareDialog resumeId={cloud.resumeId} open={sharing} onClose={() => setSharing(false)} onUpgrade={setGate} />
