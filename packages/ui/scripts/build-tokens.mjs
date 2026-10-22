@@ -8,7 +8,7 @@
 // - Container widths are emitted as --layout-* because Tailwind owns --container-* (max-w-sm …).
 //
 // Run: node scripts/build-tokens.mjs (also runs before every build).
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -63,5 +63,9 @@ const css = [
   "",
 ].join("\n\n");
 
-writeFileSync(join(root, "src/tokens.css"), css);
+// Only write when the tokens changed (line endings aside): an unchanged file keeps build caches
+// valid on Windows checkouts (CRLF) and doesn't retrigger `tsup --watch`, which watches src/.
+const target = join(root, "src/tokens.css");
+const same = existsSync(target) && readFileSync(target, "utf8").replace(/\r\n/g, "\n") === css;
+if (!same) writeFileSync(target, css);
 console.log(`tokens.css: ${t.color.tokens.length} colours, ${t.shadow.tokens.length} shadows, ${scalar.length} scalars`);
