@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Alert, Badge, Button, RadioGroup, Select, Skeleton, Switch, TextField } from "@cvb/ui";
 import { api } from "@/lib/api";
+import { track } from "@/lib/analytics";
 import { useResumes } from "@/lib/queries";
 import { talentKeys, useTalentProfile } from "@/lib/talent";
 import { EditableCard, EditingScope, TagView, ViewRows, useEditingScope } from "../form/editable";
@@ -79,6 +80,7 @@ function TalentForm({ profile, resumes }: { profile: TalentProfileDto; resumes: 
   const save = useMutation({
     mutationFn: (d: Draft) => api.put<TalentProfileDto>("/talent/profile", toDto(d)),
     onSuccess: (data, d) => {
+      if (d.enabled && !saved.enabled) track("talent_opt_in", { share: d.share });
       setSaved(d);
       qc.setQueryData(talentKeys.profile, data);
     },

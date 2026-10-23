@@ -1,8 +1,8 @@
 import { DB } from "@cvb/db/nest";
 import { Prisma, planToDb, planToDomain, type DbClient, type SubscriptionStatus } from "@cvb/db";
-import type { SubscriptionState } from "@cvb/domain";
+import type { MrrSubscription, SubscriptionState } from "@cvb/domain";
 import { Inject, Injectable } from "@nestjs/common";
-import type { BillingProfile, BillingRepository } from "./billing.repository.js";
+import type { BillingProfile, BillingRepository, EventPayment } from "./billing.repository.js";
 
 const STATUS_TO_DB: Record<SubscriptionState["status"], SubscriptionStatus> = {
   trialing: "TRIALING",
@@ -52,19 +52,53 @@ export class PrismaBillingRepository implements BillingRepository {
     return u?.id ?? null;
   }
 
-  async upsertSubscription(input: Parameters<BillingRepository["upsertSubscription"]>[0]): Promise<void> {
+  async findSubscription(providerRef: string): Promise<(MrrSubscription & { cancelAtPeriodEnd: boolean; canceledAt: Date | null }) | null> {
+    const s = await this.db.subscription.findUnique({ where: { providerRef } });
+    if (!s) return null;
+    const plan = planToDomain(s.plan);
+    return {
+      status: STATUS_TO_DOMAIN[s.status],
+      amountCents: s.amountCents,
+      interval: s.interval === "year" ? "year" : s.interval === "month" ? "month" : null,
+      plan: plan === "free" ? "standard" : plan,
+      currency: s.currency,
+      cancelAtPeriodEnd: s.cancelAtPeriodEnd,
+      canceledAt: s.canceledAt,
+    };
+  }
+
+  async upsertSubscription(...[input, movements = []]: Parameters<BillingRepository["upsertSubscription"]>): Promise<void> {
     const data = {
       plan: planToDb(input.plan),
       status: STATUS_TO_DB[input.status],
       currentPeriodEnd: input.currentPeriodEnd,
       cancelAtPeriodEnd: input.cancelAtPeriodEnd,
       currency: input.currency,
+      ...(input.offerId !== undefined ? { offerId: input.offerId } : {}),
+      ...(input.amountCents !== undefined ? { amountCents: input.amountCents } : {}),
+      ...(input.interval !== undefined ? { interval: input.interval } : {}),
+      ...(input.canceledAt !== undefined ? { canceledAt: input.canceledAt } : {}),
     };
-    await this.db.subscription.upsert({
-      where: { providerRef: input.providerRef },
-      update: data,
-      create: { ...data, userId: input.userId, provider: "STRIPE", providerRef: input.providerRef },
-    });
+    await this.db.$transaction([
+      this.db.subscription.upsert({
+        where: { providerRef: input.providerRef },
+        update: data,
+        create: { ...data, userId: input.userId, provider: "STRIPE", providerRef: input.providerRef },
+      }),
+      this.db.mrrMovement.createMany({
+        data: movements.map((m) => ({
+          subscriptionRef: input.providerRef,
+          userId: input.userId,
+          kind: m.kind,
+          currency: m.currency,
+          plan: input.plan,
+          beforeCents: m.beforeCents,
+          afterCents: m.afterCents,
+          deltaCents: m.deltaCents,
+          occurredAt: m.at,
+        })),
+      }),
+    ]);
   }
 
   async addCredits({ userId, credits, providerRef }: { userId: string; credits: number; providerRef: string }): Promise<void> {
@@ -89,9 +123,18 @@ export class PrismaBillingRepository implements BillingRepository {
     });
   }
 
-  async markEventProcessed(id: string, type: string, payment?: { amountCents: number; currency: string }): Promise<boolean> {
+  async markEventProcessed(id: string, type: string, payment?: EventPayment): Promise<boolean> {
     try {
-      await this.db.billingEvent.create({ data: { id, type, provider: "STRIPE", ...(payment ?? {}) } });
+      await this.db.billingEvent.create({
+        data: {
+          id,
+          type,
+          provider: "STRIPE",
+          ...(payment
+            ? { amountCents: payment.amountCents, currency: payment.currency, userId: payment.userId ?? null, offer: payment.offer ?? null }
+            : {}),
+        },
+      });
       return true;
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") return false;

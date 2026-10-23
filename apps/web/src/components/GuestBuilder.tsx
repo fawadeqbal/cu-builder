@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { trackVisit } from "@/lib/analytics";
 import { useGuestDocument } from "@/lib/document";
 import { useMe } from "@/lib/queries";
 import Builder from "./Builder";
@@ -15,7 +14,6 @@ export default function GuestBuilder() {
   const router = useRouter();
   const doc = useGuestDocument();
 
-  useEffect(trackVisit, []);
   useEffect(() => {
     if (me.data) router.replace("/app");
   }, [me.data, router]);

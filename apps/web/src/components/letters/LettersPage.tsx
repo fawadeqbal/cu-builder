@@ -8,6 +8,7 @@ import { useState } from "react";
 import { Badge, Button, EmptyState, IconButton, PageHeader, Skeleton } from "@cvb/ui";
 import { gateForError } from "@/lib/ai";
 import { api } from "@/lib/api";
+import { track } from "@/lib/analytics";
 import type { Gate } from "@/lib/plans";
 import { keys, useLetters } from "@/lib/queries";
 import { AppHeader } from "../AppHeader";
@@ -34,7 +35,10 @@ function Letters() {
   const [gate, setGate] = useState<Gate | null>(null);
   const create = useMutation({
     mutationFn: () => api.post<CoverLetterDto>("/cover-letters", {}),
-    onSuccess: (l) => router.push(`/letters/${l.id}`),
+    onSuccess: (l) => {
+      track("cover_letter_created", { from: "letters" });
+      router.push(`/letters/${l.id}`);
+    },
     onError: (e) => setGate(gateForError(e)),
   });
   const remove = useMutation({

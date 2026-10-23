@@ -28,12 +28,72 @@ describe("StripeGateway.parseWebhook", () => {
           cancel_at_period_end: false,
           currency: "pkr",
           metadata: { userId: "u1", offer: "premium_monthly", plan: "premium", currency: "pkr" },
-          items: { data: [{ current_period_end: periodEnd }] },
+          items: { data: [{ current_period_end: periodEnd, quantity: 1, price: { unit_amount: 199_000, recurring: { interval: "month" } } }] },
         },
       },
     });
     const event = await gateway.parseWebhook(body, header);
-    expect(event).toMatchObject({ kind: "subscription.changed", userId: "u1", plan: "premium", status: "active", subscriptionRef: "sub_123", currency: "pkr" });
+    expect(event).toMatchObject({
+      kind: "subscription.changed",
+      userId: "u1",
+      plan: "premium",
+      status: "active",
+      subscriptionRef: "sub_123",
+      currency: "pkr",
+      offer: "premium_monthly",
+      amountCents: 199_000,
+      interval: "month",
+    });
+  });
+
+  it("normalises a renewal invoice and a failed one", async () => {
+    const invoice = (type: string, extra: object) =>
+      signed({
+        id: `evt_${type}`,
+        object: "event",
+        type,
+        data: {
+          object: {
+            id: "in_1",
+            object: "invoice",
+            customer: "cus_1",
+            currency: "usd",
+            parent: { type: "subscription_details", subscription_details: { subscription: "sub_1", metadata: { userId: "u1", offer: "premium_monthly" } } },
+            ...extra,
+          },
+        },
+      });
+    const paid = invoice("invoice.paid", { billing_reason: "subscription_cycle", amount_paid: 1500 });
+    expect(await gateway.parseWebhook(paid.body, paid.header)).toMatchObject({
+      kind: "invoice.paid",
+      reason: "renewal",
+      userId: "u1",
+      subscriptionRef: "sub_1",
+      offer: "premium_monthly",
+      amountCents: 1500,
+    });
+    const failed = invoice("invoice.payment_failed", { billing_reason: "subscription_cycle", amount_due: 1500, amount_paid: 0 });
+    expect(await gateway.parseWebhook(failed.body, failed.header)).toMatchObject({ kind: "invoice.payment_failed", amountCents: 1500, userId: "u1" });
+  });
+
+  it("normalises a refund to the newest refund's amount", async () => {
+    const { body, header } = signed({
+      id: "evt_refund",
+      object: "event",
+      type: "charge.refunded",
+      data: {
+        object: {
+          id: "ch_1",
+          object: "charge",
+          customer: "cus_1",
+          currency: "pkr",
+          amount_refunded: 100_000,
+          metadata: { userId: "u1" },
+          refunds: { data: [{ id: "re_2", amount: 40_000 }] },
+        },
+      },
+    });
+    expect(await gateway.parseWebhook(body, header)).toMatchObject({ kind: "charge.refunded", amountCents: 40_000, currency: "pkr", userId: "u1" });
   });
 
   it("normalises a paid pass checkout", async () => {

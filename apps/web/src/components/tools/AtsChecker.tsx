@@ -3,6 +3,7 @@
 import { ATS_CHECK_ACCEPT, ATS_CHECK_MAX_BYTES, ATS_CHECK_MAX_TEXT, ATS_CHECKS_PER_HOUR, type AtsCheckDto } from "@cvb/contracts";
 import { useRef, useState } from "react";
 import { Alert, Button, Card, FileDrop, FileRow, SegmentedControl, TextArea, TextField } from "@cvb/ui";
+import { track } from "@/lib/analytics";
 import { api, isApiError } from "@/lib/api";
 import { AtsResults } from "./AtsResults";
 
@@ -59,6 +60,8 @@ export function AtsChecker() {
     try {
       const out = await api.upload<AtsCheckDto>("/public/ats-check", form);
       setResult(out);
+      track("free_tool_used", { tool: "ats_checker" });
+      track("ats_check_run", { where: "free_tool", input: mode, withJob });
       requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
     } catch (e) {
       setError(problemFor(e));

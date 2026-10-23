@@ -4,6 +4,7 @@ import type { CreditsDto } from "@cvb/contracts";
 import type { Feature } from "@cvb/domain";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useContext } from "react";
+import { track } from "./analytics";
 import { api, isApiError } from "./api";
 import type { Gate } from "./plans";
 import { useMe } from "./queries";
@@ -34,6 +35,19 @@ export function gateForError(e: unknown): Gate | null {
   return null;
 }
 
+/** The AI task an endpoint performs, for analytics ("/ai/improve-bullet" → "improve-bullet"). */
+export function aiTaskOf(path: string): string | null {
+  const p = path.split("?")[0] ?? "";
+  if (p.startsWith("/ai/")) return p.slice(4) || null;
+  if (/^\/jobs\/[^/]+\/tailor$/.test(p)) return "tailor";
+  if (p === "/cover-letters/draft") return "cover-letter";
+  if (p === "/interviews/sessions") return "interview-questions";
+  if (/^\/interviews\/sessions\/[^/]+\/answer$/.test(p)) return "interview-feedback";
+  if (/^\/applications\/[^/]+\/brief$/.test(p)) return "company-brief";
+  if (p === "/interviews/stories/from-bullet") return "star-story";
+  return null;
+}
+
 /** Calls an AI endpoint and keeps the credits counter in sync with the answer. */
 export function useAiCall() {
   const qc = useQueryClient();
@@ -42,6 +56,10 @@ export function useAiCall() {
     async <T,>(path: string, body: unknown): Promise<T> => {
       const res = await api.post<T & { credits?: CreditsDto }>(path, body);
       if (res.credits) qc.setQueryData(creditsKey, res.credits);
+      const task = aiTaskOf(path);
+      if (task) track("ai_action_used", { task });
+      if (task === "tailor") track("cv_tailored", { from: "app" });
+      if (task === "interview-questions") track("interview_session_started");
       return res;
     },
     [qc],

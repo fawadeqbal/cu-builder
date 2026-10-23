@@ -157,6 +157,21 @@ export default function Builder({ doc, cloud, banner }: Props) {
     if (onFinish) track("cv_completed");
   }, [onFinish]);
 
+  // Funnel: how far people get in the builder (each step once per visit).
+  const stepsSeen = useRef(new Set<string>());
+  const stepId = state.started ? STEPS[state.step]?.id : undefined;
+  useEffect(() => {
+    if (!stepId || stepsSeen.current.has(stepId)) return;
+    stepsSeen.current.add(stepId);
+    track("builder_step_reached", { step: stepId, index: STEPS.findIndex((s) => s.id === stepId) });
+  }, [stepId]);
+
+  useEffect(() => {
+    if (atsOpen) track("ats_check_run", { where: "app", score: report.score });
+    // Count opening the report, not every keystroke while it's open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [atsOpen]);
+
   function collapseTo(next: ViewMode) {
     setMode(next);
     setNotice(next === "editor" ? "Preview hidden. Press Alt+2 to bring it back" : "Editor hidden. Press Alt+2 to bring it back");
@@ -216,10 +231,11 @@ export default function Builder({ doc, cloud, banner }: Props) {
       } else if (format === "docx") {
         const { buildCvDocx } = await import("@/lib/docx");
         downloadBlob(await buildCvDocx(state.cv, { accent: state.accent ?? templateMeta.accent, pageSize: state.pageSize }), `${slug}-cv.docx`);
-        track("docx_downloaded");
+        track("docx_downloaded", { template });
         setNotice("Word file downloaded");
       } else {
         downloadBlob(new Blob([cvToText(state.cv)], { type: "text/plain;charset=utf-8" }), `${slug}-cv.txt`);
+        track("txt_downloaded");
         setNotice("Text file downloaded");
       }
       void snapshotOnDownload();
@@ -237,6 +253,7 @@ export default function Builder({ doc, cloud, banner }: Props) {
   async function importJson(file: File) {
     try {
       const cv = normalizeCV(JSON.parse(await file.text()));
+      if (!state.started) track("cv_started", { source: "import", format: "json" });
       update({ cv, started: true, step: 0 });
       setNotice("CV imported. Check each step, then download");
     } catch {
@@ -252,6 +269,7 @@ export default function Builder({ doc, cloud, banner }: Props) {
 
   function loadExample() {
     if (state.started && !window.confirm("Replace your CV with the example?")) return;
+    if (!state.started) track("cv_started", { source: "example" });
     update({ cv: sampleCV, started: true, step: 0 });
   }
 
@@ -313,7 +331,7 @@ export default function Builder({ doc, cloud, banner }: Props) {
       <>
         <Welcome
           onStart={() => {
-            track("cv_started");
+            track("cv_started", { source: "blank" });
             update({ cv: emptyCV, started: true, step: 0 });
           }}
           onExample={loadExample}

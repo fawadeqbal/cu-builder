@@ -23,6 +23,10 @@ export type BillingEvent =
       cancelAtPeriodEnd: boolean;
       /** Lower-case ISO code ("usd", "pkr"). */
       currency: string;
+      /** The offer bought, what one period costs (minor units) and the period, when the provider says. */
+      offer?: OfferId | null;
+      amountCents?: number | null;
+      interval?: "month" | "year" | null;
     }
   | {
       /** A one-off payment (a pass or a credit pack); what it buys comes from the offer. */
@@ -41,6 +45,38 @@ export type BillingEvent =
       orderId: string;
       paymentRef: string;
       amountCents: number;
+      currency?: string;
+    }
+  | {
+      /** A subscription invoice was paid: the first one ("start"), a renewal, or a plan change. */
+      kind: "invoice.paid";
+      id: string;
+      customerRef: string | null;
+      userId: string | null;
+      subscriptionRef: string | null;
+      offer: OfferId | null;
+      reason: "start" | "renewal" | "change" | "other";
+      amountCents: number;
+      currency: string;
+    }
+  | {
+      /** A subscription payment failed (the card was declined); Stripe retries it. */
+      kind: "invoice.payment_failed";
+      id: string;
+      customerRef: string | null;
+      userId: string | null;
+      subscriptionRef: string | null;
+      amountCents: number;
+      currency: string;
+    }
+  | {
+      /** Money went back to the customer. */
+      kind: "charge.refunded";
+      id: string;
+      customerRef: string | null;
+      userId: string | null;
+      amountCents: number;
+      currency: string;
     }
   | { kind: "ignored"; id: string; type: string };
 

@@ -22,7 +22,7 @@ export function ShareDialog({ resumeId, open, onClose, onUpgrade }: Props) {
   const create = useMutation({
     mutationFn: () => api.post<ShareLinkDto>(`/resumes/${resumeId}/share-links`, {}),
     onSuccess: () => {
-      track("share_link_created");
+      track("share_link_created", { from: "builder" });
       void refresh();
     },
     onError: (e) => {

@@ -13,6 +13,7 @@ describe("MaintenanceProcessor", () => {
       oldImportFiles: async (before) => ((calls.files = before), [{ id: "i1", fileKey: "imports/u/a.pdf" }]),
       forgetImportFile: async (id) => void forgotten.push(id),
       purgeExpiredTokens: async () => 5,
+      purgeAnalytics: async (before) => ((calls.analytics = before), { events: 40, visitors: 3 }),
     };
     const files = new InMemoryStorage();
     await files.put("imports/u/a.pdf", new Uint8Array([1]));
@@ -21,7 +22,8 @@ describe("MaintenanceProcessor", () => {
 
     const result = await processor.purge(now);
 
-    expect(result).toEqual({ resumes: 2, files: 1, tokens: 5 });
+    expect(result).toEqual({ resumes: 2, files: 1, tokens: 5, events: 40, visitors: 3 });
+    expect(calls.analytics?.toISOString()).toBe("2025-09-22T03:17:00.000Z");
     expect(calls.trash?.toISOString()).toBe("2026-09-22T03:17:00.000Z");
     expect(calls.files?.toISOString()).toBe("2026-10-15T03:17:00.000Z");
     expect(forgotten).toEqual(["i1"]);

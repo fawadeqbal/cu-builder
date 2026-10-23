@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Alert, Button, type ButtonSize, type ButtonVariant } from "@cvb/ui";
+import { track } from "@/lib/analytics";
 import { openInEditor, saveAndSignUp, type Handoff } from "@/lib/handoff";
 import { useHydrated } from "@/lib/hydrated";
 import { useMe } from "@/lib/queries";
@@ -21,7 +22,21 @@ export function OpenInBuilder({
   variant = "primary",
   size = "md",
   offerSignUp = false,
-}: Handoff & { label: string; variant?: ButtonVariant; size?: ButtonSize; offerSignUp?: boolean }) {
+  source,
+  example,
+}: Handoff & {
+  label: string;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  offerSignUp?: boolean;
+  /** Where the CV comes from, for analytics; `example` is the CV example's slug. */
+  source: "cv_example" | "ats_check";
+  example?: string;
+}) {
+  const started = () => {
+    track("cv_started", { source, ...(example ? { example } : {}) });
+    if (source === "cv_example" && example) track("cv_example_used", { example });
+  };
   const router = useRouter();
   const me = useMe();
   const hydrated = useHydrated();
@@ -34,8 +49,10 @@ export function OpenInBuilder({
     setProblem(null);
     try {
       const r = await openInEditor({ cv, template, accent }, signedIn);
-      if (r.kind === "open") router.push(r.href);
-      else if (r.kind === "limit") setProblem("limit");
+      if (r.kind === "open") {
+        started();
+        router.push(r.href);
+      } else if (r.kind === "limit") setProblem("limit");
     } catch {
       setProblem("error");
     } finally {
@@ -45,7 +62,10 @@ export function OpenInBuilder({
 
   function signUp() {
     const r = saveAndSignUp({ cv, template, accent });
-    if (r.kind === "open") router.push(r.href);
+    if (r.kind === "open") {
+      started();
+      router.push(r.href);
+    }
   }
 
   return (

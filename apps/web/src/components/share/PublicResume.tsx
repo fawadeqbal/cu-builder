@@ -8,6 +8,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { Alert, Button, EmptyState, Icon, TextField } from "@cvb/ui";
+import { track } from "@/lib/analytics";
 import { ApiError, isApiError } from "@/lib/api";
 import { fileSlug } from "@/lib/cv";
 import { paperSizeAttr } from "@/lib/page";
@@ -145,6 +146,8 @@ function useViewPings(slug: string, viewId: string | null) {
 
 function Sheet({ resume, slug }: { resume: PublicResumeDto; slug: string }) {
   useViewPings(slug, resume.viewId);
+  // Product analytics: the path is recorded as /r/:slug, never the link itself.
+  useEffect(() => track("share_link_viewed"), []);
   const cv = normalizeCV(resume.data);
   const template = isTemplateId(resume.templateId) ? resume.templateId : "classic";
   const wrap = useRef<HTMLDivElement>(null);

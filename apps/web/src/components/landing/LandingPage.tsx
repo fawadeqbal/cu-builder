@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { sampleCV } from "@cvb/domain";
+import type { MouseEvent } from "react";
+import { normalisePath, sampleCV } from "@cvb/domain";
 import { TEMPLATES, TIERS } from "@cvb/templates/catalog";
 import { Alert, Badge, Button, Icon, Logo, MatchScore, PaperSheet, ScoreRing, SegmentedControl, TierBadge, markPlaceholders, type IconName } from "@cvb/ui";
+import { track } from "@/lib/analytics";
 import { useCatalog } from "@/lib/catalog";
 import { useT, type MessageKey } from "@/lib/i18n";
 import { formatPrice } from "@/lib/plans";
@@ -34,7 +36,7 @@ export function LandingPage() {
   return (
     <div className="min-h-dvh bg-canvas">
       <AppHeader />
-      <main>
+      <main onClickCapture={landingClick}>
         {deleted && (
           <div className={`${wrap} pt-6`}>
             <Alert tone="success">{t("landing.deleted")}</Alert>
@@ -60,6 +62,24 @@ export function LandingPage() {
       <WhatsAppHelp />
     </div>
   );
+}
+
+/**
+ * Analytics for every call to action on the landing page, in one place: which in-site link was
+ * clicked (its path, never a query) and in which section (the section's heading id).
+ */
+function landingClick(e: MouseEvent<HTMLElement>) {
+  const link = (e.target as HTMLElement).closest<HTMLAnchorElement>("a[href]");
+  if (!link) return;
+  let url: URL;
+  try {
+    url = new URL(link.href, window.location.href);
+  } catch {
+    return;
+  }
+  if (url.origin !== window.location.origin) return;
+  const section = link.closest("section")?.getAttribute("aria-labelledby")?.replace(/-title$/, "") ?? (link.closest("section") ? "facts" : "other");
+  track("landing_cta_clicked", { cta: normalisePath(url.pathname), section, label: (link.textContent ?? "").trim().slice(0, 60) });
 }
 
 /* ------------------------------------------------------------------ Hero */

@@ -13,6 +13,7 @@ import { Alert, Button, Field, Stars, TextArea, TextField } from "@cvb/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { api } from "@/lib/api";
+import { track } from "@/lib/analytics";
 import { useT } from "@/lib/i18n";
 import { trustKeys } from "@/lib/trust";
 
@@ -38,6 +39,7 @@ export function ReviewForm({ review, accountName, onSaved, onCancel }: Props) {
   const save = useMutation({
     mutationFn: (dto: SaveReviewDto) => api.put<ReviewDto>("/reviews/me", dto),
     onSuccess: (saved) => {
+      track("review_submitted", { rating: saved.rating });
       qc.setQueryData(trustKeys.myReview, { review: saved });
       onSaved?.(saved);
     },

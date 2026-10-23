@@ -8,6 +8,7 @@ import { useMemo, useState, type DragEvent, type FormEvent } from "react";
 import { Alert, Badge, ChevronDownIcon, Button, DataTable, EmptyState, IconButton, PageHeader, SearchField, SegmentedControl, Select, Skeleton, StageDot, Switch, TextField, type Column } from "@cvb/ui";
 import { gateForError } from "@/lib/ai";
 import { api } from "@/lib/api";
+import { track } from "@/lib/analytics";
 import type { Gate } from "@/lib/plans";
 import { useJobs, useResumes } from "@/lib/queries";
 import { trackerKeys, useApplications, useBoard, usePreferences, useUpdateApplication } from "@/lib/tracker";
@@ -411,6 +412,7 @@ function AddApplication({
         ...(firstColumn ? { status: firstColumn } : {}),
       }),
     onSuccess: (app) => {
+      track("application_added", { from: "tracker", newJob: jobId === "new" });
       void qc.invalidateQueries({ queryKey: trackerKeys.all });
       setTitle("");
       setCompany("");

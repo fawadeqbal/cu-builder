@@ -126,6 +126,7 @@ function Gallery({ resume }: { resume: ResumeDto | null }) {
         router.push(`/edit/${resume.id}`);
       } else if (signedIn) {
         const created = await api.post<ResumeDto>("/resumes", { title: "Untitled CV", templateId: id, accent });
+        track("cv_started", { source: "blank", from: "templates" });
         router.push(`/edit/${created.id}`);
       } else {
         save({ ...saved, template: id, accent });

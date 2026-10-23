@@ -32,7 +32,6 @@ export const AdminMetricsSchema = z.object({
   resumes: z.number(),
   paying: z.number(),
   activePasses: z.number(),
-  funnel: z.array(z.object({ name: z.string(), count: z.number() })),
 });
 export type AdminMetricsDto = z.output<typeof AdminMetricsSchema>;
 

@@ -7,6 +7,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Alert, Button, Card, EmptyState, IconButton, PageHeader, Select, Skeleton, Tabs } from "@cvb/ui";
 import { gateForError, useAiCall } from "@/lib/ai";
 import { api } from "@/lib/api";
+import { track as trackEvent } from "@/lib/analytics";
 import type { Gate } from "@/lib/plans";
 import { keys, useJobs, useResumes } from "@/lib/queries";
 import { AppHeader } from "../AppHeader";
@@ -134,7 +135,10 @@ function JobDetail({ job, onGate }: { job: JobDto; onGate: (g: Gate) => void }) 
 
   const track = useMutation({
     mutationFn: () => api.post<{ id: string }>("/applications", { jobId: job.id, ...(chosen ? { resumeId: chosen } : {}) }),
-    onSuccess: (app) => router.push(`/tracker?app=${app.id}`),
+    onSuccess: (app) => {
+      trackEvent("application_added", { from: "jobs" });
+      router.push(`/tracker?app=${app.id}`);
+    },
     onError: (e) => {
       const gate = gateForError(e);
       if (gate) onGate(gate.kind === "feature" ? { kind: "feature", feature: "tracker.unlimited" } : gate);
@@ -154,6 +158,7 @@ function JobDetail({ job, onGate }: { job: JobDto; onGate: (g: Gate) => void }) 
       }
       if (kind === "letter") {
         const letter = await api.post<CoverLetterDto>("/cover-letters", { resumeId: chosen, jobId: job.id });
+        trackEvent("cover_letter_created", { from: "jobs" });
         router.push(`/letters/${letter.id}`);
       }
     } catch (e) {

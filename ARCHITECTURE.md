@@ -96,7 +96,7 @@ Arrows mean "may import". Anything not drawn is forbidden.
 | Package | Responsibility | Key exports | Built with |
 | --- | --- | --- | --- |
 | `@cvb/shared` | Generic building blocks | `Result`, `ok`/`err`, `AppError` family (`NotFoundError`, `PlanRequiredError`…), `assertNever`, `slugify`, `wordCount` | tsup (ESM) |
-| `@cvb/domain` | Business rules | `CV` types, `emptyCV`, `normalizeCV`, `sampleCV`, `cvChecks`, `cvStrength`, `stepState`, `parseResumeText` (import), `cvToText` (TXT export), `atsReport` (ATS score), `matchJob`/`addKeyword` (job match), `diffCV`/`applyChanges` (reviewable edits), `guardNumbers`/`creditBalance`/`AI_TASKS` (AI rules), `DEFAULT_COLUMNS`/`positionBetween`/`remindersFor`/`progressSince` (tracker), `compareOffers`/`NEGOTIATION_TEMPLATES`/`fillTemplate` (offers), `QUESTION_BANK`/`questionsFor`/`roleFamily`/`sessionSummary` (interviews), `summariseViews`/`deviceFromUserAgent`/`referrerHost` (link analytics), `SERVICES`/commission/order transitions/coaching slots (expert services), `orgCan`/seats/CSV invites/`cohortMetrics`/`lowConfidenceFields` (organisations), slug, domain and colour-contrast rules (portfolio, white label), `applyRegionPreset`/`regionRules`/direction detection (regional formats), `PLANS`, `FEATURES`, `can`, `LIMITS`, `canUseTemplateTier`, `OFFERS`, `effectivePlan` | tsup |
+| `@cvb/domain` | Business rules | `CV` types, `emptyCV`, `normalizeCV`, `sampleCV`, `cvChecks`, `cvStrength`, `stepState`, `parseResumeText` (import), `cvToText` (TXT export), `atsReport` (ATS score), `matchJob`/`addKeyword` (job match), `diffCV`/`applyChanges` (reviewable edits), `guardNumbers`/`creditBalance`/`AI_TASKS` (AI rules), `DEFAULT_COLUMNS`/`positionBetween`/`remindersFor`/`progressSince` (tracker), `compareOffers`/`NEGOTIATION_TEMPLATES`/`fillTemplate` (offers), `QUESTION_BANK`/`questionsFor`/`roleFamily`/`sessionSummary` (interviews), `summariseViews`/`deviceFromUserAgent`/`referrerHost` (link analytics), product analytics (`touchFromUrl`/`channelOf`/`normalisePath`/`nextSession` attribution and sessions, `isBot`/`deviceClass`/`browserFamily`/`resolveCountry`, `resolvePeriod`/`alignSeries`/`comparison` periods, `funnel`/`funnelBreakdown`, `buildCohorts`, `monthlyCents`/`mrrMovement` MRR), `SERVICES`/commission/order transitions/coaching slots (expert services), `orgCan`/seats/CSV invites/`cohortMetrics`/`lowConfidenceFields` (organisations), slug, domain and colour-contrast rules (portfolio, white label), `applyRegionPreset`/`regionRules`/direction detection (regional formats), `PLANS`, `FEATURES`, `can`, `LIMITS`, `canUseTemplateTier`, `OFFERS`, `effectivePlan` | tsup |
 | `@cvb/contracts` | Boundary shapes | Resume, version, share-link (+ view analytics), import, billing, account, admin, analytics, tracker, feed, interview and API-token schemas; `ApiErrorSchema`, `PaginationQuerySchema`, `QUEUES`, `JOBS`, job payload schemas | tsup |
 | `@cvb/config` | Environment | `ApiEnvSchema`, `WorkerEnvSchema`, `loadEnv` | tsup |
 | `@cvb/db` | Persistence | `createDbClient`, Prisma model types and enums, `planToDomain`/`planToDb`; `@cvb/db/nest`: `DatabaseModule`, `DB` token | Prisma generate + tsc |
@@ -189,7 +189,7 @@ All under `/api/v1` except Better Auth (`/api/auth/*`).
 | Billing | `GET billing/offers?currency=usd\|pkr` (public), `GET billing/status`, `POST billing/checkout` (offer, currency), `POST billing/portal`, `POST billing/webhooks/:provider` (public, raw body, signature-checked, idempotent); admin `GET admin/prices`, `PUT/DELETE admin/prices/:offer/:currency` |
 | Talent search | `GET/PUT/DELETE talent/profile` (opt-in "Let recruiters find me"), agencies: `GET orgs/:id/talent?q&location&role&cursor`, `GET orgs/:id/talent/contacts`, `GET orgs/:id/talent/:profileId`, `POST orgs/:id/talent/:profileId/contact` (20 per member per day, once a week per organisation and person) |
 | Templates | `GET templates/settings` (public: admin overrides) |
-| Analytics | `POST events` (public, batched, throttled) |
+| Analytics | `POST events` (public, batched, throttled; drops bots and Do Not Track / Global Privacy Control); admin `GET admin/analytics/overview\|funnel\|acquisition\|revenue\|usage?range=7d\|30d\|90d\|12m\|custom&from&to&compare&source&medium&campaign&device&country&locale&currency` |
 | Trust | `GET public/stats` (real counts, null under thresholds, cached 10 min), `GET/PUT/DELETE reviews/me`, `GET public/reviews` (approved, paginated), `GET public/site-settings` (WhatsApp help number); admin `GET admin/reviews`, `PATCH admin/reviews/:id`, `GET/PUT admin/site-settings` |
 | Admin | `GET admin/metrics`, `GET admin/users`, `PATCH admin/users/:id`, `GET admin/templates`, `PATCH admin/templates/:templateId` (role admin) |
 
@@ -214,7 +214,7 @@ A NestJS **application context** (no HTTP server) that runs one `@Processor` per
 worker/src/
 ├── email/            EmailProcessor + EmailSender port (SMTP adapter, console adapter without SMTP_URL) + templates
 ├── resume-import/    ResumeImportProcessor + ResumeParser port (unpdf / mammoth → parseResumeText) + ImportResults port
-├── maintenance/      Daily job scheduler: empties 30-day trash, deletes week-old uploads, expired tokens
+├── maintenance/      Daily job scheduler: empties 30-day trash, deletes week-old uploads, expired tokens, analytics events older than 13 months
 ├── notifications/    Reminder emails (every 15 min), Monday digest, daily/weekly job alerts from @cvb/jobfeed
 ├── services/         Expert orders: due/overdue warnings, auto-complete after 7 days, payouts
 ├── candidates/       Agency bulk import: parse each uploaded CV, flag low-confidence fields
@@ -261,7 +261,7 @@ web/src/
 
 - **One editor, two stores.** `Builder` only knows a `DocumentController`. Guests get browser storage; signed-in users get autosave to the API (debounced), an offline queue in `localStorage` that flushes when the connection returns, polling for changes from other devices, and a "newer version on another device" choice when both sides changed (last write wins).
 - **Gating never dead-ends.** Locked templates stay previewable (a "trying" state that isn't saved); downloads, Word/TXT, share links and extra CVs open the `UpgradeDialog`, which links to pricing (or sign-up for guests). The API enforces the same rules.
-- **Analytics** are batched funnel events without personal data (`lib/analytics.ts` → `POST /events`).
+- **Analytics** are first-party and privacy-first (`lib/analytics.ts` → `POST /events`, page views from `components/analytics/AnalyticsTracker`); see §7.1. The admin reports live at `/admin/analytics` and are drawn with the small chart kit in `components/charts`.
 
 ---
 
@@ -273,6 +273,37 @@ web/src/
 - Soft deletes (`deletedAt`) for user content; `ResumeVersion` rows for restore points.
 - Migrations live in `packages/db/prisma/migrations`, are created with `pnpm db:migrate` and applied in deploys with `pnpm db:deploy`. Never edit an applied migration; add a new one.
 - Money and credits are append-only (`CreditLedger`); balances are derived.
+
+### 7.1 Product analytics
+
+First-party: events go to our own API and stay in our Postgres. There is no third-party tracker, no cookie and no IP address stored.
+
+**What is collected**
+
+| Where | What |
+| --- | --- |
+| Browser (`lib/analytics.ts`) | A random id per browser (localStorage), a 30-minute session id (a new UTM campaign starts a new session), the page path with ids and secret slugs replaced (`/r/:slug`, `/edit/:id`; `normalisePath`), no query string except UTM tags; first-touch and session attribution (utm_source/medium/campaign/term/content, the referring site's domain, the landing path); interface language; the currency prices were shown in; a country guessed from the time zone; event props from the catalog |
+| API (`AnalyticsService`) | Device class (mobile/tablet/desktop) and browser family from the User-Agent, which is not stored; the country from `cf-ipcountry` / `x-vercel-ip-country` when a proxy sets it, else the browser's guess. Bots, scripts and headless browsers are dropped (`isBot`) |
+| Server-side events | `signed_up` (Better Auth hook), `purchase_completed`, `subscription_started` / `_renewed` / `_cancelled`, `payment_failed`, `payment_refunded` (billing webhooks, through the `AnalyticsRecorder` port), `import_finished` (worker). They use `u:<userId>` as their anonymous id |
+
+**What is not collected**: names, emails, CV or letter text, job titles, free text, IP addresses, full referrer URLs, full User-Agents, query strings. Browsers sending Do Not Track or Global Privacy Control send nothing at all (and the API drops such requests too).
+
+**Tables**: `analytics_events` (indexed columns for session, path, referrer, UTM, device, browser, country, locale, currency; `props` JSON for the rest), `analytics_visitors` (one row per browser: first-touch attribution and the account it was linked to), `users.acquisition` (first touch, copied once), `mrr_movements` (append-only MRR changes per subscription and currency), and the billing tables.
+
+**Identity stitching**: the first event a browser sends while signed in links its anonymous id to the account (`analytics_visitors.user_id`, never moved afterwards) and, if the browser was seen before the account existed (or within the hour after), copies its first touch onto `users.acquisition`. Reports count people as `COALESCE(user, linked user, browser)`, so funnels carry across sign-up and devices.
+
+**Reports** (`modules/analytics`, admin only): one SQL aggregate query per need behind the `AnalyticsReportsRepository` port; funnels, cohorts, MRR and period comparison in `@cvb/domain`; results cached five minutes. Dimension filters are person-level first touch (the account's acquisition, else the browser's first visit); the currency filter applies to money only. Revenue reads billing records (subscriptions with amount and interval, `mrr_movements`, invoices/payments/refunds/failed payments in `billing_events`, passes, expert orders), never browser events, and never adds currencies together. Yearly plans count as a twelfth per month; trials don't count; past-due still counts until cancelled.
+
+**Retention**: raw events are deleted after 13 months by the daily maintenance job (a year plus a month: the 12-month report stays complete, though its comparison with the year before only covers what is left); anonymous visitors not seen for 13 months go too. Deleting an account nulls the user id on its events and visitors.
+
+**No rollup table yet** (decision): at current volumes the reports read raw events through time-range indexes (`created_at`, `(name, created_at)`, `(anonymous_id, created_at)`, `(user_id, created_at)`), and the five-minute cache absorbs repeat views. Add a daily rollup (per day × event × dimensions, written by the worker) when the 12-month reports get slow, roughly past a few million events; the report port won't change.
+
+**Adding an event**
+1. Add it to `ANALYTICS_EVENT_CATALOG` in `packages/contracts/src/analytics.ts` with a label, group, `client: true` if browsers send it, and the `feature` it counts towards in the usage report.
+2. Call `track("name", props)` in the web app (props: ids from our own catalog and small enums, never personal data), or `AnalyticsRecorder.record("name", { userId, props })` in the API.
+3. If a report needs it as a step or a column, add it to the query in `prisma-analytics-reports.repository.ts` and to the domain helper or service.
+
+**Sample data**: `pnpm db:seed:analytics` writes about 180 days of clearly marked fake activity for local checks (`--clear` removes it, `--dry-run` writes nothing); it refuses to run with `NODE_ENV=production`.
 
 ---
 
@@ -339,6 +370,7 @@ pnpm install
 pnpm services:up          # Postgres + Redis (Docker)
 pnpm db:migrate           # apply migrations
 pnpm db:seed              # dev@cvbuilder.local (Premium) and admin@cvbuilder.local, password "password123"
+pnpm db:seed:analytics    # optional: ~180 days of sample analytics data for /admin/analytics
 pnpm dev                  # web :3000, api :4000, worker
 ```
 
@@ -404,5 +436,6 @@ curl -H "x-dev-user: dev@cvbuilder.local" http://localhost:4000/api/v1/resumes
 | 22 | Organisation seats raise the member's plan through entitlements | No separate licence logic in features: `can(plan, …)` keeps working, the plan source says "organization" |
 | 23 | Host-based routing (Next proxy) + Caddy on-demand TLS for portfolio and white-label domains | One deployment serves the app, `<slug>.PORTFOLIO_DOMAIN` sites and verified custom domains; certificates only for domains the API vouches for |
 | 24 | In-house i18n (en/ur/ar) with logical CSS everywhere; CV direction separate from UI language | No dependency; RTL layouts mirror via `ms/me/ps/pe/start/end`; a CV can be RTL while the UI is English and vice versa |
+| 25 | First-party analytics in our Postgres; reports from raw events (no rollup yet); revenue from billing tables | No third-party tracker or cookie banner; one source of truth for money; a rollup can be added behind the same port when volume needs it |
 
 New significant decisions get a short ADR in `docs/adr/NNN-title.md` and a row here.

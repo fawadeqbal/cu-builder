@@ -4,7 +4,7 @@ import type { OfferDto, RedirectDto } from "@cvb/contracts";
 import { yearlySaving, type Currency, type Plan } from "@cvb/domain";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Alert, Badge, Button, Icon, SegmentedControl, type IconName } from "@cvb/ui";
 import { track } from "@/lib/analytics";
 import { api } from "@/lib/api";
@@ -29,11 +29,15 @@ export function PricingPage() {
   const [interval, setBillingInterval] = useState<"month" | "year">("year");
   const highlight = (params.get("plan") as Plan | null) ?? "premium";
   const cancelled = params.get("checkout") === "cancelled";
+  const highlightParam = params.get("plan");
+  useEffect(() => {
+    track("pricing_viewed", { ...(highlightParam ? { plan: highlightParam.slice(0, 20) } : {}), returnedFromCheckout: cancelled });
+  }, [highlightParam, cancelled]);
 
   const checkout = useMutation({
     mutationFn: (offer: OfferDto) =>
       api.post<RedirectDto>("/billing/checkout", { offer: offer.id, currency: offer.currency }),
-    onMutate: (offer) => track("checkout_started", { offer: offer.id, currency: offer.currency }),
+    onMutate: (offer) => track("checkout_started", { offer: offer.id, currency: offer.currency, kind: offer.kind }),
     onSuccess: ({ url }) => {
       window.location.href = url;
     },

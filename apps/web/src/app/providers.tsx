@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
 import { UiProvider, type ThemeChoice, type UiLinkProps } from "@cvb/ui";
 import { isApiError } from "@/lib/api";
+import { AnalyticsTracker } from "@/components/analytics/AnalyticsTracker";
 import { BrandingProvider } from "@/components/branding/BrandingProvider";
 import { I18nProvider, useI18n, type Locale } from "@/lib/i18n";
 import { ThemeProvider } from "@/lib/theme";
@@ -63,7 +64,10 @@ export function Providers({ children, locale = "en", theme = "system" }: { child
       <ThemeProvider initial={theme}>
         <I18nProvider initial={locale}>
           <DesignSystem>
-            <BrandingProvider>{children}</BrandingProvider>
+            <BrandingProvider>
+              <AnalyticsTracker />
+              {children}
+            </BrandingProvider>
           </DesignSystem>
         </I18nProvider>
       </ThemeProvider>

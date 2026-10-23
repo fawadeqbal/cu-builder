@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Alert, Button, Icon, Spinner } from "@cvb/ui";
 import { gateForError, useAiCall } from "@/lib/ai";
 import { api } from "@/lib/api";
+import { track } from "@/lib/analytics";
 import type { Gate } from "@/lib/plans";
 import { useJobs } from "@/lib/queries";
 import { Dialog } from "../ui/Dialog";
@@ -92,6 +93,7 @@ export function MatchDialog({ open, onClose, cv, resumeId, flush, onCv, onGate }
     setBusy("letter");
     try {
       const letter = await api.post<CoverLetterDto>("/cover-letters", { resumeId, jobId: job.id });
+      track("cover_letter_created", { from: "match" });
       router.push(`/letters/${letter.id}`);
     } catch (e) {
       const gate = gateForError(e);

@@ -2,6 +2,7 @@
 
 import type {
   AdminMetricsDto,
+  AnalyticsOverviewDto,
   AdminUpdateUserDto,
   AdminUserDto,
   MeDto,
@@ -21,39 +22,29 @@ import {
   Card,
   DataTable,
   PageHeader,
-  ProgressBar,
   SearchField,
   Select,
   Skeleton,
   StatTile,
   Switch,
-  Tabs,
   TextField,
   TierBadge,
 } from "@cvb/ui";
 import { api } from "@/lib/api";
 import { PLAN_LABEL } from "@/lib/plans";
 import { keys } from "@/lib/queries";
+import { formatCount, formatMoney, formatPercent, MetricTile } from "../charts";
 import { AppHeader } from "../AppHeader";
 import { RequireAuth } from "../RequireAuth";
+import { ADMIN_TAB_LABEL, ADMIN_TABS, AdminTabs, type AdminTab } from "./AdminTabs";
 import { OrgsAdmin } from "./OrgsAdmin";
 import { ExpertsAdmin } from "./ExpertsAdmin";
 import { PricingAdmin } from "./PricingAdmin";
 import { ReviewsAdmin } from "./ReviewsAdmin";
 import { SiteSettingsAdmin } from "./SiteSettingsAdmin";
 
-const TABS = ["overview", "users", "templates", "organisations", "experts", "pricing", "reviews", "settings"] as const;
-type Tab = (typeof TABS)[number];
-const TAB_LABEL: Record<Tab, string> = {
-  overview: "Overview",
-  users: "Users",
-  templates: "Templates",
-  organisations: "Organisations",
-  experts: "Experts",
-  pricing: "Pricing",
-  reviews: "Reviews",
-  settings: "Site settings",
-};
+type Tab = Exclude<AdminTab, "analytics">;
+const TABS = ADMIN_TABS.filter((t): t is Tab => t !== "analytics");
 
 /** Internal console: numbers, users and the template catalog. Every call is checked by the API (role admin). */
 export function AdminPage() {
@@ -66,13 +57,8 @@ export function AdminPage() {
           <AppHeader />
           <main className="mx-auto flex w-full max-w-(--layout-xl) flex-col gap-6 px-4 pb-20 pt-10 sm:px-6">
             <PageHeader title="Admin" />
-            <Tabs
-              label="Admin sections"
-              value={tab}
-              onChange={setTab}
-              items={TABS.map((t) => ({ id: t, label: TAB_LABEL[t] }))}
-            />
-            <div role="tabpanel" aria-label={TAB_LABEL[tab]}>
+            <AdminTabs value={tab} onChange={setTab} />
+            <div role="tabpanel" aria-label={ADMIN_TAB_LABEL[tab]}>
               {tab === "overview" && <Overview />}
               {tab === "users" && <Users me={me} />}
               {tab === "templates" && <Templates />}
@@ -89,16 +75,6 @@ export function AdminPage() {
   );
 }
 
-const FUNNEL = ["visit", "cv_started", "cv_completed", "pdf_downloaded", "signed_up", "checkout_started", "purchased"];
-/** "cv_started" → "CV started". */
-const eventLabel = (name: string) => {
-  const s = name
-    .replace(/_/g, " ")
-    .replace(/^cv\b/, "CV")
-    .replace(/^pdf\b/, "PDF");
-  return s.charAt(0).toUpperCase() + s.slice(1);
-};
-
 function Overview() {
   const metrics = useQuery({
     queryKey: ["admin", "metrics"],
@@ -106,9 +82,6 @@ function Overview() {
   });
   const m = metrics.data;
   if (!m) return <Loading />;
-  const counts = new Map(m.funnel.map((f) => [f.name, f.count]));
-  const top = Math.max(1, ...FUNNEL.map((n) => counts.get(n) ?? 0));
-  const first = counts.get(FUNNEL[0]!) ?? 0;
   const tiles = [
     ["Users", m.users.total, `${m.users.last7Days} new this week`, "users"],
     ["CVs", m.resumes, "not counting trash", "files"],
@@ -122,29 +95,47 @@ function Overview() {
           <StatTile key={label} label={label} value={value.toLocaleString()} hint={hint} icon={icon} />
         ))}
       </div>
-      <Card title="Funnel, last 30 days" description="Percentages are of visits.">
-        <ol className="flex flex-col gap-4">
-          {FUNNEL.map((name, i) => {
-            const n = counts.get(name) ?? 0;
-            return (
-              <li key={name}>
-                <ProgressBar
-                  value={n}
-                  max={top}
-                  label={eventLabel(name)}
-                  valueLabel={
-                    <>
-                      {n.toLocaleString()}
-                      {i > 0 && first > 0 && <span className="ms-2 text-ink-3">{Math.round((n / first) * 100)}%</span>}
-                    </>
-                  }
-                />
-              </li>
-            );
-          })}
-        </ol>
-      </Card>
+      <AnalyticsSummary />
     </div>
+  );
+}
+
+/** The last 30 days at a glance, with the way into the full Analytics area. */
+function AnalyticsSummary() {
+  const q = useQuery({
+    queryKey: ["admin", "analytics", "overview", "range=30d&compare=1"],
+    queryFn: () => api.get<AnalyticsOverviewDto>("/admin/analytics/overview?range=30d&compare=1"),
+  });
+  const d = q.data;
+  return (
+    <Card
+      title="Last 30 days"
+      description="Compared with the 30 days before. Funnels, sources, revenue and retention are in Analytics."
+      actions={
+        <Button href="/admin/analytics" variant="secondary" size="sm" iconEnd="arrow-right">
+          Open analytics
+        </Button>
+      }
+    >
+      {q.error ? (
+        <Alert tone="danger">{q.error.message}</Alert>
+      ) : !d ? (
+        <Skeleton height={96} shape="block" />
+      ) : (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <MetricTile label="Visitors" value={formatCount(d.tiles.visitors.value)} metric={d.tiles.visitors} />
+          <MetricTile label="Sign-ups" value={formatCount(d.tiles.signups.value)} metric={d.tiles.signups} />
+          <MetricTile label="Visitor to sign-up" value={formatPercent(d.rates.visitorToSignup.value)} metric={d.rates.visitorToSignup} formatPrevious={formatPercent} />
+          {d.revenue.length ? (
+            d.revenue.map((r) => (
+              <MetricTile key={r.currency} label={`Revenue, ${r.currency.toUpperCase()}`} value={formatMoney(r.cents.value, r.currency)} metric={r.cents} formatPrevious={(v) => formatMoney(v, r.currency)} />
+            ))
+          ) : (
+            <MetricTile label="Paying customers" value={formatCount(d.tiles.payingCustomers.value)} metric={d.tiles.payingCustomers} />
+          )}
+        </div>
+      )}
+    </Card>
   );
 }
 

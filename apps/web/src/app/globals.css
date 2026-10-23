@@ -176,3 +176,126 @@ html[lang="ur"] body {
 html[lang="ur"] :is(input, select, textarea, button) {
   line-height: 1.9;
 }
+
+/* ------------------------------------------------------------------ Data visualisation */
+
+/* Chart colours (components/charts). Categorical slots are the validated reference palette in a
+   fixed order (checked with the dataviz validator against the card surface: light #fafafa, dark
+   #1d1d1d; light slots 3 to 5 sit under 3:1, so every chart has a legend or labels and a table
+   view). Sequential and ordinal ramps are one blue hue; the ordinal funnel ramp keeps its lightest
+   step at 2:1 or more against the surface. Losses (churn) use the red slot as the other pole. */
+:root,
+[data-theme="light"] {
+  --viz-1: #2a78d6;
+  --viz-2: #eb6834;
+  --viz-3: #1baf7a;
+  --viz-4: #eda100;
+  --viz-5: #e87ba4;
+  --viz-6: #008300;
+  --viz-7: #6250d6;
+  --viz-8: #e34948;
+  --viz-muted: #8a8a8a;
+  --viz-grid: #e6e6e6;
+  --viz-axis: #bdbdbd;
+  --viz-gain: #2a78d6;
+  --viz-loss: #e34948;
+  --viz-ord-1: #104281;
+  --viz-ord-2: #1c5cab;
+  --viz-ord-3: #2a78d6;
+  --viz-ord-4: #5598e7;
+  --viz-ord-5: #86b6ef;
+  --viz-seq-0: #f2f2f2;
+  --viz-seq-1: #cde2fb;
+  --viz-seq-2: #9ec5f4;
+  --viz-seq-3: #6da7ec;
+  --viz-seq-4: #3987e5;
+  --viz-seq-5: #256abf;
+  --viz-seq-6: #184f95;
+  --viz-seq-7: #0d366b;
+}
+
+[data-theme="dark"] {
+  --viz-1: #3987e5;
+  --viz-2: #d95926;
+  --viz-3: #199e70;
+  --viz-4: #c98500;
+  --viz-5: #d55181;
+  --viz-6: #008300;
+  --viz-7: #9085e9;
+  --viz-8: #e66767;
+  --viz-muted: #7a7a7a;
+  --viz-grid: #2b2b2b;
+  --viz-axis: #454545;
+  --viz-gain: #3987e5;
+  --viz-loss: #e66767;
+  --viz-ord-1: #9ec5f4;
+  --viz-ord-2: #6da7ec;
+  --viz-ord-3: #3987e5;
+  --viz-ord-4: #256abf;
+  --viz-ord-5: #184f95;
+  /* Dark flips the sequential anchor: little is close to the surface, a lot is bright. */
+  --viz-seq-0: #232323;
+  --viz-seq-1: #0d366b;
+  --viz-seq-2: #104281;
+  --viz-seq-3: #184f95;
+  --viz-seq-4: #256abf;
+  --viz-seq-5: #3987e5;
+  --viz-seq-6: #6da7ec;
+  --viz-seq-7: #9ec5f4;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --viz-1: #3987e5;
+    --viz-2: #d95926;
+    --viz-3: #199e70;
+    --viz-4: #c98500;
+    --viz-5: #d55181;
+    --viz-6: #008300;
+    --viz-7: #9085e9;
+    --viz-8: #e66767;
+    --viz-muted: #7a7a7a;
+    --viz-grid: #2b2b2b;
+    --viz-axis: #454545;
+    --viz-gain: #3987e5;
+    --viz-loss: #e66767;
+    --viz-ord-1: #9ec5f4;
+    --viz-ord-2: #6da7ec;
+    --viz-ord-3: #3987e5;
+    --viz-ord-4: #256abf;
+    --viz-ord-5: #184f95;
+    --viz-seq-0: #232323;
+    --viz-seq-1: #0d366b;
+    --viz-seq-2: #104281;
+    --viz-seq-3: #184f95;
+    --viz-seq-4: #256abf;
+    --viz-seq-5: #3987e5;
+    --viz-seq-6: #6da7ec;
+    --viz-seq-7: #9ec5f4;
+  }
+}
+
+/* Forced colours (Windows high contrast): marks fall back to system colours so they stay visible. */
+@media (forced-colors: active) {
+  .viz-mark {
+    fill: CanvasText;
+    stroke: CanvasText;
+  }
+}
+
+/* Text on the sequential cells of the cohort heatmap: whichever ink contrasts with the step. */
+:root,
+[data-theme="light"] {
+  --viz-seq-ink-low: #1a1a1a;
+  --viz-seq-ink-high: #ffffff;
+}
+[data-theme="dark"] {
+  --viz-seq-ink-low: #ededed;
+  --viz-seq-ink-high: #0b1a2e;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --viz-seq-ink-low: #ededed;
+    --viz-seq-ink-high: #0b1a2e;
+  }
+}

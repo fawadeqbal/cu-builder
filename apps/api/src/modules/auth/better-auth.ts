@@ -72,7 +72,9 @@ export function createBetterAuth({ db, config, jobs }: AuthDeps) {
             data: { ...user, role: config.ADMIN_EMAILS.includes(user.email.toLowerCase()) ? "admin" : "user" },
           }),
           after: async (user) => {
-            await db.analyticsEvent.create({ data: { name: "signed_up", anonymousId: user.id, userId: user.id } }).catch(() => undefined);
+            // Server-side, so sign-ups count even when the browser sends no analytics. The browser's
+            // anonymous id is linked (and first-touch attribution copied) by its next event.
+            await db.analyticsEvent.create({ data: { name: "signed_up", anonymousId: `u:${user.id}`, userId: user.id } }).catch(() => undefined);
             await jobs.enqueue(
               QUEUES.email,
               "send",

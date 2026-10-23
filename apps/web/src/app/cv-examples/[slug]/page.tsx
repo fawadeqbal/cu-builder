@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge, Breadcrumbs, Icon, PaperSheet } from "@cvb/ui";
 import { templateMeta } from "@cvb/templates/catalog";
+import { TrackOnMount } from "@/components/analytics/TrackOnMount";
 import { FittedCV } from "@/components/cv/FittedCV";
 import { PublicPage } from "@/components/marketing/PublicPage";
 import { wrap } from "@/components/marketing/layout";
@@ -35,11 +36,12 @@ export default async function ExamplePage({ params }: PageProps<"/cv-examples/[s
   const e = exampleBySlug((await params).slug);
   if (!e) notFound();
   const template = templateMeta(e.template);
-  const handoff = { cv: e.cv, template: e.template, accent: e.accent };
+  const handoff = { cv: e.cv, template: e.template, accent: e.accent, source: "cv_example" as const, example: e.slug };
 
   return (
     <PublicPage>
       <JsonLd data={faqPageJsonLd(e.faqs)} />
+      <TrackOnMount name="cv_example_viewed" props={{ example: e.slug }} />
       <div className={`${wrap} flex flex-col gap-10 pb-20 pt-8`}>
         <header className="flex flex-col gap-5">
           <Breadcrumbs items={[{ href: "/", label: "Home" }, { href: "/cv-examples", label: "CV examples" }, { label: e.role }]} />

@@ -4,6 +4,7 @@ import {
   DEFAULT_CURRENCY,
   checkPrice,
   effectivePlan,
+  mrrMovements,
   offerById,
   offersIn,
   priceTable,
@@ -13,10 +14,11 @@ import {
 } from "@cvb/domain";
 import { JOB_PRODUCER, type JobProducer } from "@cvb/queue";
 import { NotFoundError, ValidationError } from "@cvb/shared";
-import { Inject, Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger, Optional } from "@nestjs/common";
 import { APP_CONFIG, type AppConfig } from "../../config/app-config.js";
 import type { AuthUser } from "../../common/auth/auth.types.js";
-import { BILLING_REPOSITORY, type BillingRepository } from "./billing.repository.js";
+import { ANALYTICS_RECORDER, type AnalyticsRecorder } from "../analytics/analytics-recorder.js";
+import { BILLING_REPOSITORY, type BillingRepository, type EventPayment } from "./billing.repository.js";
 import { PAYMENT_GATEWAYS, type BillingEvent, type PaymentGateway } from "./payment-gateway.js";
 import { PRICE_SETTINGS, type PriceSettingsRepository } from "./price-settings.repository.js";
 
@@ -34,6 +36,7 @@ export class BillingService {
     @Inject(JOB_PRODUCER) private readonly jobs: JobProducer,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     @Inject(PRICE_SETTINGS) private readonly prices: PriceSettingsRepository,
+    @Optional() @Inject(ANALYTICS_RECORDER) private readonly analytics?: AnalyticsRecorder,
   ) {}
 
   /** Expert services register here to hear about paid orders (keeps billing free of service code). */
@@ -144,12 +147,36 @@ export class BillingService {
   async handleWebhook(provider: "stripe" | "local", rawBody: Buffer, signature: string | undefined): Promise<void> {
     const event = await this.gateways[provider].parseWebhook(rawBody, signature);
     if (event.kind === "ignored") return;
-    const payment = event.kind === "payment.completed" ? { amountCents: event.amountCents, currency: event.currency.toLowerCase() } : undefined;
-    if (!(await this.billing.markEventProcessed(event.id, event.kind, payment))) {
+    if (!(await this.billing.markEventProcessed(event.id, event.kind, await this.paymentOf(event)))) {
       this.logger.log(`Skipping already processed event ${event.id}`);
       return;
     }
     await this.apply(event);
+  }
+
+  /** What an event charged, refunded or failed to charge, and who for (the revenue report reads these rows). */
+  private async paymentOf(event: Exclude<BillingEvent, { kind: "ignored" }>): Promise<EventPayment | undefined> {
+    switch (event.kind) {
+      case "payment.completed":
+        return { amountCents: event.amountCents, currency: event.currency.toLowerCase(), userId: event.userId || null, offer: event.offer };
+      case "invoice.paid":
+      case "invoice.payment_failed":
+      case "charge.refunded":
+        return {
+          amountCents: event.amountCents,
+          currency: event.currency.toLowerCase(),
+          userId: await this.userOf(event),
+          offer: event.kind === "invoice.paid" ? event.offer : null,
+        };
+      case "order.paid":
+        return event.currency ? { amountCents: event.amountCents, currency: event.currency.toLowerCase() } : undefined;
+      default:
+        return undefined;
+    }
+  }
+
+  private async userOf(event: { userId: string | null; customerRef: string | null }): Promise<string | null> {
+    return event.userId ?? (event.customerRef ? await this.billing.userIdForStripeCustomer(event.customerRef) : null);
   }
 
   /** Applies one normalised event. Public for tests. */
@@ -157,15 +184,57 @@ export class BillingService {
     if (event.kind === "subscription.changed") {
       const userId = event.userId ?? (await this.billing.userIdForStripeCustomer(event.customerRef));
       if (!userId) throw new NotFoundError("Customer", event.customerRef);
-      await this.billing.upsertSubscription({
-        userId,
-        providerRef: event.subscriptionRef,
-        plan: event.plan,
-        status: event.status,
-        currentPeriodEnd: event.currentPeriodEnd,
-        cancelAtPeriodEnd: event.cancelAtPeriodEnd,
-        currency: event.currency,
-      });
+      const before = await this.billing.findSubscription(event.subscriptionRef);
+      const offer = event.offer ? offerById(event.offer) : null;
+      const interval = event.interval ?? (offer?.kind === "subscription" ? offer.interval : null) ?? before?.interval ?? null;
+      const amountCents = event.amountCents ?? before?.amountCents ?? null;
+      const plan = event.plan === "free" ? "standard" : event.plan;
+      const after = { status: event.status, amountCents, interval, plan, currency: event.currency };
+      const now = new Date();
+      const movements = mrrMovements(before, after).map((m) => ({ ...m, at: now }));
+      await this.billing.upsertSubscription(
+        {
+          userId,
+          providerRef: event.subscriptionRef,
+          plan: event.plan,
+          status: event.status,
+          currentPeriodEnd: event.currentPeriodEnd,
+          cancelAtPeriodEnd: event.cancelAtPeriodEnd,
+          currency: event.currency,
+          offerId: event.offer ?? undefined,
+          amountCents: event.amountCents ?? undefined,
+          interval: interval ?? undefined,
+          canceledAt: event.status === "canceled" ? (before?.canceledAt ?? now) : null,
+        },
+        movements,
+      );
+      for (const m of movements) {
+        const props = { plan, interval: interval ?? "month", mrr_change: m.deltaCents };
+        if (m.kind === "new" || m.kind === "reactivation")
+          await this.analytics?.record("subscription_started", { userId, currency: m.currency, props: { ...props, reactivated: m.kind === "reactivation" } });
+        if (m.kind === "churn") await this.analytics?.record("subscription_cancelled", { userId, currency: m.currency, props });
+      }
+      return;
+    }
+
+    if (event.kind === "invoice.paid") {
+      if (event.reason === "renewal") {
+        await this.analytics?.record("subscription_renewed", {
+          userId: await this.userOf(event),
+          currency: event.currency.toLowerCase(),
+          props: { amount: event.amountCents, ...(event.offer ? { offer: event.offer } : {}) },
+        });
+      }
+      return;
+    }
+
+    if (event.kind === "invoice.payment_failed") {
+      await this.analytics?.record("payment_failed", { userId: await this.userOf(event), currency: event.currency.toLowerCase(), props: { amount: event.amountCents } });
+      return;
+    }
+
+    if (event.kind === "charge.refunded") {
+      await this.analytics?.record("payment_refunded", { userId: await this.userOf(event), currency: event.currency.toLowerCase(), props: { amount: event.amountCents } });
       return;
     }
 
@@ -196,6 +265,11 @@ export class BillingService {
     } else {
       throw new ValidationError(`Offer ${offer.id} is a subscription, not a one-off payment`);
     }
+    await this.analytics?.record("purchase_completed", {
+      userId: event.userId,
+      currency: event.currency.toLowerCase(),
+      props: { offer: offer.id, kind: offer.kind, amount: event.amountCents },
+    });
     const profile = await this.billing.profile(event.userId);
     if (profile) {
       await this.jobs.enqueue(QUEUES.email, "send", {

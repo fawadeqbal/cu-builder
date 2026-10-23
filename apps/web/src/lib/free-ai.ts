@@ -4,6 +4,7 @@ import type { CreditsDto, PublicAiUsageDto } from "@cvb/contracts";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { creditsKey, useCredits } from "./ai";
+import { track } from "./analytics";
 import { api, isApiError } from "./api";
 import { useHydrated } from "./hydrated";
 import { useMe } from "./queries";
@@ -17,6 +18,9 @@ export type FreeAiTask = "write-summary" | "improve-bullet";
 
 const usageKey = ["public-ai", "usage"] as const;
 
+/** The free tool page each task belongs to (the `free_tool_used.tool` analytics prop). */
+const FREE_TOOL: Record<FreeAiTask, string> = { "write-summary": "summary_generator", "improve-bullet": "bullet_improver" };
+
 export function useFreeAi() {
   const hydrated = useHydrated();
   const me = useMe();
@@ -28,14 +32,20 @@ export function useFreeAi() {
 
   const call = useCallback(
     async <T,>(task: FreeAiTask, body: unknown): Promise<T> => {
+      const used = () => {
+        track("free_tool_used", { tool: FREE_TOOL[task], signedIn });
+        track("ai_action_used", { task, where: "free_tool" });
+      };
       if (signedIn) {
         const res = await api.post<T & { credits: CreditsDto }>(`/ai/${task}`, body);
         qc.setQueryData(creditsKey, res.credits);
+        used();
         return res;
       }
       try {
         const res = await api.post<T & { usage: PublicAiUsageDto }>(`/public/ai/${task}`, body);
         qc.setQueryData(usageKey, res.usage);
+        used();
         return res;
       } catch (e) {
         // Out of tries: refresh the counter so the page shows the sign-up prompt.

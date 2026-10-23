@@ -3,6 +3,7 @@
 import { Button, IconButton, Icon } from "@cvb/ui";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useT } from "@/lib/i18n";
+import { track } from "@/lib/analytics";
 import { useMe } from "@/lib/queries";
 import { canAskForReview, markReviewPromptSeen, useMyReview } from "@/lib/trust";
 import { Dialog } from "../ui/Dialog";
@@ -34,6 +35,7 @@ export function useReviewPrompt(signedIn: boolean): { afterDownload: () => void;
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
       markReviewPromptSeen("shown");
+      track("review_prompt_shown", { after: "download" });
       setOpen(true);
     }, DELAY_MS);
   }, [signedIn, mine.data]);

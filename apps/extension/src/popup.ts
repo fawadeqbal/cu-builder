@@ -2,7 +2,7 @@ import { AI_TASKS, matchJob, normalizeCV, type CV } from "@cvb/domain";
 import { createApi, explain, type ResumeSummary } from "./lib/api";
 import { startTailoring, tailorProblem } from "./lib/tailor";
 import { valuesFromCV } from "./lib/fields";
-import { loadSettings, originPattern } from "./lib/settings";
+import { analyticsId, loadSettings, originPattern } from "./lib/settings";
 import type { ExtractedJob, Settings } from "./lib/types";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -122,7 +122,9 @@ async function save() {
   button.disabled = true;
   button.textContent = "Saving…";
   try {
-    const app = await createApi(settings).saveJob(job);
+    const api = createApi(settings);
+    const app = await api.saveJob(job);
+    void analyticsId().then((id) => api.track(id, "application_added", { via: job.via }));
     message(`Saved “${app.job.title}” to your tracker.`, "ok", { label: "Open tracker", href: `${settings.appUrl}/tracker` });
     button.textContent = "Saved";
   } catch (e) {
@@ -145,7 +147,9 @@ async function tailor() {
   button.disabled = true;
   button.textContent = "Saving the job…";
   try {
-    const url = await startTailoring(createApi(settings), settings.appUrl, job, resumeId);
+    const api = createApi(settings);
+    const url = await startTailoring(api, settings.appUrl, job, resumeId);
+    void analyticsId().then((id) => api.track(id, "extension_tailor", { via: job.via }));
     message("Opening CV Builder… If you aren't signed in there, sign in and you'll come straight back to this job.", "ok");
     await chrome.tabs.create({ url });
   } catch (e) {

@@ -15,6 +15,12 @@ export type ResumeSummary = { id: string; title: string; updatedAt?: string };
 export type SavedApplication = { id: string; status: string; job: { id: string; title: string } };
 export type SavedJob = { id: string; title: string; company: string };
 
+/** Do Not Track and Global Privacy Control turn analytics off. */
+function trackingAllowed(): boolean {
+  const nav = (globalThis as { navigator?: { doNotTrack?: string | null; globalPrivacyControl?: boolean } }).navigator;
+  return !(nav?.doNotTrack === "1" || nav?.globalPrivacyControl === true);
+}
+
 /** Calls the CV Builder API with the personal access token. */
 export function createApi(settings: Settings, http: typeof fetch = fetch.bind(globalThis)) {
   const base = `${settings.appUrl}/api/v1`;
@@ -29,6 +35,7 @@ export function createApi(settings: Settings, http: typeof fetch = fetch.bind(gl
     } catch {
       throw new ApiError(0, "NETWORK", `Can't reach ${settings.appUrl}. Check the address in settings.`);
     }
+    if (res.status === 204) return undefined as T;
     const json = (await res.json().catch(() => null)) as { error?: { code?: string; message?: string } } | null;
     if (!res.ok) throw new ApiError(res.status, json?.error?.code ?? "HTTP_ERROR", json?.error?.message ?? `Request failed (${res.status})`);
     return json as T;
@@ -40,6 +47,13 @@ export function createApi(settings: Settings, http: typeof fetch = fetch.bind(gl
     saveJob: (job: ExtractedJob) => request<SavedApplication>("POST", "/applications", { job: jobPayload(job) }),
     /** Saves the posting to "Saved jobs" (the same link is never saved twice). */
     createJob: (job: ExtractedJob) => request<SavedJob>("POST", "/jobs", jobPayload(job)),
+    /** A product analytics event (no personal data). Failures are ignored: analytics never gets in the way. */
+    track: async (anonymousId: string, name: "extension_tailor" | "application_added", props: Record<string, string> = {}): Promise<void> => {
+      if (!trackingAllowed()) return;
+      await request<void>("POST", "/events", { anonymousId, context: { client: "extension" }, events: [{ name, props: { from: "extension", ...props } }] }).catch(
+        () => undefined,
+      );
+    },
   };
 }
 

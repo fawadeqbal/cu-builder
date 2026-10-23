@@ -2,7 +2,7 @@
 
 import type { MeDto, ResumeDto, ResumeImportDto, ResumeSummary } from "@cvb/contracts";
 import { IMPORT_ACCEPT, IMPORT_MAX_BYTES, importLimitFor } from "@cvb/contracts";
-import { normalizeCV } from "@cvb/domain";
+import { importFormat, normalizeCV } from "@cvb/domain";
 import { CVDocument } from "@cvb/templates";
 import { isTemplateId } from "@cvb/templates/catalog";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -82,7 +82,7 @@ export function Dashboard({ me }: { me: MeDto }) {
   const create = useMutation({
     mutationFn: () => api.post<ResumeDto>("/resumes", { title: "Untitled CV" }),
     onSuccess: (r) => {
-      track("cv_started", { source: "dashboard" });
+      track("cv_started", { source: "blank", from: "dashboard" });
       router.push(`/edit/${r.id}`);
     },
     onError: onPlanError,
@@ -94,8 +94,10 @@ export function Dashboard({ me }: { me: MeDto }) {
       form.append("file", file);
       return api.upload<ResumeImportDto>("/imports", form);
     },
-    onSuccess: () => {
-      track("import_started");
+    onSuccess: (_, file) => {
+      const format = importFormat(file.type, file.name);
+      track(format === "linkedin" ? "linkedin_import_started" : "import_started", { format });
+      track("cv_started", { source: format === "linkedin" ? "linkedin" : "import", format });
       void qc.invalidateQueries({ queryKey: keys.imports });
     },
     onError: onPlanError,
@@ -318,6 +320,7 @@ function ResumeCard({
   const duplicate = useMutation({
     mutationFn: () => api.post<ResumeDto>(`/resumes/${resume.id}/duplicate`),
     onSuccess: () => {
+      track("cv_started", { source: "duplicate" });
       onNotice("CV duplicated");
       onChanged();
     },

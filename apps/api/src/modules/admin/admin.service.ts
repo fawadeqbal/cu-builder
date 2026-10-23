@@ -32,25 +32,15 @@ export class AdminService {
   async metrics(): Promise<AdminMetricsDto> {
     const now = new Date();
     const since = new Date(now.getTime() - 7 * DAY);
-    const [total, last7Days, resumes, paying, activePasses, funnel] = await Promise.all([
+    // The funnel and everything else about behaviour lives in the Analytics reports.
+    const [total, last7Days, resumes, paying, activePasses] = await Promise.all([
       this.db.user.count({ where: { deletedAt: null } }),
       this.db.user.count({ where: { createdAt: { gte: since }, deletedAt: null } }),
       this.db.resume.count({ where: { deletedAt: null } }),
       this.db.subscription.count({ where: { status: { in: ["ACTIVE", "TRIALING", "PAST_DUE"] }, currentPeriodEnd: { gt: now } } }),
       this.db.pass.count({ where: { startsAt: { lte: now }, endsAt: { gt: now } } }),
-      this.db.analyticsEvent.groupBy({
-        by: ["name"],
-        where: { createdAt: { gte: new Date(now.getTime() - 30 * DAY) } },
-        _count: { _all: true },
-      }),
     ]);
-    return {
-      users: { total, last7Days },
-      resumes,
-      paying,
-      activePasses,
-      funnel: funnel.map((f) => ({ name: f.name, count: f._count._all })).sort((a, b) => b.count - a.count),
-    };
+    return { users: { total, last7Days }, resumes, paying, activePasses };
   }
 
   async users({ q, cursor, limit }: AdminUsersQuery): Promise<Page<AdminUserDto>> {

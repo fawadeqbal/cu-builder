@@ -25,3 +25,12 @@ export function normaliseAppUrl(raw: string): string {
 export const originPattern = (appUrl: string) => `${new URL(appUrl).origin}/*`;
 
 export const looksLikeToken = (t: string) => /^cvb_[\w-]{20,}$/.test(t.trim());
+
+/** A random id for this browser's extension install, so analytics counts installs without knowing who. */
+export async function analyticsId(): Promise<string> {
+  const s = (await chrome.storage.local.get(["analyticsId"])) as { analyticsId?: string };
+  if (s.analyticsId) return s.analyticsId;
+  const id = `ext-${crypto.randomUUID()}`;
+  await chrome.storage.local.set({ analyticsId: id });
+  return id;
+}

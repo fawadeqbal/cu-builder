@@ -4,6 +4,7 @@ import type { MeDto } from "@cvb/contracts";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 import { Icon } from "@cvb/ui";
+import { useHydrated } from "@/lib/hydrated";
 import { useMe } from "@/lib/queries";
 import { FullPageMessage } from "./ui/FullPageMessage";
 
@@ -12,6 +13,9 @@ export function RequireAuth({ children, admin = false }: { children: (me: MeDto)
   const me = useMe();
   const router = useRouter();
   const path = usePathname();
+  // The session is only known in the browser: render "Loading…" until hydration so the server HTML
+  // matches even when the session query has already resolved on the client.
+  const hydrated = useHydrated();
 
   useEffect(() => {
     if (me.isSuccess && !me.data && !me.isFetching) {
@@ -20,7 +24,7 @@ export function RequireAuth({ children, admin = false }: { children: (me: MeDto)
     }
   }, [me.isSuccess, me.data, me.isFetching, path, router]);
 
-  if (me.isError)
+  if (hydrated && me.isError)
     return (
       <FullPageMessage>
         <span className="inline-flex items-center gap-2" role="alert">
@@ -29,7 +33,7 @@ export function RequireAuth({ children, admin = false }: { children: (me: MeDto)
         </span>
       </FullPageMessage>
     );
-  if (!me.data)
+  if (!hydrated || !me.data)
     return (
       <FullPageMessage>
         <span className="inline-flex items-center gap-2" role="status">

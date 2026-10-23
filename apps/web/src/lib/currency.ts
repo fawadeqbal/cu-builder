@@ -4,6 +4,7 @@ import type { OfferDto } from "@cvb/contracts";
 import { DEFAULT_CURRENCY, isCurrency, type Currency } from "@cvb/domain";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useSyncExternalStore } from "react";
+import { track } from "./analytics";
 import { api } from "./api";
 import { keys } from "./queries";
 
@@ -82,6 +83,8 @@ const serverSnapshot = (): Currency => DEFAULT_CURRENCY;
 export function useCurrency(): [Currency, (next: Currency) => void] {
   const currency = useSyncExternalStore(subscribe, snapshot, serverSnapshot);
   const setCurrency = useCallback((next: Currency) => {
+    const before = snapshot();
+    if (before !== next) track("currency_switched", { from: before, to: next });
     chosen = next;
     try {
       window.localStorage.setItem(STORAGE_KEY, next);

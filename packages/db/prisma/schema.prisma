@@ -61,6 +61,9 @@ model User {
   banReason        String?   @map("ban_reason")
   banExpires       DateTime? @map("ban_expires")
   stripeCustomerId String?   @unique @map("stripe_customer_id")
+  /// First-touch attribution (source, medium, campaign, landing page, device, country), copied once
+  /// from the browser's anonymous visitor when it is linked at sign-up. Shape: AcquisitionSchema.
+  acquisition      Json?
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
   deletedAt        DateTime? @map("deleted_at")
@@ -92,7 +95,11 @@ model User {
   talentProfile TalentProfile?
   talentContacts TalentContact[]
   review        Review?
+  analyticsVisitors AnalyticsVisitor[]
+  analyticsEvents   AnalyticsEvent[]
+  mrrMovements      MrrMovement[]
 
+  @@index([createdAt])
   @@map("users")
 }
 
@@ -185,6 +192,7 @@ model Resume {
   talentProfiles TalentProfile[]
 
   @@index([userId, updatedAt(sort: Desc)])
+  @@index([createdAt])
   @@map("resumes")
 }
 
@@ -267,12 +275,20 @@ model Subscription {
   cancelAtPeriodEnd Boolean            @default(false) @map("cancel_at_period_end")
   /// Billing currency ("usd", "pkr").
   currency          String             @default("usd")
+  /// The offer bought ("premium_yearly"); null on subscriptions recorded before it was stored.
+  offerId           String?            @map("offer_id")
+  /// What one billing period costs (minor units) and how long a period is ("month" | "year").
+  amountCents       Int?               @map("amount_cents")
+  interval          String?
+  /// When it stopped (status became CANCELED).
+  canceledAt        DateTime?          @map("canceled_at")
   createdAt         DateTime           @default(now()) @map("created_at")
   updatedAt         DateTime           @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([status])
   @@map("subscriptions")
 }
 
@@ -281,11 +297,16 @@ model BillingEvent {
   id          String          @id
   provider    BillingProvider
   type        String
-  /// For payments: the amount (minor units) and currency charged.
+  /// For payments, renewals, refunds and failed payments: the amount (minor units) and currency.
   amountCents Int?            @map("amount_cents")
   currency    String?
+  /// Who paid and what for (offer id), when the provider says; used by the revenue report.
+  userId      String?         @map("user_id")
+  offer       String?
   processedAt DateTime        @default(now()) @map("processed_at")
 
+  @@index([type, processedAt])
+  @@index([userId])
   @@map("billing_events")
 }
 
@@ -307,6 +328,7 @@ model Pass {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, endsAt])
+  @@index([createdAt])
   @@map("passes")
 }
 
@@ -352,17 +374,95 @@ model PriceSetting {
   @@map("price_settings")
 }
 
-/// Privacy-friendly product events: an anonymous id, no personal data in `props`.
+/// Privacy-friendly product events: a random per-browser id, no personal data, no IP address.
+/// Server-side events (sign-ups, billing) use "u:<userId>" as their anonymous id.
+/// Raw events are deleted after 13 months by the worker's daily maintenance job.
 model AnalyticsEvent {
-  id          String   @id @default(cuid())
-  name        String
-  anonymousId String   @map("anonymous_id")
-  userId      String?  @map("user_id")
-  props       Json?
-  createdAt   DateTime @default(now()) @map("created_at")
+  id             String   @id @default(cuid())
+  name           String
+  anonymousId    String   @map("anonymous_id")
+  userId         String?  @map("user_id")
+  /// 30-minute browser session.
+  sessionId      String?  @map("session_id")
+  /// Normalised path (ids and secret slugs replaced, no query).
+  path           String?
+  /// The session's attribution (last touch).
+  referrerDomain String?  @map("referrer_domain")
+  utmSource      String?  @map("utm_source")
+  utmMedium      String?  @map("utm_medium")
+  utmCampaign    String?  @map("utm_campaign")
+  utmTerm        String?  @map("utm_term")
+  utmContent     String?  @map("utm_content")
+  /// mobile | tablet | desktop, and the browser family, from the User-Agent (not stored).
+  device         String?
+  browser        String?
+  /// Two-letter country from a proxy header or the browser's time zone.
+  country        String?
+  /// Interface language and the currency prices were shown in.
+  locale         String?
+  currency       String?
+  /// Everything else, per event (template id, tool, offer…). Never personal data.
+  props          Json?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([name, createdAt])
+  @@index([createdAt])
+  @@index([anonymousId, createdAt])
+  @@index([userId, createdAt])
+  @@index([sessionId])
   @@map("analytics_events")
+}
+
+/// One row per browser (anonymous id): its first visit's attribution, and the account it was
+/// linked to at sign-up or sign-in (identity stitching). Reports count people through it.
+model AnalyticsVisitor {
+  anonymousId    String   @id @map("anonymous_id")
+  userId         String?  @map("user_id")
+  firstSeenAt    DateTime @default(now()) @map("first_seen_at")
+  lastSeenAt     DateTime @default(now()) @map("last_seen_at")
+  /// First-touch channel: UTM source or the referrer's site, else "(direct)"; medium likewise.
+  source         String   @default("(direct)")
+  medium         String   @default("(none)")
+  campaign       String?
+  term           String?
+  content        String?
+  referrerDomain String?  @map("referrer_domain")
+  landingPath    String?  @map("landing_path")
+  device         String?
+  browser        String?
+  country        String?
+  locale         String?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([firstSeenAt])
+  @@index([lastSeenAt])
+  @@index([userId])
+  @@map("analytics_visitors")
+}
+
+/// Append-only MRR changes per subscription (new, expansion, contraction, churn, reactivation),
+/// in one currency each. MRR on any date is the running sum of `deltaCents`.
+model MrrMovement {
+  id              String   @id @default(cuid())
+  subscriptionRef String   @map("subscription_ref")
+  userId          String?  @map("user_id")
+  kind            String
+  currency        String
+  plan            String
+  beforeCents     Int      @map("before_cents")
+  afterCents      Int      @map("after_cents")
+  deltaCents      Int      @map("delta_cents")
+  occurredAt      DateTime @default(now()) @map("occurred_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([currency, occurredAt])
+  @@index([subscriptionRef])
+  @@index([userId])
+  @@map("mrr_movements")
 }
 
 // ---------------------------------------------------------------- Phase 2: resume intelligence
@@ -695,6 +795,7 @@ model ServiceOrder {
   @@index([userId, createdAt(sort: Desc)])
   @@index([expertId, status])
   @@index([status, dueAt])
+  @@index([paidAt])
   @@map("service_orders")
 }
 

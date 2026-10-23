@@ -80,7 +80,7 @@ export function AtsResults({ result, onAddJob, onReset }: { result: AtsCheckDto;
             <p className="text-sm leading-6 text-ink">
               <strong>Fix these in the builder.</strong> We&apos;ll open your CV with everything we read already filled in, and the score updates as you edit.
             </p>
-            <OpenInBuilder cv={cv} label="Fix these in the builder" offerSignUp />
+            <OpenInBuilder cv={cv} label="Fix these in the builder" offerSignUp source="ats_check" />
           </div>
         </div>
       </Card>
